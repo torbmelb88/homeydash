@@ -1,0 +1,228 @@
+/* ===== Multi Light Tile ===== */
+/* Hide header and name for MultiLightTile */
+.tile.type-multi-light .tile-header,
+.tile.type-multi-light .tile-name {
+    display: none !important;
+}
+
+.multi-light-container {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    height: 100%;
+    min-height: 120px;
+    padding: 4px;
+    overflow: hidden;
+    align-items: stretch;
+    flex: 1;
+}
+
+/* Vertical Orientation: Sliders side-by-side (Columns) */
+.multi-light-container.vertical {
+    flex-direction: row;
+}
+
+/* Horizontal Orientation: Sliders stacked (Rows) */
+.multi-light-container.horizontal {
+    flex-direction: column;
+}
+
+.multi-light-item {
+    flex: 1;
+    display: flex;
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    gap: 8px;
+}
+
+/* Vertical Item Layout */
+/* Name (Top) -> Slider (Middle, fills height) -> Toggle (Bottom) */
+.multi-light-container.vertical .multi-light-item {
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: space-between;
+}
+
+.multi-light-container.vertical .slider-name {
+    order: 1;
+    margin-bottom: 4px;
+    text-align: center;
+    width: 100%;
+    white-space: normal;
+    line-height: 1.1;
+    max-height: 2.2em;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.multi-light-container.vertical .slider-wrapper {
+    order: 2;
+    flex: 1 1 auto;
+    /* Grow and shrink */
+    width: 42px;
+    /* Thinner bar */
+    min-height: 0;
+    height: 100%;
+    /* Force height */
+}
+
+.multi-light-container.vertical .slider-toggle {
+    order: 3;
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+/* Horizontal Item Layout */
+/* Name + Toggle (Top Row) -> Slider (Bottom Row, fills width) */
+.multi-light-container.horizontal .multi-light-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    /* Name takes space, Toggle auto */
+    grid-template-rows: auto 1fr;
+    /* Header row, Slider row */
+    align-items: center;
+    gap: 4px 8px;
+    /* Row gap 4px, Col gap 8px */
+}
+
+.multi-light-container.horizontal .slider-name {
+    grid-column: 1;
+    grid-row: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.multi-light-container.horizontal .slider-toggle {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.multi-light-container.horizontal .slider-wrapper {
+    grid-column: 1 / -1;
+    /* Span full width */
+    grid-row: 2;
+    height: 42px;
+    /* Thinner bar */
+    width: 100%;
+}
+
+/* Common Styles */
+.slider-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.slider-toggle {
+    pointer-events: auto;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    flex-shrink: 0;
+}
+
+.slider-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    transform: scale(1.05);
+}
+
+.slider-toggle.on {
+    background: white;
+    color: #333;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* The Slider Track */
+.slider-wrapper {
+    position: relative;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* The actual range input - Invisible but clickable */
+.multi-light-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    cursor: pointer;
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    z-index: 10;
+    opacity: 0;
+}
+
+.multi-light-slider:focus {
+    outline: none;
+}
+
+/* The Visual Filled Bar */
+.slider-wrapper::before {
+    content: '';
+    position: absolute;
+    background: #FFC107;
+    /* Yellow/Gold color */
+    transition: all 0.1s ease-out;
+    z-index: 1;
+    border-radius: 16px;
+}
+
+/* Horizontal Bar Fill (Left to Right) */
+.multi-light-container.horizontal .slider-wrapper::before {
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: calc(var(--val) * 100%);
+}
+
+/* Vertical Bar Fill (Bottom to Top) */
+.multi-light-container.vertical .slider-wrapper::before {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(var(--val) * 100%);
+    top: auto;
+}
+
+/* Vertical Slider Input Rotation */
+/* Rotate the input -90deg so "right" becomes "up" */
+.multi-light-container.vertical .multi-light-slider {
+    /* Width is set dynamically via inline style to match container height */
+    height: 42px;
+    /* Match the container width (since rotated) */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    cursor: ns-resize;
+}
+
+/* Percent Text inside the bar */
+.slider-percent {
+    position: relative;
+    z-index: 5;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}

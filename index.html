@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/homeydash.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Homeydash</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      window.__appLoaded = false;
+      window.addEventListener('error', function(e) {
+        if (window.__appLoaded) return;
+        var root = document.getElementById('root');
+        if (root && !root.innerHTML.trim()) {
+          root.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#111;color:#eee;font-family:sans-serif;gap:16px;padding:24px;text-align:center"><p style="font-size:1.1rem;opacity:0.8">Appen krasjet under oppstart</p><p style="font-size:0.85rem;opacity:0.5;max-width:320px">' + (e.message || 'Ukjent feil') + '</p><button onclick="location.reload()" style="padding:10px 24px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:1rem;cursor:pointer">Last inn på nytt</button></div>';
+        }
+      });
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

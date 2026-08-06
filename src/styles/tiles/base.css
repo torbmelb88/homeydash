@@ -1,0 +1,461 @@
+/* ===== Dashboard Layout ===== */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.dashboard {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-xl);
+    position: relative;
+    z-index: 1;
+    margin-top: 0;
+}
+
+.tile.type-weather,
+.tile.type-flow,
+.tile.type-header,
+.tile.type-web,
+.tile.type-hierarchy {
+    padding: 0;
+}
+
+.tile-grid {
+    display: grid;
+    /* Use configurable variables with fallbacks */
+    grid-template-columns: var(--grid-columns, repeat(auto-fill, minmax(160px, 1fr)));
+    grid-auto-rows: var(--grid-row-height, 16px);
+    grid-auto-flow: dense;
+    gap: var(--spacing-md);
+    padding-bottom: 0;
+    transition: all var(--transition-base);
+    /* Ensure grid is visible and interactive */
+    opacity: 1;
+    visibility: visible;
+}
+
+body.edit-mode .tile-grid {
+    padding-bottom: var(--spacing-2xl);
+    grid-auto-flow: row;
+}
+
+/* ===== Base Tile Styles ===== */
+.tile {
+    position: relative;
+    background: var(--color-surface);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    transition: all var(--transition-base);
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    box-shadow: var(--shadow-md);
+    /* min-height: 160px; REMOVED to allow compact grid */
+}
+
+/* Removed .tile:hover effects for touch optimization */
+
+.tile:active {
+    transform: translateY(-2px);
+}
+
+/* Tile Sizes - Control columns */
+/* Width 1 */
+.tile.size-1x1,
+.tile.size-1x2,
+.tile.size-1x3,
+.tile.size-1x4 {
+    grid-column: span 1;
+}
+
+/* Width 2 */
+.tile.size-2x1,
+.tile.size-2x2,
+.tile.size-2x3,
+.tile.size-2x4 {
+    grid-column: span 2;
+}
+
+/* Width 3 */
+.tile.size-3x1,
+.tile.size-3x2,
+.tile.size-3x3,
+.tile.size-3x4 {
+    grid-column: span 3;
+}
+
+/* Width 4 */
+.tile.size-4x1,
+.tile.size-4x2,
+.tile.size-4x3,
+.tile.size-4x4 {
+    grid-column: span 4;
+}
+
+
+/* Width 5 */
+.tile.size-5x1,
+.tile.size-5x2,
+.tile.size-5x3,
+.tile.size-5x4,
+.tile.size-5x5,
+.tile.size-5x6 {
+    grid-column: span 5;
+}
+
+/* Width 6 */
+.tile.size-6x1,
+.tile.size-6x2,
+.tile.size-6x3,
+.tile.size-6x4,
+.tile.size-6x5,
+.tile.size-6x6 {
+    grid-column: span 6;
+}
+
+/* ===== Tile Header ===== */
+.tile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: transparent;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+    overflow: visible;
+    transition: all var(--transition-base);
+    margin-bottom: 4px;
+}
+
+.tile-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+    overflow: visible;
+    transition: all var(--transition-base);
+}
+
+.tile-icon.has-img {
+    background: transparent !important;
+}
+
+.tile-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.device-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.tile-name {
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+    font-weight: 500;
+    text-align: center;
+    width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: normal;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+
+.tile-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-bg-elevated);
+}
+
+/* ===== Tile Content ===== */
+.tile-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    cursor: pointer;
+    width: 100%;
+}
+
+.light-icon {
+    width: 32px;
+    height: 32px;
+    color: var(--color-text-secondary);
+    transition: color var(--transition-base);
+}
+
+.tile.active .light-icon {
+    color: var(--color-accent-warm);
+}
+
+.dim-percentage {
+    justify-content: center;
+}
+
+/* ===== Edit Mode Styles ===== */
+body.edit-mode .tile {
+    cursor: move;
+    border: 1px dashed rgba(255, 255, 255, 0.3);
+    animation: shake 0.3s infinite alternate;
+}
+
+/* Disable interaction with tile content in edit mode */
+body.edit-mode .tile-content,
+body.edit-mode .tile-content *,
+body.edit-mode .circular-slider-container,
+body.edit-mode .circular-slider-container * {
+    pointer-events: none !important;
+}
+
+body.edit-mode .tile-content {
+    opacity: 0.5;
+    filter: grayscale(0.5);
+}
+
+@keyframes shake {
+    from {
+        transform: rotate(-0.5deg);
+    }
+
+    to {
+        transform: rotate(0.5deg);
+    }
+}
+
+.tile-edit-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    /* Container passes clicks */
+    display: none;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 8px;
+    gap: 8px;
+    z-index: 20;
+    /* High z-index */
+    background: rgba(0, 0, 0, 0.2);
+}
+
+body.edit-mode .tile .tile-edit-overlay {
+    display: flex;
+}
+
+.tile-edit-btn {
+    pointer-events: auto;
+    /* Buttons catch clicks */
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+    cursor: pointer;
+}
+
+.tile-edit-btn svg {
+    pointer-events: none;
+}
+
+.tile-edit-btn:hover {
+    background: var(--color-surface-hover);
+    /* Removed transform for touch */
+}
+
+.tile-edit-btn.delete:hover {
+    background: var(--color-error);
+    color: white;
+    border-color: var(--color-error);
+}
+
+.tile-edit-btn.settings {
+    color: var(--color-accent-primary);
+}
+
+.tile-edit-btn.settings:hover {
+    background: rgba(var(--primary-rgb), 0.2);
+}
+
+.tile.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .tile-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        grid-auto-rows: 15px;
+        gap: var(--spacing-sm);
+    }
+
+    .tile {
+        padding: var(--spacing-md);
+    }
+
+    .tile-name {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .tile-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-auto-rows: 12px;
+        gap: var(--spacing-xs);
+    }
+
+    .tile-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .tile-icon svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Force tiles to respect grid width on mobile */
+    .tile.size-2x1,
+    .tile.size-2x2,
+    .tile.size-3x1,
+    .tile.size-3x2,
+    .tile.size-4x1,
+    .tile.size-4x2,
+    .tile.size-4x4 {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 360px) {
+    .tile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tile.size-1x1,
+    .tile.size-2x1,
+    .tile.size-2x2,
+    .tile.size-3x1,
+    .tile.size-3x2,
+    .tile.size-4x1,
+    .tile.size-4x2,
+    .tile.size-4x4 {
+        grid-column: span 1 !important;
+    }
+}
+
+/* ===== Media Slider ===== */
+.media-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.3);
+    outline: none;
+    cursor: pointer;
+}
+
+.media-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    margin-top: -4px;
+    /* Centers thumb on track */
+}
+
+.media-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    border: none;
+}
+
+.media-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+}
+
+.media-slider::-moz-range-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+}
+
+/* Helper to ensure DragOverlay is completely transparent to events */
+.pointer-events-none-recursive,
+.pointer-events-none-recursive * {
+    pointer-events: none !important;
+}
+
+/* ===== Panel Mode Overrides (Strict 2-Column System) ===== */
+.panel-mode .tile-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: var(--spacing-sm);
+}
+
+/* Force wide tiles to collapse/max out at 2 columns */
+.panel-mode .tile.size-2x1,
+.panel-mode .tile.size-2x2,
+.panel-mode .tile.size-2x3,
+.panel-mode .tile.size-2x4,
+.panel-mode .tile.size-3x1,
+.panel-mode .tile.size-3x2,
+.panel-mode .tile.size-3x3,
+.panel-mode .tile.size-3x4,
+.panel-mode .tile.size-4x1,
+.panel-mode .tile.size-4x2,
+.panel-mode .tile.size-4x3,
+.panel-mode .tile.size-4x4,
+.panel-mode .tile.size-5x1,
+.panel-mode .tile.size-5x2,
+.panel-mode .tile.size-5x3,
+.panel-mode .tile.size-5x4,
+.panel-mode .tile.size-5x5,
+.panel-mode .tile.size-5x6,
+.panel-mode .tile.size-6x1,
+.panel-mode .tile.size-6x2,
+.panel-mode .tile.size-6x3,
+.panel-mode .tile.size-6x4,
+.panel-mode .tile.size-6x5,
+.panel-mode .tile.size-6x6 {
+    grid-column: span 2 !important;
+}

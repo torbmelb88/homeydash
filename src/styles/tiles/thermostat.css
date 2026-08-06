@@ -1,0 +1,82 @@
+/* ===== Thermostat Styles ===== */
+.thermostat-control-center {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.target-temp {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.current-temp {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    margin-top: 2px;
+}
+
+.thermostat-content {
+    margin-top: auto;
+    width: 100%;
+    z-index: 5;
+    /* Ensure controls are above slider */
+}
+
+.thermostat-controls-grid {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 4px;
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(4px);
+}
+
+/* Hide thermostat controls on small tiles to prevent clutter */
+.tile.size-1x1 .thermostat-controls-grid {
+    display: none;
+}
+
+.capability-control-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.capability-control-wrapper label {
+    font-size: 0.65rem;
+    color: var(--color-text-tertiary);
+    display: none;
+    /* Hide labels to save space */
+}
+
+.capability-select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: var(--color-text-primary);
+    font-size: 0.7rem;
+    padding: 1px 4px;
+    height: 22px;
+    min-height: 0;
+    pointer-events: auto;
+    /* Ensure clickable */
+}
+
+.capability-select:focus {
+    background: var(--color-bg-elevated);
+    border-color: var(--color-accent-primary);
+    outline: none;
+}
+
+@media (max-width: 768px) {
+    .target-temp {
+        font-size: 1.2rem;
+    }
+}

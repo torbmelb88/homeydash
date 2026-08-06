@@ -1,0 +1,1031 @@
+/* ── Family Page – Whiteboard-stil ───────────────────────────────────
+   Kjøkkentavle: lys "tavle"-bakgrunn, håndskrift (Caveat) og
+   gråblyant-strek på rammer, bokser og knapper. Store treffflater
+   for touch på veggmontert nettbrett. */
+
+/* Variablene må stå på BÅDE .family-page og .fp-overlay –
+   overlayet rendres via portal på document.body, utenfor .family-page */
+.family-page,
+.fp-overlay {
+  --wb-board: #f7f5ef;
+  --wb-paper: #fbfaf5;
+  --wb-pencil: #44423c;        /* mørk grafitt – primærtekst */
+  --wb-pencil-mid: #75726a;    /* lysere grafitt – sekundærtekst */
+  --wb-pencil-line: #d8d4c6;   /* tynn blyantlinje */
+  --wb-pencil-border: #5b584f; /* strek på bokser/knapper */
+  --wb-red: #b5413d;           /* rød fargeblyant */
+  --wb-blue: #3a6ea5;          /* blå fargeblyant */
+  --wb-font: 'Caveat', 'Segoe Script', cursive;
+  /* Håndtegnet, litt skeiv ramme */
+  --wb-wobble: 255px 15px 225px 15px / 15px 225px 15px 255px;
+}
+
+.family-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.6), transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgba(120, 115, 100, 0.07), transparent 55%),
+    var(--wb-board);
+  color: var(--wb-pencil);
+  font-family: var(--wb-font);
+  overflow: hidden;
+}
+
+.family-page--edit {
+  opacity: 0.8;
+}
+
+.fp-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 2px solid var(--wb-pencil-line);
+  flex-shrink: 0;
+}
+
+.fp-header-title {
+  flex: 1;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.fp-settings-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--wb-pencil-mid);
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+  pointer-events: auto !important;
+}
+
+.fp-settings-btn:hover {
+  color: var(--wb-pencil);
+}
+
+/* ── Klokke/dato-hjørne ──────────────────────────────────────────── */
+
+.fp-corner-clock {
+  position: absolute;
+  right: 20px;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.05;
+  padding: 4px 10px 6px;
+  border-radius: 12px;
+  background: rgba(247, 245, 239, 0.8);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+  transform: rotate(-1deg);
+}
+
+.fp-corner-clock-time {
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: var(--wb-pencil);
+}
+
+.fp-corner-clock-date {
+  font-size: 1.3rem;
+  color: var(--wb-pencil-mid);
+}
+
+/* ── Søppeltømming-banner ────────────────────────────────────────── */
+
+.fp-waste-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 22px 0;
+  padding: 12px 18px;
+  border: 2.5px solid var(--wb-pencil-border);
+  border-radius: var(--wb-wobble, 14px);
+  background: transparent;
+  color: var(--wb-pencil);
+  font-family: var(--wb-font);
+  text-align: left;
+  cursor: pointer;
+  transform: rotate(-0.2deg);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.fp-waste-banner:hover {
+  background: rgba(91, 88, 79, 0.06);
+}
+
+.fp-waste-banner--today {
+  border-color: var(--wb-red);
+  color: var(--wb-red);
+}
+
+.fp-waste-banner--soon {
+  border-color: #c07822;
+  color: #c07822;
+}
+
+.fp-waste-banner-label {
+  font-size: 1.5rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fp-waste-banner-fractions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.fp-waste-banner-fraction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.fp-waste-banner-fraction img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.fp-waste-banner-days {
+  font-size: 1.4rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Apparat-banner – vises kun mens oppvask-/vaskemaskin kjører */
+
+.fp-appliance-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px 28px;
+  flex-wrap: wrap;
+  margin: 10px 22px 0;
+  padding: 8px 18px;
+  border: 2.5px solid var(--wb-blue);
+  border-radius: var(--wb-wobble, 14px);
+  color: var(--wb-blue);
+  font-family: var(--wb-font);
+}
+
+.fp-appliance-banner-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fp-appliance-banner-name {
+  font-size: 1.4rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fp-appliance-banner-time {
+  font-size: 1.35rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+/* Full oversikt (overlay) */
+
+.fp-waste-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 8px 10px;
+  padding: 12px 16px;
+  border: 2px solid var(--wb-pencil-border);
+  border-radius: var(--wb-wobble, 14px);
+  font-size: 1.5rem;
+  font-weight: 700;
+  transform: rotate(-0.2deg);
+}
+
+.fp-waste-summary-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.fp-waste-summary-date {
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--wb-pencil-mid);
+}
+
+.fp-waste-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-bottom: 1px dashed var(--wb-pencil-line);
+  font-size: 1.4rem;
+}
+
+.fp-waste-row:last-child {
+  border-bottom: none;
+}
+
+.fp-waste-row img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.fp-waste-row-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.fp-waste-row-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.fp-waste-row-days {
+  font-weight: 700;
+}
+
+.fp-waste-row-days.urgent { color: var(--wb-red); }
+.fp-waste-row-days.soon { color: #c07822; }
+
+.fp-waste-row-date {
+  font-size: 1.05rem;
+  color: var(--wb-pencil-mid);
+}
+
+/* ── Kolonner ────────────────────────────────────────────────────── */
+
+.fp-columns {
+  display: flex;
+  flex: 1;
+  gap: 22px;
+  padding: 22px;
+  overflow: hidden;
+}
+
+.fp-column {
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  overflow: hidden;
+  flex: 1;
+}
+
+.fp-column:nth-child(2) {
+  flex: 1.4;
+  border-left: 2px solid var(--wb-pencil-line);
+  padding-left: 22px;
+}
+
+.fp-column-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 10px;
+  border-bottom: 2px solid var(--wb-pencil-border);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  /* Litt skeiv blyantstrek under tittelen */
+  transform: rotate(-0.3deg);
+}
+
+.fp-column-header svg {
+  color: var(--wb-pencil-mid);
+}
+
+.fp-column-title {
+  flex: 1;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.fp-column-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-top: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wb-pencil-line) transparent;
+}
+
+/* ── Felles seksjonselementer ────────────────────────────────────── */
+
+.fp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 36px 16px;
+  color: var(--wb-pencil-mid);
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.fp-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 1.15rem;
+  color: var(--wb-pencil-mid);
+}
+
+.fp-error {
+  margin: 8px;
+  padding: 8px 14px;
+  border: 2px solid var(--wb-red);
+  border-radius: var(--wb-wobble);
+  font-size: 1.2rem;
+  color: var(--wb-red);
+}
+
+.fp-more-hint {
+  padding: 10px 12px;
+  font-size: 1.2rem;
+  color: var(--wb-pencil-mid);
+  font-style: italic;
+}
+
+.fp-prio-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 12px;
+  margin-top: auto;
+  font-size: 1.1rem;
+  color: var(--wb-pencil-mid);
+  border-top: 1px dashed var(--wb-pencil-line);
+}
+
+.fp-prio-legend-title {
+  font-style: italic;
+}
+
+.fp-prio-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.fp-prio-legend-ring {
+  width: 14px;
+  height: 14px;
+  border: 2.5px solid;
+  border-radius: var(--wb-wobble, 50%);
+  flex-shrink: 0;
+}
+
+.fp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--wb-pencil-line);
+}
+
+.fp-refresh-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--wb-pencil-mid);
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.fp-refresh-btn:hover {
+  color: var(--wb-pencil);
+}
+
+/* Blyant-knapper – overstyrer globale .btn innenfor tavla */
+.family-page .btn,
+.fp-overlay .btn {
+  font-family: var(--wb-font);
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: transparent;
+  color: var(--wb-pencil);
+  border: 2px solid var(--wb-pencil-border);
+  border-radius: var(--wb-wobble);
+  padding: 6px 18px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.family-page .btn:hover,
+.fp-overlay .btn:hover {
+  background: rgba(91, 88, 79, 0.08);
+}
+
+.family-page .btn:active,
+.fp-overlay .btn:active {
+  transform: scale(0.96) rotate(-0.5deg);
+}
+
+.family-page .btn-primary,
+.fp-overlay .btn-primary {
+  background: rgba(91, 88, 79, 0.1);
+}
+
+.family-page .btn-danger,
+.fp-overlay .btn-danger {
+  border-color: var(--wb-red);
+  color: var(--wb-red);
+}
+
+/* ── Skjemaer (i utvidet visning – alltid whiteboard) ────────────── */
+
+.fp-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--wb-pencil-line);
+}
+
+.fp-add-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Basisstil (mørk) – brukes også i innstillingsmodalen (mørkt tema) */
+.fp-input {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  padding: 7px 10px;
+  font-size: 0.88rem;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.fp-input:focus {
+  outline: none;
+  border-color: var(--color-accent-primary, #f59e0b);
+}
+
+/* Whiteboard-variant: "skriv på linjen"-felt */
+.fp-overlay .fp-input {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--wb-pencil-border);
+  border-radius: 0;
+  color: var(--wb-pencil);
+  font-family: var(--wb-font);
+  font-size: 1.5rem;
+  padding: 6px 4px;
+}
+
+.fp-overlay .fp-input::placeholder {
+  color: var(--wb-pencil-mid);
+  opacity: 0.7;
+}
+
+.fp-overlay .fp-input:focus {
+  border-bottom-color: var(--wb-pencil);
+}
+
+.fp-input-date {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.fp-select {
+  cursor: pointer;
+}
+
+.fp-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.fp-overlay .fp-checkbox-label {
+  font-size: 1.3rem;
+  font-family: var(--wb-font);
+}
+
+/* ── Nedtrekk (FpDropdown) – mørk basis + whiteboard-variant ─────── */
+
+.fp-dd-pop {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: #1a1d27;
+  border: 1px solid #3a3d4a;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.fp-dd-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  background: none;
+  color: var(--color-text-primary);
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.fp-dd-opt.active {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.fp-overlay .fp-dd-pop {
+  background: var(--wb-paper);
+  border: 2px solid var(--wb-pencil-border);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(80, 76, 66, 0.25);
+}
+
+.fp-overlay .fp-dd-opt {
+  color: var(--wb-pencil);
+  font-family: var(--wb-font);
+  font-size: 1.3rem;
+  padding: 12px 16px;
+}
+
+.fp-overlay .fp-dd-opt.active {
+  background: rgba(91, 88, 79, 0.1);
+  color: var(--wb-pencil);
+  font-weight: 700;
+}
+
+/* Ukedag-knapper og prioritet (kun i whiteboard-overlay) */
+.fp-day-btn {
+  flex: 1;
+  padding: 8px 0;
+  font-family: var(--wb-font);
+  font-size: 1.1rem;
+  border-radius: var(--wb-wobble);
+  border: 2px solid var(--wb-pencil-line);
+  background: transparent;
+  color: var(--wb-pencil);
+  cursor: pointer;
+}
+
+.fp-day-btn.active {
+  border-color: var(--wb-pencil-border);
+  background: rgba(91, 88, 79, 0.12);
+  font-weight: 700;
+}
+
+.fp-prio-btn {
+  padding: 6px 12px;
+  border-radius: var(--wb-wobble);
+  border: 2px solid var(--wb-pencil-line);
+  background: transparent;
+  color: var(--wb-pencil-mid);
+  font-family: var(--wb-font);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Kalender ────────────────────────────────────────────────────── */
+
+.fp-calendar-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.fp-day-group {
+  padding: 8px 0 12px;
+}
+
+.fp-day-label {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--wb-blue);
+  padding: 4px 12px 2px;
+  border-bottom: 1px solid var(--wb-pencil-line);
+  margin: 0 8px 4px;
+  transform: rotate(-0.25deg);
+}
+
+.fp-event {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  margin: 1px 6px;
+}
+
+.fp-event:nth-child(odd) {
+  transform: rotate(-0.2deg);
+}
+
+.fp-event:nth-child(even) {
+  transform: rotate(0.2deg);
+}
+
+.fp-event-time {
+  font-size: 1.25rem;
+  color: var(--wb-pencil-mid);
+  min-width: 84px;
+  flex-shrink: 0;
+}
+
+.fp-event-title {
+  font-size: 1.5rem;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Oppgaver / handleliste ──────────────────────────────────────── */
+
+.fp-list-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Kategori-seksjoner (Todoist sections) */
+.fp-todo-group {
+  padding-bottom: 8px;
+}
+
+.fp-todo-group-label {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--wb-pencil);
+  letter-spacing: 0.01em;
+  padding: 6px 12px 2px;
+  margin: 6px 8px 4px;
+  border-bottom: 2px solid var(--wb-pencil-border);
+  transform: rotate(-0.3deg);
+}
+
+/* Side om side: områdene flyter i kolonner, bryter til ny rad ved smal skjerm */
+/* Skillelinje mellom dagens/forfalte og senere oppgaver i hver kategori */
+
+.fp-today-divider {
+  border-bottom: 2px dashed var(--wb-pencil-line);
+  margin: 6px 12px 8px;
+}
+
+.fp-todo-columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 18px;
+}
+
+.fp-todo-columns .fp-todo-group {
+  flex: 1 1 240px;
+  min-width: 220px;
+}
+
+/* Skillelinje mellom områdekolonner (ikke på den første i hver rad) */
+.fp-todo-columns .fp-todo-group + .fp-todo-group {
+  border-left: 2px solid var(--wb-pencil-line);
+  padding-left: 14px;
+}
+
+.fp-task {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin: 3px 6px;
+}
+
+.fp-task:nth-child(odd) {
+  transform: rotate(-0.3deg);
+}
+
+.fp-task:nth-child(even) {
+  transform: rotate(0.25deg);
+}
+
+.fp-task--overdue {
+  background: rgba(181, 65, 61, 0.06);
+}
+
+/* Gråblyant-avkryssingsboks: skeiv firkant med håndtegnet strek */
+.fp-task-check {
+  background: transparent;
+  border: 2.5px solid var(--wb-pencil-border);
+  border-radius: var(--wb-wobble);
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: transparent;
+  flex-shrink: 0;
+  transform: rotate(-1deg);
+  transition: background 0.12s, color 0.12s, transform 0.08s;
+}
+
+.fp-task:nth-child(even) .fp-task-check {
+  transform: rotate(1.2deg);
+}
+
+.fp-task-check svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 3;
+}
+
+.fp-task-check:hover {
+  color: var(--wb-pencil-mid);
+}
+
+.fp-task-check:active {
+  color: var(--wb-pencil);
+  background: rgba(91, 88, 79, 0.1);
+  transform: scale(0.92) rotate(-2deg);
+}
+
+.fp-task-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.fp-task-title {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Meta-rad under tittelen: forfallsdato, deloppgave-teller og etikett-chips */
+.fp-task-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 1px;
+}
+
+.fp-task-due {
+  font-size: 1.1rem;
+  color: var(--wb-pencil-mid);
+}
+
+/* Underoppgaver: trukket inn, mindre, med håndtegnet "grein"-strek til venstre */
+.fp-subtask {
+  position: relative;
+}
+
+.fp-subtask::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: -4px;
+  bottom: 50%;
+  width: 14px;
+  border-left: 2px solid var(--wb-pencil-line);
+  border-bottom: 2px solid var(--wb-pencil-line);
+  border-bottom-left-radius: 8px;
+}
+
+.fp-subtask .fp-task-check {
+  width: 32px;
+  height: 32px;
+}
+
+.fp-subtask .fp-task-check svg {
+  width: 20px;
+  height: 20px;
+}
+
+.fp-subtask .fp-task-title {
+  font-size: 1.25rem;
+  color: var(--wb-pencil-mid);
+}
+
+.fp-subtask-count {
+  font-size: 1rem;
+  color: var(--wb-pencil-mid);
+  font-style: italic;
+}
+
+/* Etikett-chip: håndtegnet "innsirklet" kategori */
+.fp-label-chip {
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--wb-blue);
+  border: 2px solid var(--wb-blue);
+  border-radius: var(--wb-wobble);
+  padding: 3px 10px 4px;
+  white-space: nowrap;
+  transform: rotate(-0.6deg);
+}
+
+.fp-task-due.today {
+  color: var(--wb-blue);
+  font-weight: 700;
+}
+
+.fp-task-due.overdue {
+  color: var(--wb-red);
+  font-weight: 700;
+}
+
+/* Slett-knapp: alltid svakt synlig (touch har ingen hover) */
+.fp-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--wb-pencil-mid);
+  padding: 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  opacity: 0.35;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.fp-task:hover .fp-delete-btn,
+.fp-event:hover .fp-delete-btn,
+.fp-delete-btn:active {
+  opacity: 1;
+}
+
+.fp-delete-btn:hover,
+.fp-delete-btn:active {
+  color: var(--wb-red);
+}
+
+/* ── Utvidet visning (overlay) ───────────────────────────────────── */
+
+.fp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(70, 67, 58, 0.4);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.fp-overlay-panel {
+  background: var(--wb-paper);
+  color: var(--wb-pencil);
+  font-family: var(--wb-font);
+  border: 2px solid var(--wb-pencil-border);
+  border-radius: 18px;
+  width: min(860px, 95vw);
+  height: min(680px, 88vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(60, 56, 46, 0.35);
+}
+
+.fp-overlay-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 2px solid var(--wb-pencil-line);
+  flex-shrink: 0;
+}
+
+.fp-overlay-header svg {
+  color: var(--wb-pencil-mid);
+}
+
+.fp-overlay-header .icon-btn {
+  color: var(--wb-pencil-mid);
+}
+
+.fp-overlay-header .icon-btn:hover {
+  color: var(--wb-pencil);
+}
+
+.fp-overlay-title {
+  flex: 1;
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.fp-overlay-body {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wb-pencil-line) transparent;
+}
+
+/* ── Innstillingsmodal (globalt mørkt tema – uendret) ────────────── */
+
+.fp-settings-tabs {
+  display: flex;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.fp-settings-tabs button {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.fp-settings-tabs button.active,
+.fp-settings-tabs button:hover {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-accent-primary, #f59e0b);
+}
+
+/* ── Sidetype-velger (i PageModal) ───────────────────────────────── */
+
+.page-type-selector {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.page-type-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 0.82rem;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.page-type-btn.active {
+  border-color: var(--color-accent-primary, #f59e0b);
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--color-text-primary);
+}
+
+.page-type-btn:hover:not(.active) {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--color-text-primary);
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────── */
+
+.fp-spin {
+  animation: fp-rotate 1s linear infinite;
+}
+
+@keyframes fp-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

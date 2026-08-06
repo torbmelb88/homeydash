@@ -1,0 +1,159 @@
+/* Expanded Tile Overlay */
+.tile-expanded-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    animation: fadeIn 0.2s forwards;
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+    }
+}
+
+.tile-expanded-content {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    width: auto;
+    /* Let it grow, but ensure it fits on mobile */
+    min-width: min(600px, 95vw);
+    max-width: 95vw;
+    /* Allow almost full width */
+    max-height: 90vh;
+    padding: 2rem;
+    position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    transform: scale(0.95);
+    animation: popIn 0.2s forwards;
+    /* Overflow handled by tile-expanded-body so the close button stays visible */
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .tile-expanded-content {
+        min-width: 95vw;
+        padding: 1rem;
+        gap: 1rem;
+    }
+}
+
+@keyframes popIn {
+    to {
+        transform: scale(1);
+    }
+}
+
+.tile-expanded-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tile-expanded-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-primary);
+}
+
+.tile-expanded-header {
+    text-align: center;
+}
+
+.tile-expanded-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--color-text-primary);
+}
+
+.tile-expanded-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* flex-start prevents the CSS flex+overflow quirk where centered overflow
+       becomes unreachable at the top when content is taller than the body */
+    justify-content: flex-start;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Full Screen Override */
+.tile-expanded-content.tile-expanded-full {
+    width: 80vw !important;
+    height: 80vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    min-width: 0 !important;
+    border-radius: 1.5rem !important;
+    position: relative !important;
+    /* Allow flex centering */
+    inset: auto !important;
+    margin: 0 !important;
+    transform: none !important;
+    /* Override popIn scale */
+    animation: none !important;
+    /* Override popIn animation if needed, or just let it play */
+    align-items: stretch !important;
+    padding: 0 !important;
+}
+
+/* ===== Panel Mode Overrides ===== */
+/* Force full width and height to maximize touch area on 4.7" screens */
+.panel-mode .tile-expanded-content {
+    min-width: 100vw;
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+    padding: 1rem;
+    gap: 1.5rem;
+    /* Extra padding for top and bottom to clear edges/notches */
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Make sure the close button is easily tappable */
+.panel-mode .tile-expanded-close {
+    top: max(1rem, env(safe-area-inset-top));
+    right: 1rem;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.1);
+}

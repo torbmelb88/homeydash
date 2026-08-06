@@ -1,0 +1,24 @@
+rules_version = '2';
+
+// Eksempel på Firestore-regler for Homeydash.
+//
+// Appen bruker ikke Firebase Authentication – dashbordet kjører på veggmonterte
+// nettbrett i hjemmenettet og synkroniserer konfigurasjon (fliser, sider,
+// innstillinger) mellom enheter via Firestore. Dataene er ikke sensitive
+// (ingen tokens lagres i Firestore), men reglene bør likevel strammes inn:
+//
+//  - Enkleste innstramming: aktiver App Check og krav om gyldig app-instans.
+//  - Alternativt: legg på Firebase Auth (anonym innlogging) og sjekk UID her.
+//
+// Kopier til firestore.rules, tilpass, og deploy:
+//   firebase deploy --only firestore:rules
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Konfigurasjonssamlinger (profiler + profil-scopede samlinger som
+    // pages__<profil>, tiles__<profil>, settings__<profil>)
+    match /{collection}/{doc} {
+      allow read, write: if true; // TODO: stram inn (App Check / Auth)
+    }
+  }
+}

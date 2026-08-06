@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#1a2b1d"/>
+  <!-- Plen -->
+  <path d="M30 40 L340 30 Q370 30 372 60 L378 240 Q378 265 350 268 L60 275 Q35 276 33 250 Z" fill="#2f6b34"/>
+  <!-- Klippestriper -->
+  <g stroke="#3c7f42" stroke-width="14">
+    <line x1="55" y1="55" x2="65" y2="255"/>
+    <line x1="90" y1="52" x2="98" y2="258"/>
+    <line x1="125" y1="49" x2="131" y2="260"/>
+    <line x1="160" y1="46" x2="164" y2="262"/>
+    <line x1="195" y1="44" x2="197" y2="263"/>
+  </g>
+  <!-- Uklippet område -->
+  <path d="M230 42 L340 34 Q366 34 368 60 L374 238 Q374 261 348 264 L240 267 Z" fill="#255628"/>
+  <!-- Blomsterbed (utenfor sonen) -->
+  <ellipse cx="310" cy="90" rx="38" ry="26" fill="#4a3524"/>
+  <circle cx="298" cy="84" r="5" fill="#c96f8f"/>
+  <circle cx="318" cy="96" r="5" fill="#d9a441"/>
+  <circle cx="326" cy="80" r="4" fill="#c96f8f"/>
+  <!-- Ladestasjon -->
+  <rect x="38" y="46" width="26" height="18" rx="3" fill="#8892a0"/>
+  <rect x="44" y="50" width="14" height="10" rx="2" fill="#3f4854"/>
+  <!-- Robotklipperen -->
+  <g transform="translate(215 160) rotate(12)">
+    <rect x="-16" y="-11" width="32" height="22" rx="8" fill="#d6d9de"/>
+    <rect x="-10" y="-6" width="14" height="12" rx="3" fill="#e05c3a"/>
+  </g>
+  <!-- Kjørespor bak klipperen -->
+  <path d="M212 258 Q205 210 213 172" stroke="#3c7f42" stroke-width="16" fill="none" stroke-linecap="round"/>
+</svg>
