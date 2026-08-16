@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useHomey } from '../context/HomeyContext';
 import { storage } from '../services/storage';
 import { X, Copy, Trash2, History, Pencil, Save } from 'lucide-react';
+import { CheckboxRow } from './SettingsControls';
+import { MACHINE_POPUP_KINDS, getMachinePopupCfg } from '../services/popup-settings';
 
 const TABS = [
     { id: 'hub', label: 'Hub' },
@@ -11,6 +13,9 @@ const TABS = [
     { id: 'popups', label: 'Popups' },
     { id: 'backup', label: 'Sikkerhetskopi' },
 ];
+
+const numRowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' };
+const numInputStyle = { width: '90px', padding: '6px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' };
 
 const SettingsModal = ({ onClose }) => {
     const { settings, setSettings, devices } = useHomey();
@@ -24,7 +29,14 @@ const SettingsModal = ({ onClose }) => {
     const [showFullscreen, setShowFullscreen] = useState(settings.showFullscreenBtn !== false);
     const [showSidebar, setShowSidebar] = useState(settings.showSidebar !== false);
     const [panelMode, setPanelMode] = useState(settings.panelMode || false);
-    const [finishedPrompts, setFinishedPrompts] = useState(settings.finishedPromptsEnabled !== false);
+    // Maskin-popuper (oppvaskmaskin/tørketrommel/vaskemaskin): egen bryter og
+    // egne innstillinger per maskin, lagret i settings.popups[kind]. Skjemaet
+    // starter med de effektive verdiene (global → evt. gammel flisverdi → standard).
+    const [popups, setPopups] = useState(() => Object.fromEntries(
+        MACHINE_POPUP_KINDS.map(({ kind }) => [kind, getMachinePopupCfg(settings, kind)])
+    ));
+    const setPopup = (kind, key, value) =>
+        setPopups(prev => ({ ...prev, [kind]: { ...prev[kind], [key]: value } }));
     const [incomingCallPopup, setIncomingCallPopup] = useState(settings.incomingCallPopupEnabled !== false);
     const [wastePrompt, setWastePrompt] = useState(settings.wastePromptEnabled !== false);
     const [bladePrompt, setBladePrompt] = useState(settings.bladePromptEnabled !== false);
@@ -76,7 +88,7 @@ const SettingsModal = ({ onClose }) => {
             showFullscreenBtn: showFullscreen,
             showSidebar: showSidebar,
             panelMode: panelMode,
-            finishedPromptsEnabled: finishedPrompts,
+            popups,
             incomingCallPopupEnabled: incomingCallPopup,
             wastePromptEnabled: wastePrompt,
             bladePromptEnabled: bladePrompt,
@@ -335,28 +347,110 @@ const SettingsModal = ({ onClose }) => {
                     )}
 
                     {activeTab === 'popups' && (
+                    <>
                     <div className="settings-section">
                         <h3>Popups på denne profilen</h3>
-                        <div className="form-group checkbox-group">
-                            <input type="checkbox" id="finishedPromptCheck" checked={finishedPrompts} onChange={e => setFinishedPrompts(e.target.checked)} />
-                            <label htmlFor="finishedPromptCheck">Vis ferdig-popup («Er maskinen tømt?»)</label>
-                        </div>
-                        <div className="form-group checkbox-group">
-                            <input type="checkbox" id="callPopupCheck" checked={incomingCallPopup} onChange={e => setIncomingCallPopup(e.target.checked)} />
-                            <label htmlFor="callPopupCheck">Vis anrops-popup (intercom ringer)</label>
-                        </div>
-                        <div className="form-group checkbox-group">
-                            <input type="checkbox" id="wastePromptCheck" checked={wastePrompt} onChange={e => setWastePrompt(e.target.checked)} />
-                            <label htmlFor="wastePromptCheck">Vis søppeltømming-popup («Er søpla båret ut?»)</label>
-                        </div>
-                        <div className="form-group checkbox-group">
-                            <input type="checkbox" id="bladePromptCheck" checked={bladePrompt} onChange={e => setBladePrompt(e.target.checked)} />
-                            <label htmlFor="bladePromptCheck">Vis knivbytte-popup for robotklipper («Er knivene byttet?»)</label>
-                        </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.5rem' }}>
-                            Gjelder kun denne enheten/profilen. Andre nettbrett og mobiler har egne valg.
+                        <p className="hint" style={{ marginTop: 0, marginBottom: '1rem' }}>
+                            Gjelder kun denne enheten/profilen — andre nettbrett og mobiler har egne valg.
+                            Popupene vises uansett hvilken side som er aktiv, og trenger ingen flis.
                         </p>
+
+                        {MACHINE_POPUP_KINDS.map(({ kind, label }) => {
+                            const cfg = popups[kind];
+                            const isWasher = kind === 'washer';
+                            return (
+                                <div key={kind} className="form-group" style={{ paddingBottom: '0.75rem', borderBottom: '1px solid var(--color-border)' }}>
+                                    <CheckboxRow
+                                        label={`${label} – ferdig-popup («Er den tømt?»)`}
+                                        checked={cfg.enabled}
+                                        onChange={(checked) => setPopup(kind, 'enabled', checked)}
+                                    />
+                                    {cfg.enabled && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px', paddingLeft: '26px' }}>
+                                            <label style={numRowStyle}>
+                                                <span style={{ fontSize: '0.85rem' }}>Slumretid (min)</span>
+                                                <input
+                                                    type="number" min="1" max="180" step="1"
+                                                    value={cfg.snoozeMinutes}
+                                                    onChange={e => setPopup(kind, 'snoozeMinutes', e.target.value)}
+                                                    style={numInputStyle}
+                                                />
+                                            </label>
+                                            {isWasher ? (
+                                                <div>
+                                                    <span style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Egendefinerte inaktiv-tilstander</span>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="F.eks. Ferdig, End, Standby"
+                                                        value={cfg.inactiveKeywords}
+                                                        onChange={e => setPopup(kind, 'inactiveKeywords', e.target.value)}
+                                                        style={{ width: '100%', padding: '8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
+                                                    />
+                                                    <p className="hint">Kommaseparerte ord som betyr «ikke aktiv» for din maskin (i tillegg til de innebygde).</p>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <p className="hint" style={{ marginTop: 0 }}>
+                                                        Terskler for tilstandsdeteksjon — Standby / Kjører / Ferdig utledes fra effektkurven til smartpluggen.
+                                                    </p>
+                                                    <label style={numRowStyle}>
+                                                        <span style={{ fontSize: '0.85rem' }}>Standby-grense (W)</span>
+                                                        <input
+                                                            type="number" min="1" max="100" step="1"
+                                                            value={cfg.standbyThreshold}
+                                                            onChange={e => setPopup(kind, 'standbyThreshold', e.target.value)}
+                                                            style={numInputStyle}
+                                                        />
+                                                    </label>
+                                                    <label style={numRowStyle}>
+                                                        <span style={{ fontSize: '0.85rem' }}>Kjører-grense (W)</span>
+                                                        <input
+                                                            type="number" min="2" max="500" step="1"
+                                                            value={cfg.runThreshold}
+                                                            onChange={e => setPopup(kind, 'runThreshold', e.target.value)}
+                                                            style={numInputStyle}
+                                                        />
+                                                    </label>
+                                                    <label style={numRowStyle}>
+                                                        <span style={{ fontSize: '0.85rem' }}>Ferdig etter (min under standby-grensen)</span>
+                                                        <input
+                                                            type="number" min="1" max="30" step="1"
+                                                            value={cfg.finishedDelayMin}
+                                                            onChange={e => setPopup(kind, 'finishedDelayMin', e.target.value)}
+                                                            style={numInputStyle}
+                                                        />
+                                                    </label>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+
+                        <div className="form-group">
+                            <CheckboxRow
+                                label="Anrops-popup (intercom ringer)"
+                                checked={incomingCallPopup}
+                                onChange={setIncomingCallPopup}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <CheckboxRow
+                                label="Søppeltømming-popup («Er søpla båret ut?»)"
+                                checked={wastePrompt}
+                                onChange={setWastePrompt}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <CheckboxRow
+                                label="Knivbytte-popup for robotklipper («Er knivene byttet?»)"
+                                checked={bladePrompt}
+                                onChange={setBladePrompt}
+                            />
+                        </div>
                     </div>
+                    </>
                     )}
 
                     {activeTab === 'backup' && (

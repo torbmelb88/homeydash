@@ -1780,31 +1780,6 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
                                 </select>
                             </div>
 
-                            {/* Egendefinerte inaktiv-tilstander */}
-                            <div className="form-group">
-                                <label>Egendefinerte inaktiv-tilstander</label>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '0.5rem' }}>
-                                    Kommaseparerte ord som betyr «ikke aktiv» for din maskin.
-                                </p>
-                                <input
-                                    type="text"
-                                    placeholder="F.eks. Ferdig, End, Standby"
-                                    value={widgetSettings.customInactiveKeywords || ''}
-                                    onChange={(e) => setWidgetSettings({ ...widgetSettings, customInactiveKeywords: e.target.value })}
-                                    style={{
-                                        width: '100%',
-                                        padding: '8px',
-                                        background: 'var(--color-bg-secondary)',
-                                        border: '1px solid var(--color-border)',
-                                        borderRadius: 'var(--radius-md)',
-                                        color: 'var(--color-text-primary)'
-                                    }}
-                                />
-                                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                                    Nåværende tilstand: <strong style={{ color: 'var(--color-text-primary)' }}>{device?.capabilitiesObj?.operational_state?.value ?? '–'}</strong>
-                                </p>
-                            </div>
-
                             {/* Skjul program-navn */}
                             <div className="form-group">
                                 <CheckboxRow
@@ -1814,70 +1789,18 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
                                 />
                             </div>
 
-                            {/* Ferdig-popup (dynamisk flis) */}
-                            <div className="form-group">
-                                <CheckboxRow
-                                    label="Spør «Er maskinen tømt?» når den er ferdig"
-                                    checked={widgetSettings.finishedPrompt !== false}
-                                    onChange={(checked) => setWidgetSettings({ ...widgetSettings, finishedPrompt: checked })}
-                                />
-                                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                                    Viser en stor popup med Ja / Slumre når maskinen blir ferdig.
-                                </p>
-                                {widgetSettings.finishedPrompt !== false && (
-                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '10px' }}>
-                                        <span style={{ fontSize: '0.85rem' }}>Slumretid (min)</span>
-                                        <input
-                                            type="number" min="1" max="180" step="1"
-                                            value={widgetSettings.snoozeMinutes ?? 5}
-                                            onChange={(e) => setWidgetSettings({ ...widgetSettings, snoozeMinutes: e.target.value })}
-                                            style={{ width: '90px', padding: '6px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
-                                        />
-                                    </label>
-                                )}
-                            </div>
+                            <p className="hint">
+                                Ferdig-popupen («Er maskinen tømt?»), slumretid og egendefinerte
+                                inaktiv-tilstander stilles inn under Innstillinger → Popups → Vaskemaskin
+                                (gjelder hele profilen, også skjermer uten denne flisen).
+                                Nåværende tilstand: <strong style={{ color: 'var(--color-text-primary)' }}>{device?.capabilitiesObj?.operational_state?.value ?? '–'}</strong>
+                            </p>
                         </div>
                     )}
 
                     {/* ── Apparat på smartplugg: Innstillinger ─────── */}
                     {activeTab === 'config' && effectiveType === 'appliance' && (
                         <div>
-                            <div className="form-group">
-                                <label>Terskler for tilstandsdeteksjon</label>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '0.5rem' }}>
-                                    Tilstanden (Standby / Kjører / Ferdig) utledes fra effektkurven til smartpluggen.
-                                </p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                                        <span style={{ fontSize: '0.85rem' }}>Standby-grense (W)</span>
-                                        <input
-                                            type="number" min="1" max="100" step="1"
-                                            value={widgetSettings.standbyThreshold ?? 5}
-                                            onChange={(e) => setWidgetSettings({ ...widgetSettings, standbyThreshold: e.target.value })}
-                                            style={{ width: '90px', padding: '6px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
-                                        />
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                                        <span style={{ fontSize: '0.85rem' }}>Kjører-grense (W)</span>
-                                        <input
-                                            type="number" min="2" max="500" step="1"
-                                            value={widgetSettings.runThreshold ?? 10}
-                                            onChange={(e) => setWidgetSettings({ ...widgetSettings, runThreshold: e.target.value })}
-                                            style={{ width: '90px', padding: '6px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
-                                        />
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                                        <span style={{ fontSize: '0.85rem' }}>Ferdig etter (min under standby-grensen)</span>
-                                        <input
-                                            type="number" min="1" max="30" step="1"
-                                            value={widgetSettings.finishedDelayMin ?? 4}
-                                            onChange={(e) => setWidgetSettings({ ...widgetSettings, finishedDelayMin: e.target.value })}
-                                            style={{ width: '90px', padding: '6px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
-                                        />
-                                    </label>
-                                </div>
-                            </div>
-
                             <div className="form-group">
                                 <label>Type apparat</label>
                                 <select
@@ -1917,28 +1840,12 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
                                 </div>
                             </div>
 
-                            <div className="form-group">
-                                <CheckboxRow
-                                    label="Spør «Er den tømt?» når maskinen er ferdig"
-                                    checked={widgetSettings.finishedPrompt !== false}
-                                    onChange={(checked) => setWidgetSettings({ ...widgetSettings, finishedPrompt: checked })}
-                                />
-                                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                                    Viser en stor popup med Ja / Slumre når maskinen blir ferdig.
-                                </p>
-                                {widgetSettings.finishedPrompt !== false && (
-                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '10px' }}>
-                                        <span style={{ fontSize: '0.85rem' }}>Slumretid (min)</span>
-                                        <input
-                                            type="number" min="1" max="180" step="1"
-                                            value={widgetSettings.snoozeMinutes ?? 5}
-                                            onChange={(e) => setWidgetSettings({ ...widgetSettings, snoozeMinutes: e.target.value })}
-                                            style={{ width: '90px', padding: '6px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
-                                        />
-                                    </label>
-                                )}
-                            </div>
-
+                            <p className="hint">
+                                Ferdig-popupen («Er den tømt?»), slumretid og tersklene for
+                                tilstandsdeteksjon (Standby / Kjører / Ferdig) stilles inn under
+                                Innstillinger → Popups → {(widgetSettings.applianceKind || device?.settings?.applianceKind) === 'dryer' ? 'Tørketrommel' : 'Oppvaskmaskin'}
+                                (gjelder hele profilen, også skjermer uten denne flisen).
+                            </p>
                         </div>
                     )}
 

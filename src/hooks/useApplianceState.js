@@ -22,12 +22,9 @@ export const APPLIANCE_DEFAULTS = {
     autoDismissHours: 12,     // «Ferdig» forsvinner av seg selv etter så mange timer
 };
 
-export const applianceCfgFromSettings = (settings = {}) => ({
-    standbyThreshold: Number(settings.standbyThreshold ?? APPLIANCE_DEFAULTS.standbyThreshold),
-    runThreshold: Number(settings.runThreshold ?? APPLIANCE_DEFAULTS.runThreshold),
-    finishedDelayMin: Number(settings.finishedDelayMin ?? APPLIANCE_DEFAULTS.finishedDelayMin),
-    autoDismissHours: Number(settings.autoDismissHours ?? APPLIANCE_DEFAULTS.autoDismissHours),
-});
+// Tersklene slås opp med getMachinePopupCfg() i services/popup-settings.js
+// (globale profilinnstillinger, Innstillinger → Popups) — samme oppslag i
+// ApplianceTile og FinishedPromptManager, så begge kjører like regler.
 
 const IDLE_STATE = { phase: 'idle', runStartedAt: null, belowSince: null, finishedAt: null };
 

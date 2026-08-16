@@ -2,9 +2,10 @@ import React, { useMemo } from 'react';
 import { useHomey } from '../../context/HomeyContext';
 import { Activity, Clock, Thermometer, Droplets } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
+import { getMachinePopupCfg, parseKeywords } from '../../services/popup-settings';
 
 const WashingMachineTile = ({ tile, device, expanded = false }) => {
-    const { api } = useHomey();
+    const { api, settings: globalSettings } = useHomey();
     const isMobile = useIsMobile();
     const [fullDevice, setFullDevice] = React.useState(null);
 
@@ -58,10 +59,11 @@ const WashingMachineTile = ({ tile, device, expanded = false }) => {
     // Logic for "active" state
     // Check both raw value and resolved text for "inactive" keywords
     const rawOpState = getCapValue('operational_state');
-    const customKeywords = (tile.settings?.customInactiveKeywords || '')
-        .split(',')
-        .map(k => k.trim().toLowerCase())
-        .filter(Boolean);
+    // Egendefinerte inaktiv-ord ligger i de globale popup-innstillingene
+    // (Innstillinger → Popups → Vaskemaskin) — samme som FinishedPromptManager.
+    const customKeywords = parseKeywords(
+        getMachinePopupCfg(globalSettings, 'washer', tile.settings).inactiveKeywords
+    );
     const inactiveKeywords = [
         'idle', 'off', 'standby', 'inactive', 'end', 'done', 'finished',
         'ferdig', 'completed', 'stopped', 'pause', 'paused', '0',

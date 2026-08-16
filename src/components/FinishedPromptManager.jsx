@@ -4,7 +4,8 @@ import { storage } from '../services/storage';
 import { hassAPI } from '../services/hass-api';
 import { Utensils, Shirt, WashingMachine, Trash2, Scissors } from 'lucide-react';
 import FinishedPromptOverlay, { useFinishedPrompt } from './FinishedPromptOverlay';
-import { useApplianceState, applianceCfgFromSettings, findCycleDevice, nativeStateOf } from '../hooks/useApplianceState';
+import { useApplianceState, findCycleDevice, nativeStateOf } from '../hooks/useApplianceState';
+import { getMachinePopupCfg, parseKeywords } from '../services/popup-settings';
 import useLedAlert from '../hooks/useLedAlert';
 
 /**
@@ -14,32 +15,32 @@ import useLedAlert from '../hooks/useLedAlert';
  *
  * Overvåker ALLE enheter med relevante capabilities, uavhengig av om
  * profilen har en flis for dem (viktig for f.eks. kjøkkenpanelet som står
- * på familie-siden). Finnes en flis, brukes dens innstillinger (terskler,
- * finishedPrompt av/på); ellers brukes standardverdier.
+ * på familie-siden). Av/på, slumretid, terskler og inaktiv-ord ligger i de
+ * globale profilinnstillingene (settings.popups[kind], Innstillinger → Popups)
+ * — se services/popup-settings.js. Flis-innstillinger brukes kun til
+ * applianceKind/washDataDeviceId og som fallback for gamle flisverdier.
  */
 
 // ── Apparat på smartplugg (effektbasert tilstandsmaskin) ───────────────
 // Native maskintilstand (Electrolux-integrasjonen) gir umiddelbar Ferdig ved
 // «End Of Cycle» og undertrykker falsk Ferdig i laveffekt-faser — samme
 // hybrid som i ApplianceTile.
-const ApplianceWatcher = ({ device, settings }) => {
-    const { devices } = useHomey();
-    const cfg = applianceCfgFromSettings(settings);
-    const cycleDevice = findCycleDevice(devices, device, settings);
+const ApplianceWatcher = ({ device, kind, tileSettings }) => {
+    const { devices, settings } = useHomey();
+    const cfg = getMachinePopupCfg(settings, kind, tileSettings);
+    const cycleDevice = findCycleDevice(devices, device, tileSettings);
     const { machineState, finishedExpired } = useApplianceState(device, cfg, nativeStateOf(cycleDevice));
-
-    const kind = settings.applianceKind || device.settings?.applianceKind || 'dishwasher';
 
     const { visible, acknowledge, snooze } = useFinishedPrompt({
         deviceId: device.id,
         finishedAt: (machineState.phase === 'finished' && !finishedExpired) ? machineState.finishedAt : null,
-        enabled: settings.finishedPrompt !== false,
+        enabled: cfg.enabled,
     });
     useLedAlert(visible);
 
     const KindIcon = kind === 'dryer' ? Shirt : Utensils;
     const label = device.name || (kind === 'dishwasher' ? 'Oppvaskmaskin' : 'Tørketrommel');
-    const snoozeMinutes = Math.max(1, Number(settings.snoozeMinutes) || 5);
+    const snoozeMinutes = cfg.snoozeMinutes;
 
     return (
         <FinishedPromptOverlay
@@ -70,13 +71,12 @@ const WASHER_FINISHED_KEYWORDS = [
     'complete', 'completed', 'cycle_complete',
 ];
 
-const WasherWatcher = ({ device, settings }) => {
+const WasherWatcher = ({ device, tileSettings }) => {
+    const { settings } = useHomey();
+    const cfg = getMachinePopupCfg(settings, 'washer', tileSettings);
     const opStateCap = device.capabilitiesObj?.operational_state;
     const rawOpState = opStateCap?.value;
-    const customKeywords = (settings.customInactiveKeywords || '')
-        .split(',')
-        .map(k => k.trim().toLowerCase())
-        .filter(Boolean);
+    const customKeywords = parseKeywords(cfg.inactiveKeywords);
     const inactive = [...WASHER_INACTIVE_KEYWORDS, ...customKeywords];
     const isActiveState = (v) => Boolean(v) && !inactive.includes(String(v).toLowerCase());
     const isFinishedState = (v) => WASHER_FINISHED_KEYWORDS.includes(String(v || '').toLowerCase());
@@ -164,11 +164,11 @@ const WasherWatcher = ({ device, settings }) => {
     const { visible, acknowledge, snooze } = useFinishedPrompt({
         deviceId: device.id,
         finishedAt,
-        enabled: settings.finishedPrompt !== false,
+        enabled: cfg.enabled,
     });
     useLedAlert(visible);
 
-    const snoozeMinutes = Math.max(1, Number(settings.snoozeMinutes) || 5);
+    const snoozeMinutes = cfg.snoozeMinutes;
 
     return (
         <FinishedPromptOverlay
@@ -349,13 +349,15 @@ const BladeWatcher = ({ device }) => {
 const FinishedPromptManager = () => {
     const { devices, settings } = useHomey();
 
-    // Profil-innstilling (synkes til Firestore): skru av hele funksjonen på
-    // profiler der popupen ikke er ønsket. Gates ved å tømme enhetslistene
-    // (ikke betinget return — manageren har egne hooks som alltid må kjøre).
-    const promptsEnabled = settings?.finishedPromptsEnabled !== false;
+    // Profil-innstillinger (synkes til Firestore): hver maskin-popup har egen
+    // bryter (settings.popups[kind].enabled) så f.eks. skjermen utenfor
+    // vaskerommet kan få vaskemaskin-popup uten oppvaskmaskin-popup. Gates ved
+    // å tømme enhetslistene (ikke betinget return — egne hooks må alltid kjøre).
+    const kindEnabled = (kind) => getMachinePopupCfg(settings, kind).enabled;
 
-    // Flis-innstillinger per enhet (terskler, finishedPrompt av/på) fra
-    // hvilken som helst side i profilen. Lastes én gang ved oppstart.
+    // Flis-innstillinger per enhet (applianceKind, washDataDeviceId og gamle
+    // flisverdier som fallback) fra hvilken som helst side i profilen.
+    // Lastes én gang ved oppstart.
     const [tileSettingsByDevice, setTileSettingsByDevice] = useState({});
     useEffect(() => {
         let cancelled = false;
@@ -371,10 +373,10 @@ const FinishedPromptManager = () => {
         return () => { cancelled = true; };
     }, []);
 
-    const applianceCandidates = promptsEnabled ? devices.filter(d =>
+    const applianceCandidates = devices.filter(d =>
         !d._inComposite &&
         (d.capabilities?.includes('smart_plug_appliance') || d.settings?.compositeType === 'appliance')
-    ) : [];
+    );
     const applianceIds = new Set(applianceCandidates.map(d => d.id));
 
     // Én overvåker per maskintype: HA kan ha FLERE enheter for samme fysiske
@@ -396,11 +398,13 @@ const FinishedPromptManager = () => {
             byKind.set(kind, { d, hasTile, hasPower });
         }
     }
-    const appliances = [...byKind.values()].map(x => x.d);
+    const appliances = [...byKind.entries()]
+        .filter(([kind]) => kindEnabled(kind))
+        .map(([kind, x]) => ({ kind, device: x.d }));
 
     // Vaskemaskiner: kun composites med operational_state (uten den finnes
     // det ingen tilstand å utlede ferdig fra — f.eks. vaskemaskin-outleten).
-    const washers = promptsEnabled ? devices.filter(d =>
+    const washers = kindEnabled('washer') ? devices.filter(d =>
         !d._inComposite &&
         !applianceIds.has(d.id) &&
         d.capabilities?.includes('laundry') &&
@@ -421,11 +425,11 @@ const FinishedPromptManager = () => {
 
     return (
         <>
-            {appliances.map(d => (
-                <ApplianceWatcher key={d.id} device={d} settings={tileSettingsByDevice[d.id] || {}} />
+            {appliances.map(({ kind, device: d }) => (
+                <ApplianceWatcher key={d.id} device={d} kind={kind} tileSettings={tileSettingsByDevice[d.id] || {}} />
             ))}
             {washers.map(d => (
-                <WasherWatcher key={d.id} device={d} settings={tileSettingsByDevice[d.id] || {}} />
+                <WasherWatcher key={d.id} device={d} tileSettings={tileSettingsByDevice[d.id] || {}} />
             ))}
             {wasteDevices.map(d => (
                 <WasteWatcher key={d.id} device={d} />

@@ -3,7 +3,8 @@ import { useHomey } from '../../context/HomeyContext';
 import { Utensils, Shirt, Check, Power, Activity, Clock, DoorOpen, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import { useFinishedPrompt } from '../FinishedPromptOverlay';
-import { useApplianceState, applianceCfgFromSettings, findCycleDevice, nativeStateOf } from '../../hooks/useApplianceState';
+import { useApplianceState, findCycleDevice, nativeStateOf } from '../../hooks/useApplianceState';
+import { getMachinePopupCfg } from '../../services/popup-settings';
 import { hassAPI } from '../../services/hass-api';
 import useIsMobile from '../../hooks/useIsMobile';
 
@@ -75,12 +76,14 @@ const GraphTooltip = ({ active, payload, label }) => {
 };
 
 const ApplianceTile = ({ tile, device, expanded = false }) => {
-    const { api, devices } = useHomey();
+    const { api, devices, settings: globalSettings } = useHomey();
     const isMobile = useIsMobile();
     const settings = tile.settings || {};
-    const cfg = applianceCfgFromSettings(settings);
 
     const kind = settings.applianceKind || device?.settings?.applianceKind || 'dishwasher';
+    // Terskler for tilstandsmaskinen kommer fra de globale popup-innstillingene
+    // (Innstillinger → Popups) — samme kilde som FinishedPromptManager bruker.
+    const cfg = getMachinePopupCfg(globalSettings, kind, settings);
     const applianceLabel = tile.name || device?.name || (kind === 'dishwasher' ? 'Oppvaskmaskin' : 'Tørketrommel');
     const KindIcon = kind === 'dryer' ? Shirt : Utensils;
 
@@ -107,7 +110,6 @@ const ApplianceTile = ({ tile, device, expanded = false }) => {
     const { acked, acknowledge } = useFinishedPrompt({
         deviceId: device?.id || tile.id,
         finishedAt: (machineState.phase === 'finished' && !finishedExpired) ? machineState.finishedAt : null,
-        enabled: settings.finishedPrompt !== false,
     });
 
     const isFinished = machineState.phase === 'finished' && !finishedExpired && !acked;
