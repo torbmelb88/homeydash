@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Save, Trash2, Plus, Search, X } from 'lucide-react';
+import { resolveTileDevice } from '../services/utils';
 
 // Felles enhetsliste-redigering for multi-fliser (multi-light, multi-thermostat).
 // deviceFilter avgjør hvilke enheter som kan velges; listLabel er overskriften.
@@ -15,9 +16,19 @@ const MultiDeviceSettings = ({ devices, multiDevices, settings, onChange, device
         return deviceFilter(d);
     });
 
-    const addMultiDevice = (deviceId) => {
-        if (!multiDevices.includes(deviceId)) {
-            onChange({ multiDevices: [...multiDevices, deviceId] });
+    const addMultiDevice = (device) => {
+        if (!multiDevices.includes(device.id)) {
+            const change = { multiDevices: [...multiDevices, device.id] };
+            // Entity-hint så raden overlever at HA gir composite-enheten ny device-ID
+            if (device.primaryEntityId) {
+                change.settings = {
+                    deviceEntityHints: {
+                        ...(settings.deviceEntityHints || {}),
+                        [device.id]: device.primaryEntityId
+                    }
+                };
+            }
+            onChange(change);
         }
         setShowDeviceSearch(false);
         setSearchTerm('');
@@ -60,9 +71,8 @@ const MultiDeviceSettings = ({ devices, multiDevices, settings, onChange, device
                 <label>{listLabel}</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
                     {multiDevices.map((deviceId, index) => {
-                        const d = devices.find(dev => dev.id === deviceId);
-                        if (!d) return null;
-                        const customName = settings.customNames?.[deviceId] || d.name;
+                        const d = resolveTileDevice(devices, deviceId, settings.deviceEntityHints?.[deviceId]);
+                        const customName = settings.customNames?.[deviceId] || d?.name || deviceId;
 
                         return (
                             <div key={deviceId} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', overflow: 'hidden' }}>
@@ -119,7 +129,7 @@ const MultiDeviceSettings = ({ devices, multiDevices, settings, onChange, device
                                 <button
                                     key={d.id}
                                     className="btn btn-ghost"
-                                    onClick={() => addMultiDevice(d.id)}
+                                    onClick={() => addMultiDevice(d)}
                                     style={{ justifyContent: 'flex-start', padding: '8px 6px', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}
                                 >
                                     <span style={{ fontSize: '0.9rem' }}>{d.name}</span>

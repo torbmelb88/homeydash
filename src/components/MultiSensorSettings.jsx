@@ -337,6 +337,8 @@ const ItemForm = ({ devices, initial, onSave, onCancel, saveLabel }) => {
                                 className="btn btn-ghost"
                                 onClick={() => {
                                     set('device', d.id);
+                                    // Entity-hint så elementet overlever at HA gir composite-enheten ny device-ID
+                                    set('entityId', d.primaryEntityId || null);
                                     set('capability', '');
                                     setShowDeviceSearch(false);
                                     setSearchTerm('');
@@ -445,7 +447,7 @@ const MultiSensorSettings = ({ devices, items, columns, onChange }) => {
     };
 
     const addItem = (form) => {
-        const updated = [...localItems, { deviceId: form.device, capability: form.capability, icon: form.icon, label: form.label, colorMode: form.colorMode, staticColor: form.staticColor, thresholds: form.thresholds }];
+        const updated = [...localItems, { deviceId: form.device, entityId: form.entityId || null, capability: form.capability, icon: form.icon, label: form.label, colorMode: form.colorMode, staticColor: form.staticColor, thresholds: form.thresholds }];
         setLocalItems(updated);
         notify(updated, localColumns);
         setShowAddForm(false);
@@ -454,7 +456,7 @@ const MultiSensorSettings = ({ devices, items, columns, onChange }) => {
     const saveEdit = (form) => {
         const updated = localItems.map((item, i) =>
             i === editIndex
-                ? { deviceId: form.device, capability: form.capability, icon: form.icon, label: form.label, colorMode: form.colorMode, staticColor: form.staticColor, thresholds: form.thresholds }
+                ? { deviceId: form.device, entityId: form.entityId || null, capability: form.capability, icon: form.icon, label: form.label, colorMode: form.colorMode, staticColor: form.staticColor, thresholds: form.thresholds }
                 : item
         );
         setLocalItems(updated);
@@ -509,7 +511,7 @@ const MultiSensorSettings = ({ devices, items, columns, onChange }) => {
                             <ItemForm
                                 key={index}
                                 devices={devices}
-                                initial={{ device: item.deviceId, capability: item.capability, icon: item.icon || 'activity', label: item.label || '', colorMode: item.colorMode || 'auto', staticColor: item.staticColor || '#6b8cba', thresholds: item.thresholds || DEFAULT_THRESHOLDS }}
+                                initial={{ device: item.deviceId, entityId: item.entityId || null, capability: item.capability, icon: item.icon || 'activity', label: item.label || '', colorMode: item.colorMode || 'auto', staticColor: item.staticColor || '#6b8cba', thresholds: item.thresholds || DEFAULT_THRESHOLDS }}
                                 onSave={saveEdit}
                                 onCancel={() => setEditIndex(null)}
                                 saveLabel="Lagre"

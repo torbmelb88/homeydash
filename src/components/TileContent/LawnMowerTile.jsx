@@ -92,8 +92,16 @@ const LawnMowerTile = ({ tile, device, expanded = false }) => {
     const totalTime = getCap('lawn_mower_total_time');
     const totalTimeUnit = device?.capabilitiesObj?.['lawn_mower_total_time']?.units;
     const nextStart = getCap('lawn_mower_next_start');
-    const bladeTime = getCap('lawn_mower_blade_time');
-    const bladeTimeUnit = device?.capabilitiesObj?.['lawn_mower_blade_time']?.units;
+    // Knivtid: foretrekk tid siden siste nullstilling (Worx) framfor totalen
+    const bladeCurrent = getCap('lawn_mower_blade_current');
+    const bladeTime = bladeCurrent ?? getCap('lawn_mower_blade_time');
+    const bladeTimeUnit = bladeCurrent != null
+        ? (device?.capabilitiesObj?.['lawn_mower_blade_current']?.units || 'min')
+        : device?.capabilitiesObj?.['lawn_mower_blade_time']?.units;
+    const bladeThreshold = getCap('lawn_mower_blade_threshold'); // min
+    const bladeDue = getCap('lawn_mower_maintenance') === 'blade_service_due' ||
+        (bladeCurrent != null && bladeThreshold > 0 && bladeCurrent >= bladeThreshold);
+    const hasBladeReset = device?.capabilities?.includes('lawn_mower_reset_blades');
     const distance = getCap('lawn_mower_distance');
     // Worx-skytelleren (progress/area_today) henger ofte etter og kan stå på 0 hele dagen,
     // mens det lokale estimatet er live — bruk den største av de to
@@ -379,6 +387,30 @@ const LawnMowerTile = ({ tile, device, expanded = false }) => {
                             </div>
                         )}
 
+                        {/* Knivbytte anbefalt (Worx vedlikeholdsterskel) */}
+                        {bladeDue && (
+                            <div style={{ ...bannerStyle('rgba(245,158,11,0.1)', 'var(--color-warning)'), justifyContent: 'space-between' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Scissors size={14} />
+                                    På tide å bytte kniver
+                                    {bladeCurrent != null && ` – ${formatMinutes(bladeCurrent)}${bladeThreshold > 0 ? ` av ${formatMinutes(bladeThreshold)}` : ''}`}
+                                </span>
+                                {hasBladeReset && (
+                                    <button
+                                        onMouseDown={e => e.stopPropagation()}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsInteracting(true);
+                                            api.setCapability(device.id, 'lawn_mower_reset_blades', true);
+                                        }}
+                                        style={{ ...btnStyle, padding: '2px 8px', fontSize: '0.7rem', minHeight: 0 }}
+                                    >
+                                        Kniver byttet
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
                         {/* Feilmelding */}
                         {hasError && errorMsg && errorMsg !== 'no_error' && (
                             <div style={bannerStyle('rgba(239,68,68,0.1)', 'var(--color-danger)')}>
@@ -474,10 +506,17 @@ const LawnMowerTile = ({ tile, device, expanded = false }) => {
                             )}
                             {bladeTime != null && (
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontSize: '0.65rem', color: 'var(--color-text-secondary)' }}>Knivtid</span>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <span style={{ fontSize: '0.65rem', color: 'var(--color-text-secondary)' }}>
+                                        {bladeCurrent != null ? 'Knivtid siden bytte' : 'Knivtid'}
+                                    </span>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px', color: bladeDue ? 'var(--color-warning)' : undefined }}>
                                         <Timer size={11} />
                                         {bladeTimeUnit === 'min' ? formatMinutes(bladeTime) : `${bladeTime}t`}
+                                        {bladeCurrent != null && bladeThreshold > 0 && (
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 400, color: 'var(--color-text-secondary)' }}>
+                                                / {formatMinutes(bladeThreshold)}
+                                            </span>
+                                        )}
                                     </span>
                                 </div>
                             )}

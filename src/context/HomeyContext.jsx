@@ -301,6 +301,8 @@ export const HomeyProvider = ({ children }) => {
                     targetEntityId = dev.settings.vacuumEntityId;
                 } else if (dev && capabilityId === 'lawn_mower_edge_cut' && dev.settings?.edgeCutEntityId) {
                     targetEntityId = dev.settings.edgeCutEntityId;
+                } else if (dev && capabilityId === 'lawn_mower_reset_blades' && dev.settings?.resetBladesEntityId) {
+                    targetEntityId = dev.settings.resetBladesEntityId;
                 } else if (dev && capabilityId === 'cutting_height' && dev.settings?.cuttingHeightEntityId) {
                     targetEntityId = dev.settings.cuttingHeightEntityId;
                 } else if (dev && capabilityId.startsWith('lawn_mower_') && dev.settings?.lawnMowerEntityId) {

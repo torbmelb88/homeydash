@@ -85,14 +85,23 @@ export const useFinishedPrompt = ({ deviceId, finishedAt, enabled = true }) => {
 // Hurtigvalg for slumretid på selve popupen (pil-knappen ved Slumre)
 const SNOOZE_OPTIONS = [10, 15, 30, 60];
 
+// Slumretid i minutter → kort tekst («45 min», «6 t», «2 d»)
+export const formatSnooze = (min) => {
+    if (min >= 1440 && min % 1440 === 0) return `${min / 1440} d`;
+    if (min >= 60 && min % 60 === 0) return `${min / 60} t`;
+    return `${min} min`;
+};
+
 const FinishedPromptOverlay = ({
     visible,
     icon = null,
     title = 'Maskinen er ferdig',
     question = 'Er den tømt?',
+    yesLabel = 'Ja',
     onYes,
     onSnooze,
     snoozeMinutes = 5,
+    snoozeOptions = SNOOZE_OPTIONS,
 }) => {
     // Vekk skjermen og hold skjermsparer unna (Fully Kiosk) KUN mens popupen
     // er synlig — ellers sluker skjermspareren det første trykket. I slumre-
@@ -181,7 +190,7 @@ const FinishedPromptOverlay = ({
                 </div>
                 {showSnoozeOptions && (
                     <div style={{ display: 'flex', gap: '10px', width: '100%', marginBottom: '14px' }}>
-                        {SNOOZE_OPTIONS.map(min => (
+                        {snoozeOptions.map(min => (
                             <button
                                 key={min}
                                 onClick={() => onSnooze?.(min)}
@@ -197,7 +206,7 @@ const FinishedPromptOverlay = ({
                                     cursor: 'pointer',
                                 }}
                             >
-                                {min} min
+                                {formatSnooze(min)}
                             </button>
                         ))}
                     </div>
@@ -222,7 +231,7 @@ const FinishedPromptOverlay = ({
                         }}
                     >
                         <Check size={26} strokeWidth={3} />
-                        Ja
+                        {yesLabel}
                     </button>
                     <div style={{ flex: 1, display: 'flex' }}>
                         <button
@@ -245,7 +254,7 @@ const FinishedPromptOverlay = ({
                             }}
                         >
                             <AlarmClock size={22} />
-                            Slumre {snoozeMinutes} min
+                            Slumre {formatSnooze(snoozeMinutes)}
                         </button>
                         <button
                             onClick={() => setShowSnoozeOptions(v => !v)}

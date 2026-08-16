@@ -4,6 +4,7 @@ import { X, Settings, Trash2 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { WIDGET_TYPES } from '../constants';
 import { useHomey } from '../context/HomeyContext';
+import { resolveTileDevice } from '../services/utils';
 import BatteryIcon from './BatteryIcon';
 import LightTile from './TileContent/LightTile';
 import ThermostatTile from './TileContent/ThermostatTile';
@@ -53,7 +54,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
 
     // Resolve device: prioritize tile.settings.deviceId (manual override), fallback to tile.deviceId (initial)
     const deviceId = tile.settings?.deviceId || tile.deviceId;
-    const device = devices.find(d => d.id === deviceId);
+    const device = resolveTileDevice(devices, deviceId, tile.settings?.fallbackEntityId);
     
     const isMultiLight = tile.type === 'multi-light';
     const isMultiThermostat = tile.type === 'multi-thermostat';

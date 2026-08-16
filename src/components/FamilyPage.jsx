@@ -594,7 +594,7 @@ function TodoSection({ settings, expanded, tasks, sections = [], loading, error,
     return byOrder(a, b);
   });
 
-  const visibleRoots = expanded ? roots : roots.slice(0, 10);
+  const visibleRoots = roots;
 
   // Oppgaver med frist i dag (eller forfalt) vises øverst i sin kategori,
   // adskilt fra senere oppgaver med en skillelinje
@@ -853,10 +853,6 @@ function TodoSection({ settings, expanded, tasks, sections = [], loading, error,
         );
       })()}
 
-      {!expanded && roots.length > 10 && (
-        <div className="fp-more-hint">+{roots.length - 10} til</div>
-      )}
-
       {roots.some(t => t.priority > 1) && (
         <div className="fp-prio-legend">
           <span className="fp-prio-legend-title">Prioritet:</span>
@@ -991,7 +987,7 @@ function ShoppingSection({ settings, expanded, items, sections = [], loading, er
     (a, b) => (a.section_order ?? a.order ?? 0) - (b.section_order ?? b.order ?? 0)
   );
 
-  const displayItems = expanded ? items : items.slice(0, 10);
+  const displayItems = items;
 
   const itemsBySection = {};
   displayItems.forEach(item => {
@@ -1140,9 +1136,6 @@ function ShoppingSection({ settings, expanded, items, sections = [], loading, er
         </div>
       )}
 
-      {!expanded && items.length > 10 && (
-        <div className="fp-more-hint">+{items.length - 10} til</div>
-      )}
     </div>
   );
 }

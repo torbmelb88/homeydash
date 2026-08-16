@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useHomey } from '../../context/HomeyContext';
+import { resolveTileDevice } from '../../services/utils';
 import { Power, AlertCircle } from 'lucide-react';
 
 const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => {
@@ -9,9 +10,10 @@ const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => 
     const [sliderHeight, setSliderHeight] = useState(150);
     const sliderRef = useRef(null);
 
-    // Filter valid devices
+    // Filter valid devices (entity-hint fallback survives nye HA device-ID-er)
+    const deviceEntityHints = tile.settings?.deviceEntityHints || {};
     const tileDevices = (tile.devices || [])
-        .map(id => devices.find(d => d.id === id))
+        .map(id => resolveTileDevice(devices, id, deviceEntityHints[id]))
         .filter(Boolean);
 
     // Sync local state and clear optimistic state when matched

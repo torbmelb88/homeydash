@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useHomey } from '../context/HomeyContext';
 import { storage } from '../services/storage';
 import { hassAPI } from '../services/hass-api';
-import { Utensils, Shirt, WashingMachine, Trash2 } from 'lucide-react';
+import { Utensils, Shirt, WashingMachine, Trash2, Scissors } from 'lucide-react';
 import FinishedPromptOverlay, { useFinishedPrompt } from './FinishedPromptOverlay';
 import { useApplianceState, applianceCfgFromSettings, findCycleDevice, nativeStateOf } from '../hooks/useApplianceState';
 import useLedAlert from '../hooks/useLedAlert';
@@ -246,6 +246,106 @@ const WasteWatcher = ({ device }) => {
     );
 };
 
+// ── Robotklipper: knivbytte (vedlikeholdsterskel) ──────────────────────
+// Worx-integrasjonen setter sensor.*_maintenance_status = 'blade_service_due'
+// når knivtiden siden siste nullstilling passerer terskelen (satt i
+// integrasjonen, f.eks. 100 t). Popupen står til knivene er byttet og
+// telleren nullstilt (button.*_reset_blade_runtime) — «Ja» gjør begge deler.
+// Vises kun på dagtid; en vedlikeholdsvarsel skal ikke vekke skjermen om natta.
+const BLADE_PROMPT_START_HOUR = 8;
+const BLADE_PROMPT_END_HOUR = 22;
+const BLADE_SNOOZE_OPTIONS = [60, 360, 1440, 4320]; // 1 t, 6 t, 1 d, 3 d
+const BLADE_SNOOZE_DEFAULT = 1440;
+
+const formatHours = (min) => {
+    if (min == null) return null;
+    const h = min / 60;
+    return h >= 10 ? `${Math.round(h)} t` : `${h.toFixed(1).replace('.', ',')} t`;
+};
+
+const BladeWatcher = ({ device }) => {
+    const { showToast } = useHomey();
+
+    // Jevnlig re-render så tidsvinduet (08–22) slår inn/ut uten ny HA-data
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const iv = setInterval(() => setTick(t => t + 1), 60 * 1000);
+        return () => clearInterval(iv);
+    }, []);
+
+    const cap = (id) => device.capabilitiesObj?.[id]?.value;
+    const maintenance = cap('lawn_mower_maintenance');
+    const bladeMin = cap('lawn_mower_blade_current');
+    const thresholdMin = cap('lawn_mower_blade_threshold');
+    const due = maintenance === 'blade_service_due' ||
+        (bladeMin != null && thresholdMin != null && thresholdMin > 0 && bladeMin >= thresholdMin);
+
+    // Stabilt «siden»-tidspunkt som kvitteringsnøkkel: første gang vi så
+    // terskelen passert. Nullstilles når status går tilbake til ok.
+    const dueKey = `bladeDueSince:${device.id}`;
+    const [dueSince, setDueSince] = useState(() => {
+        const v = parseInt(localStorage.getItem(dueKey), 10);
+        return isNaN(v) ? null : v;
+    });
+    useEffect(() => {
+        if (due && !dueSince) {
+            const t = Date.now();
+            setDueSince(t);
+            try { localStorage.setItem(dueKey, String(t)); } catch { /* ignore */ }
+        } else if (!due && dueSince) {
+            setDueSince(null);
+            try { localStorage.removeItem(dueKey); } catch { /* ignore */ }
+        }
+    }, [due]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const hour = new Date().getHours();
+    const inWindow = hour >= BLADE_PROMPT_START_HOUR && hour < BLADE_PROMPT_END_HOUR;
+
+    const { visible, acknowledge, snooze } = useFinishedPrompt({
+        deviceId: `blades:${device.id}`,
+        finishedAt: (due && dueSince && inWindow) ? dueSince : null,
+        enabled: true,
+    });
+
+    // «Ja» = knivene er byttet: nullstill telleren i HA (så status går til ok
+    // og popupen forsvinner av seg selv) og kvitter lokalt. Feiler
+    // nullstillingen, blir popupen stående så brukeren ser at det ikke gikk.
+    const handleYes = async () => {
+        const resetEntity = device.settings?.resetBladesEntityId;
+        if (resetEntity) {
+            try {
+                await hassAPI.callService('button', 'press', resetEntity);
+            } catch (err) {
+                console.warn('BladeWatcher: nullstilling av knivteller feilet', err);
+                showToast?.('Kunne ikke nullstille knivtelleren i Home Assistant', 'error');
+                return;
+            }
+        }
+        acknowledge();
+    };
+
+    const name = device.name || 'Robotklipperen';
+    const used = formatHours(bladeMin);
+    const limit = formatHours(thresholdMin);
+    const detail = used
+        ? ` Knivene har gått ${used}${limit ? ` (grense ${limit})` : ''}.`
+        : '';
+
+    return (
+        <FinishedPromptOverlay
+            visible={visible}
+            icon={<Scissors size={44} strokeWidth={1.8} />}
+            title={`${name}: på tide å bytte kniver`}
+            question={`${detail} Er knivene byttet?`.trim()}
+            yesLabel="Ja, byttet"
+            onYes={handleYes}
+            onSnooze={(min) => snooze(min)}
+            snoozeMinutes={BLADE_SNOOZE_DEFAULT}
+            snoozeOptions={BLADE_SNOOZE_OPTIONS}
+        />
+    );
+};
+
 const FinishedPromptManager = () => {
     const { devices, settings } = useHomey();
 
@@ -312,6 +412,13 @@ const FinishedPromptManager = () => {
         d.settings?.compositeType === 'waste_collection'
     ) : [];
 
+    // Knivbytte-påminnelse for robotklipper: egen profil-bryter (bladePromptEnabled)
+    const mowers = settings?.bladePromptEnabled !== false ? devices.filter(d =>
+        !d._inComposite &&
+        d.capabilities?.includes('homey_lawn_mower') &&
+        (d.capabilitiesObj?.lawn_mower_maintenance || d.capabilitiesObj?.lawn_mower_blade_threshold)
+    ) : [];
+
     return (
         <>
             {appliances.map(d => (
@@ -322,6 +429,9 @@ const FinishedPromptManager = () => {
             ))}
             {wasteDevices.map(d => (
                 <WasteWatcher key={d.id} device={d} />
+            ))}
+            {mowers.map(d => (
+                <BladeWatcher key={d.id} device={d} />
             ))}
         </>
     );

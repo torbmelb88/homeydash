@@ -13,6 +13,7 @@ import MultiSensorSettings from './MultiSensorSettings';
 import KeypadSettings from './KeypadSettings';
 import MultiDeviceSettings from './MultiDeviceSettings';
 import { CheckboxRow, ShowOptionsGroup } from './SettingsControls';
+import { resolveTileDevice } from '../services/utils';
 
 // Norske fallback-titler for capabilities uten egen title (typisk HA-composite).
 // Følger CAP_TITLE_MAP-mønsteret fra HierarchyEditor.
@@ -40,7 +41,7 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
     const isWidget = SETTINGS_WIDGET_TYPES.has(tile.type);
 
     // Single device logic
-    const device = (!isMultiLight && !isMultiThermostat && !isMultiSensor && !isWidget) ? devices.find(d => d.id === tile.deviceId) : null;
+    const device = (!isMultiLight && !isMultiThermostat && !isMultiSensor && !isWidget) ? resolveTileDevice(devices, tile.deviceId, tile.settings?.fallbackEntityId) : null;
 
     const [size, setSize] = useState(tile.size || '1x1');
     const [customName, setCustomName] = useState(tile.name || (device ? device.name : ''));

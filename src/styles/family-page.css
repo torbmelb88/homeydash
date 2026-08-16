@@ -329,6 +329,53 @@
   scrollbar-color: var(--wb-pencil-line) transparent;
 }
 
+/* Kompakt kolonnevisning: tettere rader så flere oppgaver får plass på
+   nettbrettet (den utvidede overlay-visningen beholder de luftige radene) */
+.fp-column-body .fp-task {
+  gap: 10px;
+  padding: 5px 10px;
+  margin: 1px 6px;
+}
+
+.fp-column-body .fp-task-check {
+  width: 34px;
+  height: 34px;
+}
+
+.fp-column-body .fp-task-check svg {
+  width: 22px;
+  height: 22px;
+}
+
+.fp-column-body .fp-subtask .fp-task-check {
+  width: 28px;
+  height: 28px;
+}
+
+.fp-column-body .fp-task-title {
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.fp-column-body .fp-task-due,
+.fp-column-body .fp-subtask-count {
+  font-size: 1rem;
+}
+
+.fp-column-body .fp-todo-group {
+  padding-bottom: 4px;
+}
+
+.fp-column-body .fp-todo-group-label {
+  font-size: 1.25rem;
+  padding: 4px 10px 1px;
+  margin: 4px 8px 2px;
+}
+
+.fp-column-body .fp-today-divider {
+  margin: 4px 12px 5px;
+}
+
 /* ── Felles seksjonselementer ────────────────────────────────────── */
 
 .fp-empty {

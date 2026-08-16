@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useHomey } from '../context/HomeyContext';
 import { storage } from '../services/storage';
-import { X, Copy } from 'lucide-react';
+import { X, Copy, Trash2, History, Pencil, Save } from 'lucide-react';
 
 const TABS = [
     { id: 'hub', label: 'Hub' },
@@ -27,11 +27,16 @@ const SettingsModal = ({ onClose }) => {
     const [finishedPrompts, setFinishedPrompts] = useState(settings.finishedPromptsEnabled !== false);
     const [incomingCallPopup, setIncomingCallPopup] = useState(settings.incomingCallPopupEnabled !== false);
     const [wastePrompt, setWastePrompt] = useState(settings.wastePromptEnabled !== false);
+    const [bladePrompt, setBladePrompt] = useState(settings.bladePromptEnabled !== false);
     const [gridColumns, setGridColumns] = useState(settings.gridColumns || 'auto');
     const [gridDensity, setGridDensity] = useState(settings.gridDensity || 'normal');
     const [status, setStatus] = useState('');
     const [showJsonExport, setShowJsonExport] = useState(false);
     const [jsonExportData, setJsonExportData] = useState('');
+    const [versionName, setVersionName] = useState('');
+    const [versions, setVersions] = useState(null); // null = liste skjult
+    const [editingVersionId, setEditingVersionId] = useState(null);
+    const [editVersionName, setEditVersionName] = useState('');
 
     const handleTestConnection = async () => {
         setStatus('⏳ Tester tilkobling...');
@@ -74,6 +79,7 @@ const SettingsModal = ({ onClose }) => {
             finishedPromptsEnabled: finishedPrompts,
             incomingCallPopupEnabled: incomingCallPopup,
             wastePromptEnabled: wastePrompt,
+            bladePromptEnabled: bladePrompt,
             gridColumns,
             gridDensity
         };
@@ -115,6 +121,58 @@ const SettingsModal = ({ onClose }) => {
         window.location.reload();
     };
 
+    // «Synkroniser fra sky» viser versjonslisten når Firebase er aktiv;
+    // uten Firebase (demo/offline) beholdes gammel oppførsel (tøm cache + reload).
+    const handleSyncClick = async () => {
+        if (!storage.useFirebase) { handleSync(); return; }
+        if (versions !== null) { setVersions(null); return; } // toggle
+        setStatus('⏳ Henter versjoner...');
+        const list = await storage.listVersions();
+        setVersions(list);
+        setStatus('');
+    };
+
+    const formatVersionDate = (ts) => new Date(ts).toLocaleString('nb-NO', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    const handleRestoreVersion = async (v) => {
+        const label = v.name || formatVersionDate(v.createdAt);
+        if (!window.confirm(`Hente versjonen «${label}»? Nåværende oppsett tas det automatisk sikkerhetskopi av først.`)) return;
+        setStatus('⏳ Gjenoppretter versjon...');
+        try {
+            // Sikkerhetsnett: snapshot av det som ligger i skyen nå, før overskriving
+            const current = await storage.exportData();
+            await storage.saveVersion(current, '', true);
+            const ok = await storage.restoreVersion(v.id);
+            if (!ok) { setStatus('❌ Fant ikke versjonen i skyen'); return; }
+            window.location.reload();
+        } catch (e) {
+            setStatus('❌ Feil ved gjenoppretting: ' + e.message);
+        }
+    };
+
+    const handleRenameVersion = async (id) => {
+        try {
+            await storage.renameVersion(id, editVersionName);
+            setEditingVersionId(null);
+            setVersions(await storage.listVersions());
+        } catch (e) {
+            setStatus('❌ Feil ved navneendring: ' + e.message);
+        }
+    };
+
+    const handleDeleteVersion = async (v) => {
+        const label = v.name || formatVersionDate(v.createdAt);
+        if (!window.confirm(`Slette versjonen «${label}»?`)) return;
+        try {
+            await storage.deleteVersion(v.id);
+            setVersions(await storage.listVersions());
+        } catch (e) {
+            setStatus('❌ Feil ved sletting: ' + e.message);
+        }
+    };
+
     const handlePushToCloud = async () => {
         setStatus('⏳ Laster opp til sky...');
         try {
@@ -124,7 +182,13 @@ const SettingsModal = ({ onClose }) => {
                 settings: JSON.parse(localStorage.getItem('settings_config') || '{}'),
             };
             await storage.importData(data);
-            setStatus('✅ Konfigurasjon er dyttet til sky!');
+            const trimmedName = versionName.trim();
+            await storage.saveVersion(data, trimmedName);
+            setVersionName('');
+            if (versions !== null) setVersions(await storage.listVersions());
+            setStatus(trimmedName
+                ? `✅ Dyttet til sky — versjonen «${trimmedName}» er lagret!`
+                : '✅ Konfigurasjon er dyttet til sky!');
         } catch (e) {
             setStatus('❌ Feil: ' + e.message);
         }
@@ -285,6 +349,10 @@ const SettingsModal = ({ onClose }) => {
                             <input type="checkbox" id="wastePromptCheck" checked={wastePrompt} onChange={e => setWastePrompt(e.target.checked)} />
                             <label htmlFor="wastePromptCheck">Vis søppeltømming-popup («Er søpla båret ut?»)</label>
                         </div>
+                        <div className="form-group checkbox-group">
+                            <input type="checkbox" id="bladePromptCheck" checked={bladePrompt} onChange={e => setBladePrompt(e.target.checked)} />
+                            <label htmlFor="bladePromptCheck">Vis knivbytte-popup for robotklipper («Er knivene byttet?»)</label>
+                        </div>
                         <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.5rem' }}>
                             Gjelder kun denne enheten/profilen. Andre nettbrett og mobiler har egne valg.
                         </p>
@@ -294,18 +362,104 @@ const SettingsModal = ({ onClose }) => {
                     {activeTab === 'backup' && (
                     <div className="settings-section">
                         <h3>Sikkerhetskopi</h3>
+                        <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+                            <input
+                                type="text"
+                                value={versionName}
+                                onChange={e => setVersionName(e.target.value)}
+                                placeholder="Navn på versjon (valgfritt, f.eks. «Sommeroppsett»)"
+                                maxLength={60}
+                                style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--color-bg-secondary)', color: 'white', border: '1px solid var(--color-border)' }}
+                            />
+                        </div>
                         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem' }}>
                             <button className="btn btn-primary" onClick={handlePushToCloud} style={{ flex: 1 }}>
                                 Dytt til sky
                             </button>
-                            <button className="btn btn-secondary" onClick={handleSync} style={{ flex: 1 }}>
+                            <button className="btn btn-secondary" onClick={handleSyncClick} style={{ flex: 1 }}>
                                 Synkroniser fra sky
                             </button>
                         </div>
                         <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
-                            <strong>Dytt til sky</strong> (bruk på PC): sender det som er her til Firebase, inkludert opprydding av slettede fliser.<br />
-                            <strong>Synkroniser fra sky</strong> (bruk på nettbrett): henter siste versjon fra Firebase.
+                            <strong>Dytt til sky</strong> (bruk på PC): sender det som er her til Firebase, inkludert opprydding av slettede fliser. Hvert dytt lagres også som en versjon — gi den navn hvis du er særlig fornøyd med oppsettet (navngitte versjoner beholdes for alltid, navnløse kun de 15 siste).<br />
+                            <strong>Synkroniser fra sky</strong> (bruk på nettbrett): viser lagrede versjoner du kan hente — eller bare siste synkroniserte.
                         </p>
+                        {versions !== null && (
+                            <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '10px', marginBottom: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <span style={{ fontWeight: 600, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <History size={16} /> Velg versjon
+                                    </span>
+                                    <button className="icon-btn" onClick={() => setVersions(null)}><X size={16} /></button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '260px', overflowY: 'auto' }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={handleSync}
+                                        style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                                    >
+                                        Siste synkroniserte oppsett (gjeldende i skyen)
+                                    </button>
+                                    {versions.map(v => (
+                                        <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            {editingVersionId === v.id ? (
+                                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0' }}>
+                                                    <input
+                                                        autoFocus
+                                                        type="text"
+                                                        value={editVersionName}
+                                                        onChange={e => setEditVersionName(e.target.value)}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') handleRenameVersion(v.id);
+                                                            if (e.key === 'Escape') setEditingVersionId(null);
+                                                        }}
+                                                        placeholder="Navn på versjon"
+                                                        maxLength={60}
+                                                        style={{ flex: 1, padding: '6px 8px', borderRadius: '4px', background: 'var(--color-bg-tertiary)', color: 'white', border: '1px solid var(--color-accent-primary)' }}
+                                                    />
+                                                    <button className="icon-btn" onClick={() => handleRenameVersion(v.id)} title="Lagre navn">
+                                                        <Save size={15} />
+                                                    </button>
+                                                    <button className="icon-btn" onClick={() => setEditingVersionId(null)} title="Avbryt">
+                                                        <X size={15} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        className="btn btn-ghost"
+                                                        onClick={() => handleRestoreVersion(v)}
+                                                        style={{ flex: 1, justifyContent: 'flex-start', textAlign: 'left', flexDirection: 'column', alignItems: 'flex-start', gap: '2px', padding: '8px 10px' }}
+                                                    >
+                                                        <span style={{ fontSize: '0.9rem', fontWeight: v.name ? 600 : 400 }}>
+                                                            {v.name || (v.auto ? 'Auto-sikkerhetskopi' : 'Uten navn')}
+                                                        </span>
+                                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                                                            {formatVersionDate(v.createdAt)} · {v.tileCount ?? '?'} fliser · {v.pageCount ?? '?'} sider
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        className="icon-btn"
+                                                        onClick={() => { setEditingVersionId(v.id); setEditVersionName(v.name || ''); }}
+                                                        title="Gi navn / endre navn"
+                                                    >
+                                                        <Pencil size={15} />
+                                                    </button>
+                                                    <button className="icon-btn" onClick={() => handleDeleteVersion(v)} title="Slett versjon" style={{ color: 'var(--color-error)' }}>
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {versions.length === 0 && (
+                                        <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '4px' }}>
+                                            Ingen lagrede versjoner ennå — de opprettes ved «Dytt til sky».
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                         {status && (
                             <p style={{ fontSize: '0.9rem', marginBottom: '1rem', color: status.includes('✅') ? '#4caf50' : '#f44336' }}>
                                 {status}

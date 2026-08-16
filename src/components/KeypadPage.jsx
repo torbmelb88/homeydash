@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Lock, Unlock, Delete, Settings } from 'lucide-react';
 import { useHomey } from '../context/HomeyContext';
 import { storage } from '../services/storage';
+import { resolveTileDevice } from '../services/utils';
 
 // Helside-variant av KeypadTile (kodepanelet), tilpasset NSPanel Pro (480×480).
 // Gjenbruker innstillingene (handlinger, PIN, meldinger) fra en eksisterende
@@ -48,7 +49,7 @@ export default function KeypadPage({ page }) {
     const nextAction = useMemo(() => {
         if (actions.length === 0) return null;
         for (const action of actions) {
-            const dev = devices.find(d => d.id === action.deviceId);
+            const dev = resolveTileDevice(devices, action.deviceId, action.entityId);
             if (!dev) continue;
             const targetVal = parseValue(action.value);
             const currentVal = dev.capabilitiesObj?.[action.capabilityId]?.value;
@@ -59,7 +60,8 @@ export default function KeypadPage({ page }) {
 
     const executeAction = async (action) => {
         try {
-            await api.setCapability(action.deviceId, action.capabilityId, parseValue(action.value));
+            const dev = resolveTileDevice(devices, action.deviceId, action.entityId);
+            await api.setCapability(dev?.id || action.deviceId, action.capabilityId, parseValue(action.value));
             setStatus('success');
         } catch (e) {
             console.error('KeypadPage: Failed to set capability', e);

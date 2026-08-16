@@ -49,7 +49,9 @@ const AddTileModal = ({ onClose, onAdd }) => {
             deviceId: device.id,
             type: type,
             size: '1x1', // Default size
-            pageId: null // Will be set by parent
+            pageId: null, // Will be set by parent
+            // Entity-hint så flisen overlever at HA gir composite-enheten ny device-ID
+            ...(device.primaryEntityId ? { settings: { fallbackEntityId: device.primaryEntityId } } : {})
         };
         onAdd(newTile);
     };

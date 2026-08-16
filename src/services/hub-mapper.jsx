@@ -863,6 +863,18 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                     // Worx: detaljert status-enum (mowing/edge_cutting/charging/going_home/...)
                     // options-sjekken skiller den fra f.eks. *_maintenance_status
                     addCap('lawn_mower_status', value, null, 'string');
+                } else if (obj.endsWith('_maintenance_status')) {
+                    // Worx: ok / blade_service_due / battery_service_due. Terskelen for
+                    // knivbytte (satt i integrasjonen) ligger som attributt i minutter.
+                    addCap('lawn_mower_maintenance', value, null, 'string');
+                    if (attr.blade_service_threshold_minutes != null) {
+                        addCap('lawn_mower_blade_threshold', numOrNull(attr.blade_service_threshold_minutes), 'min');
+                    }
+                } else if (obj.endsWith('_blade_runtime_current')) {
+                    // Knivtid siden siste nullstilling (button.*_reset_blade_runtime)
+                    addCap('lawn_mower_blade_current', numOrNull(value), attr.unit_of_measurement || 'min');
+                } else if (obj.endsWith('_blade_runtime_reset_time')) {
+                    addCap('lawn_mower_blade_reset_time', value, null, 'string');
                 } else if (obj.endsWith('_error') || obj.endsWith('_error_code')) {
                     addCap('lawn_mower_error', value, null, 'string');
                 } else if (obj.endsWith('_total_worktime') || obj.endsWith('_mower_runtime_total')) {
@@ -912,6 +924,10 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                 if (obj.endsWith('_start_edge_cutting')) {
                     addCap('lawn_mower_edge_cut', true, null, 'boolean');
                     updatedDevice.settings = { ...updatedDevice.settings, edgeCutEntityId: eid };
+                } else if (obj.endsWith('_reset_blade_runtime')) {
+                    // Nullstill knivteller etter knivbytte (brukes av knivbytte-popupen)
+                    addCap('lawn_mower_reset_blades', true, null, 'boolean');
+                    updatedDevice.settings = { ...updatedDevice.settings, resetBladesEntityId: eid };
                 }
             } else if (domain === 'camera') {
                 // Worx RTK-kart: entity_picture er en camera_proxy-URL med access token
@@ -1160,6 +1176,10 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             zoneName: areaKey || '',
             hubType: 'hass',
             isHA: true,
+            // Stabile nøkler for selvhelbredende oppslag (resolveTileDevice):
+            // entity-ID-er overlever at HA gir enheten ny device registry-UUID.
+            entityIds: deviceEntities.map(e => e.entity_id),
+            primaryEntityId: primaryEntity.entity_id,
             settings: {
                 isComposite: true,
                 haDeviceId: deviceId,

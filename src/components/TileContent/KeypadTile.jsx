@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useHomey } from '../../context/HomeyContext';
+import { resolveTileDevice } from '../../services/utils';
 import { Lock, Unlock, Delete } from 'lucide-react';
 
 const KeypadTile = ({ tile, expanded, settings, onCloseExpanded }) => {
@@ -10,7 +11,7 @@ const KeypadTile = ({ tile, expanded, settings, onCloseExpanded }) => {
     const [smartNoPinRunning, setSmartNoPinRunning] = useState(false);
 
     const deviceId = settings?.deviceId;
-    const targetDevice = devices.find(d => d.id === deviceId);
+    const targetDevice = resolveTileDevice(devices, deviceId, settings?.entityId);
 
     // Normalize actions
     const actions = settings?.actions || (settings?.deviceId ? [{
@@ -26,7 +27,7 @@ const KeypadTile = ({ tile, expanded, settings, onCloseExpanded }) => {
     const nextAction = React.useMemo(() => {
         if (actions.length === 0) return null;
         for (const action of actions) {
-            const dev = devices.find(d => d.id === action.deviceId);
+            const dev = resolveTileDevice(devices, action.deviceId, action.entityId);
             if (!dev) continue;
             
             let targetVal = action.value || 'true';
@@ -52,13 +53,14 @@ const KeypadTile = ({ tile, expanded, settings, onCloseExpanded }) => {
             if (val === 'false') val = false;
             if (!isNaN(Number(val)) && val.trim() !== '') val = Number(val);
 
-            await api.setCapability(action.deviceId, action.capabilityId, val);
+            const dev = resolveTileDevice(devices, action.deviceId, action.entityId);
+            await api.setCapability(dev?.id || action.deviceId, action.capabilityId, val);
             setStatus('success');
         } catch(e) {
             console.error("Keypad: Failed to set capability", e);
             setStatus('error');
         }
-        
+
         setTimeout(() => {
             setStatus('idle');
         }, 2000);
@@ -216,7 +218,8 @@ const KeypadTile = ({ tile, expanded, settings, onCloseExpanded }) => {
             if (val === 'false') val = false;
             if (!isNaN(Number(val)) && val.trim() !== '') val = Number(val);
 
-            await api.setCapability(action.deviceId, action.capabilityId, val);
+            const dev = resolveTileDevice(devices, action.deviceId, action.entityId);
+            await api.setCapability(dev?.id || action.deviceId, action.capabilityId, val);
             setStatus('success');
         } catch(e) {
             console.error("Keypad: Failed to set capability", e);

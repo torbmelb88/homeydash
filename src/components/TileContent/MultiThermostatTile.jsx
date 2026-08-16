@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useHomey } from '../../context/HomeyContext';
 import { AlertCircle, Thermometer, Flame, Snowflake, RefreshCw, Power, Maximize2, X } from 'lucide-react';
+import { resolveTileDevice } from '../../services/utils';
 import ThermostatTile from './ThermostatTile';
 
 const MultiThermostatTile = ({ tile }) => {
@@ -11,9 +12,10 @@ const MultiThermostatTile = ({ tile }) => {
     const [expandedDeviceId, setExpandedDeviceId] = useState(null);
     const sliderRef = useRef(null);
 
-    // Filter valid devices
+    // Filter valid devices (entity-hint fallback survives nye HA device-ID-er)
+    const deviceEntityHints = tile.settings?.deviceEntityHints || {};
     const tileDevices = (tile.devices || [])
-        .map(id => devices.find(d => d.id === id))
+        .map(id => resolveTileDevice(devices, id, deviceEntityHints[id]))
         .filter(Boolean);
 
     // Measure slider height for vertical orientation styling if needed
@@ -89,7 +91,7 @@ const MultiThermostatTile = ({ tile }) => {
         }
     };
 
-    const expandedDevice = expandedDeviceId ? devices.find(d => d.id === expandedDeviceId) : null;
+    const expandedDevice = expandedDeviceId ? resolveTileDevice(devices, expandedDeviceId, deviceEntityHints[expandedDeviceId]) : null;
 
     return (
         <div className={`tile-content multi-light-container ${isVertical ? 'vertical' : 'horizontal'}`} style={{ gap: '8px', padding: '8px' }}>

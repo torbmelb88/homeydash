@@ -82,7 +82,7 @@ class Storage {
         // Delete profile metadata
         await deleteDoc(doc(db, 'profiles', profileId));
         // Delete all data collections for this profile
-        for (const col of ['pages', 'tiles', 'settings']) {
+        for (const col of ['pages', 'tiles', 'settings', 'versions']) {
             const colName = `${col}__${profileId}`;
             const snap = await getDocs(collection(db, colName));
             const batch = writeBatch(db);
@@ -248,6 +248,81 @@ class Storage {
             localStorage.setItem('settings_config', JSON.stringify(data.settings));
             if (db) await setDoc(doc(db, scopedSettings, 'config'), data.settings);
         }
+    }
+
+    // --- Konfigurasjonsversjoner (sjekkpunkter fra «Dytt til sky») ---
+    // Én versjon = ett dokument i versions__<profil> med hele oppsettet som
+    // JSON-streng (unngår Firestore-begrensninger på map-nøkler, og holder
+    // seg godt under 1 MB-grensen per dokument).
+
+    async listVersions() {
+        if (!db) return [];
+        try {
+            const snap = await getDocs(collection(db, this._col('versions')));
+            return snap.docs
+                .map(d => {
+                    const { data, ...meta } = d.data();
+                    return { id: d.id, ...meta };
+                })
+                .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+        } catch (e) {
+            console.warn('Failed to list versions:', e);
+            return [];
+        }
+    }
+
+    async saveVersion(payload, name = '', auto = false) {
+        if (!db) return null;
+        const id = this.generateId();
+        const version = {
+            name: (name || '').trim() || null,
+            auto,
+            createdAt: Date.now(),
+            pageCount: payload.pages?.length ?? 0,
+            tileCount: payload.tiles?.length ?? 0,
+            data: JSON.stringify(payload),
+        };
+        await setDoc(doc(db, this._col('versions'), id), version);
+        await this._pruneVersions();
+        return id;
+    }
+
+    // Navngitte versjoner beholdes for alltid; av navnløse (inkl. auto-
+    // sikkerhetskopier) beholdes kun de nyeste.
+    async _pruneVersions(keep = 15) {
+        try {
+            const snap = await getDocs(collection(db, this._col('versions')));
+            const unnamed = snap.docs
+                .filter(d => !d.data().name)
+                .sort((a, b) => (b.data().createdAt ?? 0) - (a.data().createdAt ?? 0));
+            for (const d of unnamed.slice(keep)) {
+                await deleteDoc(d.ref);
+            }
+        } catch (e) {
+            console.warn('Version pruning failed:', e);
+        }
+    }
+
+    async restoreVersion(id) {
+        if (!db) return false;
+        const snap = await getDoc(doc(db, this._col('versions'), id));
+        if (!snap.exists()) return false;
+        const payload = JSON.parse(snap.data().data);
+        await this.importData(payload); // skriver både Firestore og localStorage
+        return true;
+    }
+
+    async deleteVersion(id) {
+        if (!db) return;
+        await deleteDoc(doc(db, this._col('versions'), id));
+    }
+
+    // Sett/endre/fjern navn i etterkant. Tomt navn → navnløs (og dermed
+    // omfattet av pruning igjen).
+    async renameVersion(id, name) {
+        if (!db) return;
+        await setDoc(doc(db, this._col('versions'), id),
+            { name: (name || '').trim() || null }, { merge: true });
     }
 
     async syncFromFirebase(collectionName, id) {

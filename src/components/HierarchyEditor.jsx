@@ -112,6 +112,8 @@ const HierarchyEditor = ({ hierarchy, onChange, devices, theme }) => {
             parent.children.push({
                 name: item.label,
                 deviceId: item.deviceId,
+                // Entity-hint så noden overlever at HA gir composite-enheten ny device-ID
+                ...(item.entityId ? { entityId: item.entityId } : {}),
                 capability: item.capability,
                 children: []
             });
@@ -241,6 +243,7 @@ const HierarchyEditor = ({ hierarchy, onChange, devices, theme }) => {
                 allCapItems.push({
                     id: `${dev.id}::${cap}`,
                     deviceId: dev.id,
+                    entityId: capObj.entity_id || dev.entityId || dev.primaryEntityId || null,
                     capability: cap,
                     label: `${dev.name} – ${resolvedTitle}`,
                     capTitle: resolvedTitle,

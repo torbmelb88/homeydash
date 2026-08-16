@@ -1,5 +1,6 @@
 import React from 'react';
 import { useHomey } from '../../context/HomeyContext';
+import { resolveTileDevice } from '../../services/utils';
 import { Thermometer, Droplets, Activity, Zap, Wind, Gauge, Battery, Sun, Eye, Volume2,
     BatteryCharging, Plug, Power, Lightbulb, Flame, Snowflake, Cloud, CloudRain, CloudSnow,
     Cloudy, Sunrise, Sunset, Home, Building2, DoorOpen, Lock, Unlock, Bell, BellOff,
@@ -131,7 +132,7 @@ const MultiSensorTile = ({ tile }) => {
 
             <div className="tile-content multi-sensor-container" style={gridStyle}>
                 {items.map((item, index) => {
-                    const device = devices.find(d => d.id === item.deviceId);
+                    const device = resolveTileDevice(devices, item.deviceId, item.entityId);
                     if (!device) return null;
 
                     const value = device.capabilitiesObj?.[item.capability]?.value;

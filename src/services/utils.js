@@ -32,6 +32,21 @@ export function getDeviceType(device) {
     return 'unknown';
 }
 
+/**
+ * Finn en flis sin enhet med selvhelbreding: composite-ID-er (`composite:<haDeviceId>`)
+ * blir ugyldige når HA re-registrerer enheten (ny device registry-UUID, sett ved
+ * ESPHome-omregistrering aug 2026). Faller da tilbake til en lagret entity-ID
+ * (stabil på tvers av re-registrering) og finner composite-enheten som eier den nå.
+ */
+export function resolveTileDevice(devices, deviceId, fallbackEntityId = null) {
+    if (!deviceId) return undefined;
+    const direct = devices.find(d => d.id === deviceId);
+    if (direct) return direct;
+    if (!fallbackEntityId) return undefined;
+    return devices.find(d => d.entityIds?.includes(fallbackEntityId))
+        || devices.find(d => d.id === fallbackEntityId);
+}
+
 // Local http services that nginx reverse-proxies under /svc/<port>/ so the
 // HTTPS dashboard can reach them same-origin (avoids mixed-content blocking).
 // Keep in sync with the /svc/<port>/ locations in config/nginx/dashboard.conf.

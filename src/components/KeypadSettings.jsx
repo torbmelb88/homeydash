@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Eye, EyeOff, Lock } from 'lucide-react';
+import { resolveTileDevice } from '../services/utils';
 
 /**
  * KeypadSettings
@@ -49,10 +50,13 @@ const KeypadSettings = ({ devices, settings, activeTab, onChange }) => {
 
     const addAction = () => {
         if (!label || !device || !capability) return;
+        const selDev = devices.find(d => d.id === device);
         const newAction = {
             id: Date.now().toString(),
             label,
             deviceId: device,
+            // Entity-hint så handlingen overlever at HA gir composite-enheten ny device-ID
+            entityId: selDev?.primaryEntityId || selDev?.entityId || null,
             capabilityId: capability,
             value,
             requirePin
@@ -92,7 +96,7 @@ const KeypadSettings = ({ devices, settings, activeTab, onChange }) => {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
                         {local.actions.map((action, index) => {
-                            const d = devices.find(dev => dev.id === action.deviceId);
+                            const d = resolveTileDevice(devices, action.deviceId, action.entityId);
                             return (
                                 <div key={action.id} style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',

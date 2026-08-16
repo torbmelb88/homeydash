@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useHomey } from '../../context/HomeyContext';
+import { resolveTileDevice } from '../../services/utils';
 import { ChevronRight, ArrowLeft, Zap, Activity, Home, Box, Layers, Sun, Snowflake, Droplet, Wind, Coins, Banknote, Gauge } from 'lucide-react';
 
 const IconMap = {
@@ -58,7 +59,7 @@ const HierarchyTile = ({ tile, expanded, onCloseExpanded }) => {
     const calculateNodeValue = (node) => {
         if (!node) return 0;
         if (node.deviceId && node.capability) {
-            const device = devices.find(d => d.id === node.deviceId);
+            const device = resolveTileDevice(devices, node.deviceId, node.entityId);
             if (device && device.capabilitiesObj && device.capabilitiesObj[node.capability]) {
                 return device.capabilitiesObj[node.capability].value || 0;
             }
