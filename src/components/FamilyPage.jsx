@@ -56,7 +56,9 @@ function fmtTime(dt) {
 }
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0];
+  // Lokal dato (toISOString gir UTC og bommer rundt midnatt)
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function groupByDay(events) {
@@ -131,6 +133,7 @@ function CalendarSection({ settings, expanded, events, loading, error, onEventsC
 
   const grouped = groupByDay(events);
   const displayGroups = expanded ? grouped : grouped.slice(0, 4);
+  const today = todayStr();
 
   return (
     <div className="fp-calendar-content">
@@ -205,10 +208,10 @@ function CalendarSection({ settings, expanded, events, loading, error, onEventsC
       )}
 
       {displayGroups.map(([dateStr, dayEvents]) => (
-        <div key={dateStr} className="fp-day-group">
+        <div key={dateStr} className={`fp-day-group${dateStr === today ? ' today' : ''}`}>
           <div className="fp-day-label">{dayLabel(dateStr)}</div>
           {dayEvents.map(ev => (
-            <div key={ev.id} className="fp-event">
+            <div key={ev.id} className={`fp-event${dateStr === today ? ' today' : ''}`}>
               <div className="fp-event-time">
                 {ev.start?.dateTime ? fmtTime(ev.start.dateTime) : 'Hele dagen'}
               </div>
