@@ -4,7 +4,7 @@ import {
   Calendar, ShoppingCart, CheckSquare, Settings, X, Plus,
   Check, Trash2, RefreshCw, ChevronRight,
   Maximize2, Users, Pencil, LayoutGrid,
-  Utensils, Shirt, WashingMachine
+  Utensils, Shirt, WashingMachine, Wallet
 } from 'lucide-react';
 import * as calApi from '../services/ha-calendar-api';
 import * as todoistApi from '../services/todoist-api';
@@ -131,8 +131,12 @@ function CalendarSection({ settings, expanded, events, loading, error, onEventsC
     );
   }
 
+  // Kompakt kolonne: tettere rader (family-page.css) gjør at flere dager får
+  // plass – kolonnen scroller uansett, så grensen er bare et tak mot svært
+  // lange lister
+  const COMPACT_DAY_LIMIT = 8;
   const grouped = groupByDay(events);
-  const displayGroups = expanded ? grouped : grouped.slice(0, 4);
+  const displayGroups = expanded ? grouped : grouped.slice(0, COMPACT_DAY_LIMIT);
   const today = todayStr();
 
   return (
@@ -226,8 +230,8 @@ function CalendarSection({ settings, expanded, events, loading, error, onEventsC
         </div>
       ))}
 
-      {!expanded && grouped.length > 4 && (
-        <div className="fp-more-hint">+{grouped.length - 4} dager til</div>
+      {!expanded && grouped.length > COMPACT_DAY_LIMIT && (
+        <div className="fp-more-hint">+{grouped.length - COMPACT_DAY_LIMIT} dager til</div>
       )}
     </div>
   );
@@ -1146,9 +1150,12 @@ function ShoppingSection({ settings, expanded, items, sections = [], loading, er
 // ─── Settings modal ──────────────────────────────────────────────────────
 
 function FamilySettingsModal({ page, onClose, onSave }) {
+  const { devices } = useHomey();
   const fs = page.familySettings || {};
   const [tab, setTab] = useState('calendar');
   const [calendarIds, setCalendarIds] = useState(fs.haCalendarIds || []);
+  // null = ikke lagret valg ennå → alle sensorer vises (også fremtidige)
+  const [economySensorIds, setEconomySensorIds] = useState(fs.economySensorIds ?? null);
   const [todoProjectId, setTodoProjectId] = useState(fs.todoProjectId || '');
   const [shoppingProjectId, setShoppingProjectId] = useState(fs.shoppingProjectId || '');
   const [showShopping, setShowShopping] = useState(fs.showShopping || false);
@@ -1214,6 +1221,16 @@ function FamilySettingsModal({ page, onClose, onSave }) {
     );
   };
 
+  const economySensors = getEconomySensors(devices);
+
+  const toggleEconomySensor = (id) => {
+    setEconomySensorIds(prev => {
+      // Første avhuking materialiserer «alle»-standarden til en eksplisitt liste
+      const list = prev ?? economySensors.map(s => s.id);
+      return list.includes(id) ? list.filter(x => x !== id) : [...list, id];
+    });
+  };
+
   const handleSave = () => {
     onSave({
       haCalendarIds: calendarIds,
@@ -1224,6 +1241,7 @@ function FamilySettingsModal({ page, onClose, onSave }) {
       todoColumnsCount,
       sectionWidths,
       calendarDaysAhead: Number(calendarDaysAhead) || 14,
+      economySensorIds,
       // Token passed separately so handleSaveSettings can route it to credentials storage
       todoistToken: todoistToken.trim() || undefined,
     });
@@ -1244,6 +1262,9 @@ function FamilySettingsModal({ page, onClose, onSave }) {
           </button>
           <button className={tab === 'lists' ? 'active' : ''} onClick={() => setTab('lists')}>
             <CheckSquare size={14} /> Lister
+          </button>
+          <button className={tab === 'economy' ? 'active' : ''} onClick={() => setTab('economy')}>
+            <Wallet size={14} /> Økonomi
           </button>
           <button className={tab === 'layout' ? 'active' : ''} onClick={() => setTab('layout')}>
             <LayoutGrid size={14} /> Layout
@@ -1370,6 +1391,43 @@ function FamilySettingsModal({ page, onClose, onSave }) {
                 <button className="btn btn-secondary btn-sm" onClick={fetchProjects} disabled={loadingProjects}>
                   {loadingProjects ? 'Laster...' : 'Last prosjekter'}
                 </button>
+              )}
+            </div>
+          )}
+
+          {tab === 'economy' && (
+            <div>
+              <p style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginBottom: 12 }}>
+                Økonomistripen viser sensorer fra Home Assistant med entitets-ID som
+                starter med «{ECONOMY_ENTITY_PREFIX}». Velg hvilke som skal vises.
+              </p>
+
+              {economySensors.length === 0 && (
+                <div className="fp-error">
+                  Fant ingen økonomisensorer i Home Assistant.
+                </div>
+              )}
+
+              {economySensors.length > 0 && (
+                <div className="form-group">
+                  <label>Sensorer i økonomistripen</label>
+                  {economySensors.map(s => (
+                    <label key={s.id} className="fp-checkbox-label" style={{ marginBottom: 6 }}>
+                      <input
+                        type="checkbox"
+                        checked={economySensorIds === null || economySensorIds.includes(s.id)}
+                        onChange={() => toggleEconomySensor(s.id)}
+                      />
+                      {s.name}
+                      <span style={{ opacity: 0.4, fontSize: '0.78em', marginLeft: 6, fontFamily: 'monospace' }}>
+                        {s.id}
+                      </span>
+                    </label>
+                  ))}
+                  <p style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginTop: 4 }}>
+                    Uten avhukinger skjules stripen. Nye sensorer må velges inn her.
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -1611,6 +1669,47 @@ function ApplianceBanner({ devices }) {
           </span>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Økonomi-stripe ───────────────────────────────────────────────────────
+// Viser økonomisensorer fra HA (entity_id-prefix sensor.okonomiflyt).
+// Hvilke som vises velges i Økonomi-fanen i sideinnstillingene; uten lagret
+// valg vises alle sensorer som matcher prefixet.
+
+const ECONOMY_ENTITY_PREFIX = 'sensor.okonomiflyt';
+
+const getEconomySensors = (devices) => (devices || [])
+  .filter(d => d.entityId?.startsWith(ECONOMY_ENTITY_PREFIX))
+  .map(d => {
+    const cap = d.capabilitiesObj?.measure_generic;
+    return {
+      id: d.entityId,
+      name: d.name,
+      value: parseFloat(cap?.value ?? d.state),
+      units: cap?.units || 'kr',
+    };
+  })
+  .sort((a, b) => a.name.localeCompare(b.name, 'nb'));
+
+const formatEconomyValue = (value, units) =>
+  isNaN(value) ? '–' : `${Math.round(value).toLocaleString('nb-NO')} ${units}`;
+
+function EconomyBanner({ devices, selectedIds }) {
+  const all = getEconomySensors(devices);
+  const sensors = Array.isArray(selectedIds) ? all.filter(s => selectedIds.includes(s.id)) : all;
+  if (!sensors.length) return null;
+
+  return (
+    <div className="fp-economy-banner">
+      <Wallet size={22} style={{ flexShrink: 0 }} />
+      {sensors.map(s => (
+        <span key={s.id} className="fp-economy-banner-item">
+          <span className="fp-economy-banner-name">{s.name}</span>
+          <span className="fp-economy-banner-value">{formatEconomyValue(s.value, s.units)}</span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -1880,6 +1979,7 @@ export default function FamilyPage({ page }) {
 
       <CornerClock />
       <WasteBanner devices={devices} onClick={() => !isEditMode && setExpanded('waste')} />
+      <EconomyBanner devices={devices} selectedIds={settings?.economySensorIds} />
       <ApplianceBanner devices={devices} />
 
       {/* Column layout (shopping hidden unless enabled) */}

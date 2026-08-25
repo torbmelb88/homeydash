@@ -203,6 +203,42 @@
   opacity: 0.85;
 }
 
+/* Økonomi-stripe – valgte økonomisensorer fra HA */
+
+.fp-economy-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px 28px;
+  flex-wrap: wrap;
+  margin: 10px 22px 0;
+  padding: 8px 18px;
+  border: 2.5px solid var(--wb-pencil-border);
+  border-radius: var(--wb-wobble, 14px);
+  color: var(--wb-pencil);
+  font-family: var(--wb-font);
+}
+
+.fp-economy-banner-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.fp-economy-banner-name {
+  font-size: 1.3rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+.fp-economy-banner-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Full oversikt (overlay) */
 
 .fp-waste-summary {
@@ -374,6 +410,33 @@
 
 .fp-column-body .fp-today-divider {
   margin: 4px 12px 5px;
+}
+
+/* Kompakt kalender: tettere dagsgrupper og rader så flere hendelser
+   får plass i kolonnen (overlay beholder de luftige radene) */
+.fp-column-body .fp-day-group {
+  padding: 2px 0 6px;
+}
+
+.fp-column-body .fp-day-label {
+  font-size: 1.3rem;
+  padding: 2px 10px 1px;
+  margin: 0 8px 2px;
+}
+
+.fp-column-body .fp-event {
+  gap: 10px;
+  padding: 3px 10px;
+}
+
+.fp-column-body .fp-event-time {
+  font-size: 1.1rem;
+  min-width: 64px;
+}
+
+.fp-column-body .fp-event-title {
+  font-size: 1.35rem;
+  line-height: 1.25;
 }
 
 /* ── Felles seksjonselementer ────────────────────────────────────── */
