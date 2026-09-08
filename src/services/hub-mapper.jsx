@@ -938,6 +938,58 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
             return updatedDevice;
         }
 
+        // --- Irrigation valve mapping (SONOFF SWV-ZF2, Zigbee2MQTT) ---
+        // To kanaler: switch.*_1 / switch.*_2 → valve_1 / valve_2. Objekt-sensorene
+        // (manual_default_settings, irrigation_schedule_status_N) lagres av HA som
+        // Python-dict-streng kuttet ved 255 tegn (alfabetisk nøkkelrekkefølge) —
+        // feltene vi trenger ligger tidlig nok til å overleve kuttet.
+        if (device.settings.compositeType === 'irrigation' ||
+            device.capabilities.includes('homey_irrigation')) {
+            const numOrNull = (v) => {
+                if (v === 'unknown' || v === 'unavailable' || v == null || v === '') return null;
+                const n = parseFloat(v);
+                return isNaN(n) ? null : n;
+            };
+            const dictField = (str, key) => {
+                const m = String(str ?? '').match(new RegExp(`'${key}': '?([^',}]*)'?`));
+                return m ? m[1] : null;
+            };
+            const chan = (re) => { const m = obj.match(re); return m ? m[1] : null; };
+            let n;
+            if (domain === 'switch') {
+                if (obj.endsWith('_child_lock')) {
+                    addCap('child_lock', value === 'on', null, 'boolean');
+                } else if ((n = chan(/_(\d)$/))) {
+                    addCap(`valve_${n}`, value === 'on', null, 'boolean');
+                }
+            } else if (domain === 'sensor') {
+                if (obj.endsWith('_battery')) {
+                    addCap('measure_battery', numOrNull(value) ?? 0, '%');
+                } else if ((n = chan(/_real_time_irrigation_duration_(\d)$/))) {
+                    addCap(`valve_${n}_duration`, numOrNull(value), 'min');
+                } else if (obj.endsWith('_real_time_irrigation_volume')) {
+                    addCap('irrigation_volume', numOrNull(value), attr.unit_of_measurement || 'L');
+                } else if ((n = chan(/_hour_irrigation_duration_(\d)$/))) {
+                    addCap(`valve_${n}_hour_duration`, numOrNull(value), 'min');
+                } else if (obj.endsWith('_hour_irrigation_volume')) {
+                    addCap('irrigation_hour_volume', numOrNull(value), attr.unit_of_measurement || 'L');
+                } else if (obj.endsWith('_valve_abnormal_state')) {
+                    addCap('valve_alarm', value, null, 'string');
+                } else if (obj.endsWith('_manual_default_settings')) {
+                    addCap('manual_duration', numOrNull(dictField(value, 'irrigation_duration')), 'min');
+                    addCap('manual_mode', dictField(value, 'irrigation_mode') || 'duration', null, 'string');
+                    addCap('manual_amount', numOrNull(dictField(value, 'irrigation_amount')), 'L');
+                } else if ((n = chan(/_irrigation_schedule_status_(\d)$/))) {
+                    addCap(`valve_${n}_expected_end`, dictField(value, 'expected_end_time') || '', null, 'string');
+                    addCap(`valve_${n}_actual_end`, dictField(value, 'actual_end_time') || '', null, 'string');
+                } else if (obj.endsWith('_rain_delay_end_datetime')) {
+                    addCap('rain_delay_end', value, null, 'string');
+                }
+            }
+            // Øvrige entiteter (planer, historikk, sesongjustering, oppdatering) ignoreres
+            return updatedDevice;
+        }
+
         // --- Climate composite-specific mapping ---
         // Handles climate entities and their associated sensors/switches.
         // Critical: outdoor temperature sensors must NOT overwrite measure_temperature (indoor).
@@ -1144,6 +1196,12 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             return obj.includes('car_charger') || obj.includes('ev_charger');
         });
 
+        // --- Irrigation valve detection (SONOFF SWV-ZF2 via Zigbee2MQTT) ---
+        // Kjennetegn: sensor.*_irrigation_schedule_status_N (per kanal)
+        const isIrrigation = !isWasher && !isWaterHeater && !isEVCharger && deviceEntities.some(e =>
+            (e.entity_id.split('.')[1] || '').includes('irrigation_schedule_status')
+        );
+
         // --- Build the composite ---
         const compositeId = `composite:${deviceId}`;
         const areaKey = entityToArea[primaryEntity.entity_id];
@@ -1166,13 +1224,13 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
         let composite = {
             id: compositeId,
             name: isPostal ? 'Post' : isAppliance ? (applianceKind === 'dishwasher' ? 'Oppvaskmaskin' : 'Tørketrommel') : deviceName,
-            class: isAppliance ? 'socket' : isWasher ? 'vacuum' : isEVCharger ? 'socket' : isPostal ? 'sensor' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : (DOMAIN_TO_CLASS[primaryDomain] ?? primaryDomain),
-            capabilities: isAppliance ? ['smart_plug_appliance'] : isWasher ? ['laundry'] : isWaterHeater ? ['homey_water_heater'] : isEVCharger ? ['homey_ev_charger'] : isPostal ? ['posten_sensor'] : isVacuum ? ['homey_vacuum'] : isLawnMower ? ['homey_lawn_mower'] : [],
+            class: isAppliance ? 'socket' : isWasher ? 'vacuum' : isEVCharger ? 'socket' : isPostal ? 'sensor' : isIrrigation ? 'irrigation' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : (DOMAIN_TO_CLASS[primaryDomain] ?? primaryDomain),
+            capabilities: isAppliance ? ['smart_plug_appliance'] : isWasher ? ['laundry'] : isWaterHeater ? ['homey_water_heater'] : isEVCharger ? ['homey_ev_charger'] : isPostal ? ['posten_sensor'] : isIrrigation ? ['homey_irrigation'] : isVacuum ? ['homey_vacuum'] : isLawnMower ? ['homey_lawn_mower'] : [],
             capabilitiesObj: {},
             capabilitiesOptions: {},
             ui: { components: [] },
-            lucideIconName: isAppliance ? 'utensils' : isWasher ? 'washing-machine' : isEVCharger ? 'zap' : isPostal ? 'mail' : isVacuum ? 'disc-2' : isLawnMower ? 'scissors' : primaryDomain,
-            LucideIcon: isAppliance ? Utensils : isWasher ? WashingMachine : isEVCharger ? Zap : isPostal ? Mail : isVacuum ? Disc2 : isLawnMower ? Scissors : (iconMap[primaryDomain] ?? HelpCircle),
+            lucideIconName: isAppliance ? 'utensils' : isWasher ? 'washing-machine' : isEVCharger ? 'zap' : isPostal ? 'mail' : isIrrigation ? 'droplets' : isVacuum ? 'disc-2' : isLawnMower ? 'scissors' : primaryDomain,
+            LucideIcon: isAppliance ? Utensils : isWasher ? WashingMachine : isEVCharger ? Zap : isPostal ? Mail : isIrrigation ? Droplets : isVacuum ? Disc2 : isLawnMower ? Scissors : (iconMap[primaryDomain] ?? HelpCircle),
             zoneName: areaKey || '',
             hubType: 'hass',
             isHA: true,
@@ -1183,7 +1241,7 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             settings: {
                 isComposite: true,
                 haDeviceId: deviceId,
-                compositeType: isAppliance ? 'appliance' : isWasher ? 'washer' : isWaterHeater ? 'water_heater' : isEVCharger ? 'ev_charger' : isPostal ? 'postal' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : primaryDomain,
+                compositeType: isAppliance ? 'appliance' : isWasher ? 'washer' : isWaterHeater ? 'water_heater' : isEVCharger ? 'ev_charger' : isPostal ? 'postal' : isIrrigation ? 'irrigation' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : primaryDomain,
                 ...(isAppliance ? { applianceKind } : {}),
             }
         };

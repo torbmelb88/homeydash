@@ -37,6 +37,7 @@ import AirFryerTile from './TileContent/AirFryerTile';
 import KeypadTile from './TileContent/KeypadTile';
 import VacuumTile from './TileContent/VacuumTile';
 import LawnMowerTile from './TileContent/LawnMowerTile';
+import IrrigationTile from './TileContent/IrrigationTile';
 
 import HeaderTile from './TileContent/HeaderTile';
 import EnergyDashboardWidget from './TileContent/EnergyDashboardWidget';
@@ -89,6 +90,8 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
         type = 'vacuum';
     } else if (device && device.capabilities.includes('homey_lawn_mower')) {
         type = 'lawn-mower';
+    } else if (device && (device.capabilities.includes('homey_irrigation') || device.settings?.compositeType === 'irrigation')) {
+        type = 'irrigation';
     } else if (device && device.capabilities.includes('fan_speed')) {
         type = 'fan';
     } else if (device && device.capabilities.includes('sensor_flagg')) {
@@ -198,7 +201,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
             return;
         }
 
-        if (type === 'thermostat' || type === 'light' || type === 'switch' || type === 'multi-light' || type === 'cleaning' || type === 'fan' || type === 'trash' || type === 'postal' || type === 'ev-charger' || type === 'hierarchy' || type === 'water-heater' || type === 'weather' || type === 'keypad' || type === 'vacuum' || type === 'lawn-mower' || type === 'appliance' || type === 'intercom') {
+        if (type === 'thermostat' || type === 'light' || type === 'switch' || type === 'multi-light' || type === 'cleaning' || type === 'fan' || type === 'trash' || type === 'postal' || type === 'ev-charger' || type === 'hierarchy' || type === 'water-heater' || type === 'weather' || type === 'keypad' || type === 'vacuum' || type === 'lawn-mower' || type === 'irrigation' || type === 'appliance' || type === 'intercom') {
             setIsExpanded(true);
         }
     };
@@ -249,6 +252,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
             case 'keypad': return <KeypadTile {...props} settings={tile.settings} onCloseExpanded={handleCloseExpanded} />;
             case 'vacuum': return <VacuumTile {...props} />;
             case 'lawn-mower': return <LawnMowerTile {...props} />;
+            case 'irrigation': return <IrrigationTile {...props} />;
             case 'intercom': return <IntercomTile {...props} />;
             case 'appliance': return <ApplianceTile {...props} />;
             case 'presence': return <PresenceTile {...props} />;

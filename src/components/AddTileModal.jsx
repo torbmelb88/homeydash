@@ -36,6 +36,7 @@ const AddTileModal = ({ onClose, onAdd }) => {
             case 'water-heater': return 'Varmtvannsbereder';
             case 'vacuum': return 'Støvsuger';
             case 'lawn-mower': return 'Robotklipper';
+            case 'irrigation': return 'Vanning';
             case 'appliance': return 'Apparat (smartplugg)';
             case 'presence': return 'Tilstedeværelse';
             default: return 'Ukjent enhet';
@@ -70,6 +71,7 @@ const AddTileModal = ({ onClose, onAdd }) => {
             case 'water-heater': return <Droplets size={16} />;
             case 'vacuum': return <Disc2 size={16} />;
             case 'lawn-mower': return <Scissors size={16} />;
+            case 'irrigation': return <Droplets size={16} />;
             case 'appliance': return <Utensils size={16} />;
             case 'presence': return <UserRound size={16} />;
             default: return <Zap size={16} />;

@@ -132,6 +132,7 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
             if (device.capabilities.includes('posten_sensor') || device.settings?.compositeType === 'postal') return 'postal';
             if (device.capabilities.includes('homey_vacuum') || device.settings?.compositeType === 'vacuum') return 'vacuum';
             if (device.capabilities.includes('homey_lawn_mower') || device.settings?.compositeType === 'lawn_mower') return 'lawn-mower';
+            if (device.capabilities.includes('homey_irrigation') || device.settings?.compositeType === 'irrigation') return 'irrigation';
             if (device.capabilities.includes('fan_speed')) return 'fan';
         }
         if (tile.type && tile.type !== 'auto') return tile.type;
@@ -199,6 +200,13 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
         if (type === 'lawn-mower') {
             return [
                 ...base,
+                { id: 'expanded', label: 'Utvidet (Stor)' },
+            ];
+        }
+        if (type === 'irrigation') {
+            return [
+                ...base,
+                { id: 'config',   label: 'Innstillinger'  },
                 { id: 'expanded', label: 'Utvidet (Stor)' },
             ];
         }
@@ -1693,6 +1701,33 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
                         </div>
                     )}
 
+                    {/* ── Vanning: Innstillinger ───────────────────── */}
+                    {activeTab === 'config' && effectiveType === 'irrigation' && (
+                        <div>
+                            <div className="form-group">
+                                <label>Navn på sonene</label>
+                                <p className="hint">Vises på knappene for hver ventil, f.eks. «Plen» og «Bed».</p>
+                                {[1, 2].map(n => (
+                                    <div key={n} style={{ marginTop: '8px' }}>
+                                        <label style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Sone {n}</label>
+                                        <input
+                                            type="text"
+                                            value={widgetSettings[`zone${n}Name`] || ''}
+                                            onChange={(e) => setWidgetSettings({ ...widgetSettings, [`zone${n}Name`]: e.target.value })}
+                                            placeholder={`Sone ${n}`}
+                                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'white' }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="hint">
+                                Start kjører ventilen i standardvarigheten som er satt på enheten
+                                ({device?.capabilitiesObj?.manual_duration?.value ?? '?'} min) og lukker deretter selv.
+                                Tidsplaner styres ikke fra dashbordet.
+                            </p>
+                        </div>
+                    )}
+
                     {/* ── Solskjerm: Innstillinger ─────────────────── */}
                     {activeTab === 'config' && effectiveType === 'sunshade' && (
                         <div>
@@ -2360,6 +2395,21 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
                                         { key: 'showCostDaily',        label: 'Kostnad i dag (kr)',         def: true  },
                                         { key: 'showCostMonthly',      label: 'Kostnad denne måneden (kr)', def: false },
                                         { key: 'showAllocatedCurrent', label: 'Tildelt strøm (A)',          def: false },
+                                    ]}
+                                    values={widgetSettings}
+                                    onChange={(key, checked) => setWidgetSettings(prev => ({ ...prev, [key]: checked }))}
+                                />
+                            )}
+
+                            {/* ── Vanning: Utvidet visning ──────────────── */}
+                            {effectiveType === 'irrigation' && (
+                                <ShowOptionsGroup
+                                    title="Velg hva som vises i stor visning"
+                                    description="Sone-knappene, varsler og batteri vises alltid."
+                                    options={[
+                                        { key: 'showRunStats',  label: 'Kjøretid per sone (nå / siste kjøring)', def: true },
+                                        { key: 'showHourStats', label: 'Siste time (tid og vannmengde)',        def: true },
+                                        { key: 'showChildLock', label: 'Barnesikring-status',                   def: true },
                                     ]}
                                     values={widgetSettings}
                                     onChange={(key, checked) => setWidgetSettings(prev => ({ ...prev, [key]: checked }))}

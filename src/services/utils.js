@@ -8,6 +8,7 @@ export function getDeviceType(device) {
 
     if (caps.includes('homey_vacuum') || device.settings?.compositeType === 'vacuum') return 'vacuum';
     if (caps.includes('homey_lawn_mower') || device.settings?.compositeType === 'lawn_mower') return 'lawn-mower';
+    if (caps.includes('homey_irrigation') || device.settings?.compositeType === 'irrigation') return 'irrigation';
     if (device.settings?.compositeType === 'waste_collection' || caps.some(c => c.startsWith('waste_'))) return 'trash';
     if (caps.includes('posten_sensor')) return 'postal';
     if (caps.includes('windowcoverings_set')) return 'sunshade';
