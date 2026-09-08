@@ -849,6 +849,26 @@
   padding-left: 14px;
 }
 
+/* Kolonner, tett pakket: faste kolonner der kategoriene er fordelt etter lengde */
+.fp-todo-packed {
+  display: flex;
+  align-items: flex-start;
+  gap: 0 18px;
+}
+
+.fp-todo-packed-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fp-todo-packed-col + .fp-todo-packed-col {
+  border-left: 2px solid var(--wb-pencil-line);
+  padding-left: 14px;
+}
+
 .fp-task {
   display: flex;
   align-items: center;

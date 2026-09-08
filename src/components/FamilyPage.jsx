@@ -417,6 +417,24 @@ function TodoSection({ settings, expanded, tasks, sections = [], loading, error,
 
   const projectId = settings?.todoProjectId || null;
 
+  // Layout for kategorier (stablet / kolonner / tett pakket) — leses her fordi hooken under trenger den
+  const layout = settings?.todoLayout || 'stacked';
+
+  // «Automatisk» kolonneantall for tett pakking: bredde / 240 px (samme minimum som «Side om side»).
+  // NB: hooks må ligge FØR den tidlige `if (!hasToken) return` lenger ned (React error #310).
+  const packedRef = useRef(null);
+  const [autoColCount, setAutoColCount] = useState(2);
+  useEffect(() => {
+    if (layout !== 'packed') return;
+    const el = packedRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const update = () => setAutoColCount(Math.max(1, Math.floor(el.clientWidth / 240)));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [layout]);
+
   // Samle en oppgave + alle dens etterkommere (Todoist lukker/sletter subtasks med forelderen)
   const collectWithDescendants = (taskId, list) => {
     const ids = new Set([taskId]);
@@ -746,7 +764,7 @@ function TodoSection({ settings, expanded, tasks, sections = [], loading, error,
   };
 
   // Grupper rot-oppgaver etter Todoist-seksjon (kategori). Uten seksjon = øverst, uten overskrift.
-  const layout = settings?.todoLayout || 'stacked';
+
   const allSections = [...sections, ...extraSections.filter(e => !sections.some(s => s.id === e.id))];
   const sortedSections = allSections.sort(
     (a, b) => (a.section_order ?? a.order ?? 0) - (b.section_order ?? b.order ?? 0)
@@ -772,7 +790,7 @@ function TodoSection({ settings, expanded, tasks, sections = [], loading, error,
   const useGroups = groups.some(g => g.name);
 
   return (
-    <div className="fp-list-content">
+    <div className="fp-list-content" ref={packedRef}>
       {loading && <div className="fp-loading"><RefreshCw size={14} className="fp-spin" /> Laster...</div>}
       {error && <div className="fp-error">{error}</div>}
 
@@ -837,7 +855,40 @@ function TodoSection({ settings, expanded, tasks, sections = [], loading, error,
 
       {!useGroups && renderSplitRows(visibleRoots)}
 
-      {useGroups && (() => {
+      {useGroups && layout === 'packed' && (() => {
+        // Tett pakking: hver kategori legges i den kolonnen som til nå er lavest
+        // (største først), så lange kategorier får egen kolonne og de korte stables.
+        // Innenfor hver kolonne beholdes seksjonsrekkefølgen fra Todoist.
+        const countRows = (list) => list.reduce(
+          (n, t) => n + 1 + countRows(childrenByParent[t.id] || []), 0
+        );
+        const colCount = Math.max(1, Math.min(groups.length, Number(settings?.todoColumnsCount) || autoColCount));
+        const columns = Array.from({ length: colCount }, () => ({ height: 0, groups: [] }));
+        groups
+          .map((g, order) => ({ g, order, height: countRows(g.roots) + (g.name ? 1 : 0) }))
+          .sort((a, b) => b.height - a.height || a.order - b.order)
+          .forEach(item => {
+            const col = columns.reduce((best, c) => (c.height < best.height ? c : best), columns[0]);
+            col.groups.push(item);
+            col.height += item.height;
+          });
+        return (
+          <div className="fp-todo-packed">
+            {columns.map((col, i) => (
+              <div key={i} className="fp-todo-packed-col">
+                {col.groups.sort((a, b) => a.order - b.order).map(({ g }) => (
+                  <div key={g.id} className="fp-todo-group">
+                    {g.name && <div className="fp-todo-group-label">{g.name}</div>}
+                    {renderSplitRows(g.roots)}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {useGroups && layout !== 'packed' && (() => {
         const colCount = layout === 'columns' ? Number(settings?.todoColumnsCount) || 0 : 0;
         return (
           <div
@@ -1442,16 +1493,18 @@ function FamilySettingsModal({ page, onClose, onSave }) {
                   options={[
                     { value: 'stacked', label: 'Overskrifter nedover (stablet)' },
                     { value: 'columns', label: 'Side om side (kolonner)' },
+                    { value: 'packed', label: 'Kolonner, tett pakket' },
                   ]}
                 />
                 <p style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginTop: 4 }}>
                   Gjelder kun denne profilen/enheten. «Side om side» passer brede paneler.
+                  «Tett pakket» gir lange kategorier egen kolonne og stabler de korte under hverandre.
                 </p>
               </div>
 
-              {todoLayout === 'columns' && (
+              {(todoLayout === 'columns' || todoLayout === 'packed') && (
                 <div className="form-group">
-                  <label>Kategorier per rad</label>
+                  <label>{todoLayout === 'packed' ? 'Antall kolonner' : 'Kategorier per rad'}</label>
                   <FpDropdown
                     value={todoColumnsCount}
                     onChange={setTodoColumnsCount}
@@ -1464,7 +1517,9 @@ function FamilySettingsModal({ page, onClose, onSave }) {
                     ]}
                   />
                   <p style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginTop: 4 }}>
-                    Antall kategorikolonner før neste rad. «Automatisk» tilpasser etter bredden.
+                    {todoLayout === 'packed'
+                      ? 'Kategoriene fordeles på kolonnene etter lengde. «Automatisk» tilpasser etter bredden.'
+                      : 'Antall kategorikolonner før neste rad. «Automatisk» tilpasser etter bredden.'}
                   </p>
                 </div>
               )}
