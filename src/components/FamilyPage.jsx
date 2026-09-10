@@ -1735,13 +1735,43 @@ function ApplianceBanner({ devices }) {
 
 const ECONOMY_ENTITY_PREFIX = 'sensor.okonomiflyt';
 
+// Dynamisk månedsnavn: REST-sensorene i HA har et fast friendly_name («Oppgjør forrige
+// måned Torbjørn») og et attributt `month` («2026-08»). Uttrykkene «forrige måned» /
+// «denne måneden» byttes ut med månedsnavnet fra attributtet («Oppgjør August Torbjørn»).
+// Navn uten slikt uttrykk, eller sensorer uten `month`, vises uendret.
+const monthNameFromAttr = (month) => {
+  const m = /^(\d{4})-(\d{2})/.exec(String(month || ''));
+  if (!m) return null;
+  const name = new Date(Number(m[1]), Number(m[2]) - 1, 1).toLocaleDateString('nb-NO', { month: 'long' });
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
+
+const ECONOMY_MONTH_PHRASE = /\s*\b(forrige måned|denne måneden|denne måned)\b/i;
+
+// Fullt navn med månedsnavn («Oppgjør August Torbjørn») — brukes i innstillingslisten.
+const economyDisplayName = (device) => {
+  const name = device.name || '';
+  const monthName = monthNameFromAttr(device.attributes?.month);
+  if (!monthName) return name;
+  return name.replace(ECONOMY_MONTH_PHRASE, ` ${monthName}`).trim();
+};
+
+// Kort navn uten månedsfrase («Oppgjør Torbjørn») — brukes i stripen, der måneden
+// står som gruppeoverskrift.
+const economyShortName = (device) =>
+  (device.name || '').replace(ECONOMY_MONTH_PHRASE, '').replace(/\s{2,}/g, ' ').trim();
+
 const getEconomySensors = (devices) => (devices || [])
   .filter(d => d.entityId?.startsWith(ECONOMY_ENTITY_PREFIX))
   .map(d => {
     const cap = d.capabilitiesObj?.measure_generic;
+    const month = /^\d{4}-\d{2}/.test(String(d.attributes?.month || '')) ? d.attributes.month.slice(0, 7) : null;
     return {
       id: d.entityId,
-      name: d.name,
+      name: economyDisplayName(d),
+      shortName: economyShortName(d),
+      month,
+      reconciled: d.attributes?.reconciled,
       value: parseFloat(cap?.value ?? d.state),
       units: cap?.units || 'kr',
     };
@@ -1751,19 +1781,50 @@ const getEconomySensors = (devices) => (devices || [])
 const formatEconomyValue = (value, units) =>
   isNaN(value) ? '–' : `${Math.round(value).toLocaleString('nb-NO')} ${units}`;
 
+// Stripen grupperer sensorene etter `month`-attributtet: eldste måned først (det er det
+// faktiske oppgjøret som skal gjøres opp), inneværende måned til høyre, sensorer uten
+// måned i en navnløs gruppe sist. Overskriften får en hake når alle sensorene i gruppen
+// har `reconciled: true`.
 function EconomyBanner({ devices, selectedIds }) {
   const all = getEconomySensors(devices);
   const sensors = Array.isArray(selectedIds) ? all.filter(s => selectedIds.includes(s.id)) : all;
   if (!sensors.length) return null;
 
+  const byMonth = {};
+  sensors.forEach(s => { (byMonth[s.month || ''] ||= []).push(s); });
+  const groups = Object.keys(byMonth)
+    .sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)))
+    .map(month => {
+      const items = byMonth[month];
+      const withFlag = items.filter(s => typeof s.reconciled === 'boolean');
+      return {
+        month,
+        label: monthNameFromAttr(month),
+        reconciled: withFlag.length > 0 && withFlag.every(s => s.reconciled),
+        items,
+      };
+    });
+
   return (
     <div className="fp-economy-banner">
       <Wallet size={22} style={{ flexShrink: 0 }} />
-      {sensors.map(s => (
-        <span key={s.id} className="fp-economy-banner-item">
-          <span className="fp-economy-banner-name">{s.name}</span>
-          <span className="fp-economy-banner-value">{formatEconomyValue(s.value, s.units)}</span>
-        </span>
+      {groups.map(g => (
+        <div key={g.month || 'none'} className="fp-economy-group">
+          {g.label && (
+            <div className="fp-economy-group-label">
+              {g.label}
+              {g.reconciled && <Check size={16} className="fp-economy-reconciled" title="Oppgjort" />}
+            </div>
+          )}
+          <div className="fp-economy-grid">
+            {g.items.map(s => (
+              <React.Fragment key={s.id}>
+                <span className="fp-economy-banner-name">{s.shortName || s.name}</span>
+                <span className="fp-economy-banner-value">{formatEconomyValue(s.value, s.units)}</span>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );
