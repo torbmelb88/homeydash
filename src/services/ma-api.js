@@ -16,6 +16,7 @@ const DEFAULT_PORT  = 8095;
 const DEFAULT_TOKEN = '';
 
 const CMD_TIMEOUT_MS   = 10_000;
+const SLOW_TIMEOUT_MS  = 60_000; // søk/artist-/spillelistespor mot Spotify o.l.
 const RECONNECT_DELAY  = 5_000;
 
 class MusicAssistantAPI {
@@ -170,73 +171,133 @@ class MusicAssistantAPI {
 
   // ── Commands ────────────────────────────────────────────────────
 
-  async command(cmd, args = {}) {
+  /** timeoutMs: bibliotekoppslag mot strømmetjenester (artist-spor, store spillelister) kan ta lang tid første gang. */
+  async command(cmd, args = {}, timeoutMs = CMD_TIMEOUT_MS) {
     if (!this.connected) {
       await this.connect();
     }
     const id = String(++this._msgId);
-    return this._rawSend({ message_id: id, command: cmd, args });
+    return this._rawSend({ message_id: id, command: cmd, args }, timeoutMs);
   }
 
   // ── High-level API ──────────────────────────────────────────────
+  // MA-kommandoer verifisert mot server 2.10.2 (schema 65). Spiller-kommandoer
+  // heter `players/cmd/<x>`, kø-kommandoer `player_queues/<x>`.
 
-  getPlayers()                      { return this.command('players/all'); }
-  getQueues()                       { return this.command('player_queues/all'); }
-  getQueue(queueId)                 { return this.command('player_queues/get', { queue_id: queueId }); }
-  getQueueItems(queueId, limit = 200, offset = 0) {
-    return this.command('player_queues/items', { queue_id: queueId, limit, offset });
+  // HTTP-base for MA (bilde-proxy m.m.). Over https går trafikken via /svc/<port>/.
+  get httpBase() {
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+      return `${window.location.origin}/svc/${this.port}`;
+    }
+    return `http://${this.host}:${this.port}`;
   }
 
+  // Spillere
+  getPlayers()                      { return this.command('players/all'); }
+  getPlayer(playerId)               { return this.command('players/get', { player_id: playerId }); }
+  /** volume 0–100 */
+  setVolume(playerId, volume)       { return this.command('players/cmd/volume_set', { player_id: playerId, volume_level: Math.round(volume) }); }
+  /** Dynamisk gruppering: legg til / fjern spillere i gruppa som ledes av targetPlayer. */
+  setMembers(targetPlayer, add = [], remove = []) {
+    return this.command('players/cmd/set_members', {
+      target_player: targetPlayer,
+      player_ids_to_add: add.length ? add : null,
+      player_ids_to_remove: remove.length ? remove : null,
+    });
+  }
+
+  // Køer
+  getQueues()                       { return this.command('player_queues/all'); }
+  getQueue(queueId)                 { return this.command('player_queues/get', { queue_id: queueId }); }
+  getQueueItems(queueId, limit = 500, offset = 0) {
+    return this.command('player_queues/items', { queue_id: queueId, limit, offset });
+  }
   playPause(queueId)                { return this.command('player_queues/play_pause', { queue_id: queueId }); }
   next(queueId)                     { return this.command('player_queues/next',       { queue_id: queueId }); }
   previous(queueId)                 { return this.command('player_queues/previous',   { queue_id: queueId }); }
-  seek(queueId, position)           { return this.command('player_queues/seek',   { queue_id: queueId, position }); }
+  seek(queueId, position)           { return this.command('player_queues/seek',   { queue_id: queueId, position: Math.round(position) }); }
   setShuffle(queueId, enabled)      { return this.command('player_queues/shuffle', { queue_id: queueId, shuffle_enabled: enabled }); }
   setRepeat(queueId, mode)          { return this.command('player_queues/repeat',  { queue_id: queueId, repeat_mode: mode }); }
-  setVolume(playerId, volume)       { return this.command('players/cmd_volume_set', { player_id: playerId, volume }); }
+  clearQueue(queueId)               { return this.command('player_queues/clear',   { queue_id: queueId }); }
+  deleteQueueItem(queueId, itemIdOrIndex) {
+    return this.command('player_queues/delete_item', { queue_id: queueId, item_id_or_index: itemIdOrIndex });
+  }
+  moveQueueItem(queueId, queueItemId, posShift) {
+    return this.command('player_queues/move_item', { queue_id: queueId, queue_item_id: queueItemId, pos_shift: posShift });
+  }
+  transferQueue(sourceQueueId, targetQueueId, autoPlay = true) {
+    return this.command('player_queues/transfer', {
+      source_queue_id: sourceQueueId, target_queue_id: targetQueueId, auto_play: autoPlay,
+    });
+  }
 
   /**
-   * Play media on a queue.
+   * Spill media på en kø.
    * @param {string} queueId
-   * @param {string} mediaUri  – spotify://track/ID or any MA URI
-   * @param {'replace'|'next'|'add'} option
+   * @param {string|string[]} media   – MA-URI (library://album/14, spotify--x://track/ID …)
+   * @param {'replace'|'next'|'add'|'replace_next'|'play'} option
+   * @param {string|null} startItem   – URI til sporet avspillingen skal starte fra (album/spilleliste)
    */
-  playMedia(queueId, mediaUri, option = 'replace') {
-    return this.command('player_queues/play_media', {
-      queue_id: queueId,
-      media: mediaUri,
-      option,
-    });
+  playMedia(queueId, media, option = 'replace', startItem = null) {
+    const args = { queue_id: queueId, media, option };
+    if (startItem) args.start_item = startItem;
+    return this.command('player_queues/play_media', args);
   }
 
-  playQueueItem(queueId, queueItemId) {
-    return this.command('player_queues/play_index', {
-      queue_id: queueId,
-      queue_item_id: queueItemId,
-    });
+  /** Hopp til et element i køen. MA tar `index` (posisjon ELLER queue_item_id). */
+  playQueueItem(queueId, queueItemIdOrIndex) {
+    return this.command('player_queues/play_index', { queue_id: queueId, index: queueItemIdOrIndex });
   }
 
-  /**
-   * Search MA library.
-   * Returns { artists, albums, tracks, playlists }
-   */
-  search(query, mediaTypes = ['track', 'album', 'artist', 'playlist'], limit = 20) {
+  // Bibliotek / søk
+  /** Returnerer { artists, albums, tracks, playlists, radio } */
+  search(query, mediaTypes = ['track', 'album', 'artist', 'playlist'], limit = 20, libraryOnly = false) {
     return this.command('music/search', {
       search_query: query,
       media_types: mediaTypes,
       limit,
-    });
+      library_only: libraryOnly,
+    }, SLOW_TIMEOUT_MS);
+  }
+
+  /**
+   * Bibliotekselementer av én type.
+   * @param {'artist'|'album'|'track'|'playlist'|'radio'} mediaType
+   * @param {{favorite?:boolean, search?:string, limit?:number, offset?:number, orderBy?:string}} opts
+   *   orderBy: 'name' | 'timestamp_added_desc' | 'last_played_desc' | 'play_count_desc' | 'random' …
+   */
+  getLibraryItems(mediaType, { favorite, search, limit = 50, offset = 0, orderBy } = {}) {
+    const plural = { artist: 'artists', album: 'albums', track: 'tracks', playlist: 'playlists', radio: 'radios' }[mediaType];
+    const args = { limit, offset };
+    if (favorite !== undefined) args.favorite = favorite;
+    if (search) args.search = search;
+    if (orderBy) args.order_by = orderBy;
+    return this.command(`music/${plural}/library_items`, args);
+  }
+  getRecentlyPlayed(limit = 20, mediaTypes) {
+    const args = { limit };
+    if (mediaTypes) args.media_types = mediaTypes;
+    return this.command('music/recently_played_items', args);
+  }
+  getAlbumTracks(itemId, provider)     { return this.command('music/albums/album_tracks',       { item_id: itemId, provider_instance_id_or_domain: provider }, SLOW_TIMEOUT_MS); }
+  getArtistAlbums(itemId, provider)    { return this.command('music/artists/artist_albums',     { item_id: itemId, provider_instance_id_or_domain: provider }, SLOW_TIMEOUT_MS); }
+  getArtistTracks(itemId, provider)    { return this.command('music/artists/artist_tracks',     { item_id: itemId, provider_instance_id_or_domain: provider }, SLOW_TIMEOUT_MS); }
+  getPlaylistTracks(itemId, provider)  { return this.command('music/playlists/playlist_tracks', { item_id: itemId, provider_instance_id_or_domain: provider }, SLOW_TIMEOUT_MS); }
+  getItemByUri(uri)                    { return this.command('music/item_by_uri', { uri }); }
+  addFavorite(uri)                     { return this.command('music/favorites/add_item', { item: uri }); }
+  removeFavorite(mediaType, libraryItemId) {
+    return this.command('music/favorites/remove_item', { media_type: mediaType, library_item_id: libraryItemId });
   }
 
   // ── Internal ────────────────────────────────────────────────────
 
-  _rawSend(msg) {
+  _rawSend(msg, timeoutMs = CMD_TIMEOUT_MS) {
     return new Promise((resolve, reject) => {
       const id    = msg.message_id;
       const timer = setTimeout(() => {
         this._pending.delete(id);
         reject(new Error(`MA timeout: ${msg.command}`));
-      }, CMD_TIMEOUT_MS);
+      }, timeoutMs);
       this._pending.set(id, { resolve, reject, timer });
       try {
         this._ws.send(JSON.stringify(msg));
