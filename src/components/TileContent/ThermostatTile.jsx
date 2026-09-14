@@ -3,12 +3,19 @@ import { useHomey } from '../../context/HomeyContext';
 import InteractiveCircularSlider from '../InteractiveCircularSlider';
 import TileCapabilities from '../TileCapabilities';
 import MiniPowerGraph from './MiniPowerGraph';
-import { Flame, Snowflake, Wind, Power, Droplets, Zap, Thermometer, WifiOff } from 'lucide-react';
+import { Flame, Snowflake, Wind, Power, Droplets, Zap, Thermometer, WifiOff, MonitorOff, Check } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
 
 const ThermostatTile = ({ tile, device, expanded = false }) => {
     const { api, setIsInteracting, devices } = useHomey();
     const isMobile = useIsMobile();
+    // Puls-knapp for display på pumpa: kort «Sendt»-tilbakemelding, ingen statusvisning
+    const [displayPulseSent, setDisplayPulseSent] = useState(false);
+    useEffect(() => {
+        if (!displayPulseSent) return;
+        const t = setTimeout(() => setDisplayPulseSent(false), 1200);
+        return () => clearTimeout(t);
+    }, [displayPulseSent]);
     // ... existing state ...
 
     // Helper to find external power device
@@ -470,6 +477,36 @@ const ThermostatTile = ({ tile, device, expanded = false }) => {
                                                 </button>
                                             )
                                         })}
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        // Display-knapp (puls via IR): ingen tilstand — HA vet ikke om skjermen er på.
+                        // Ett trykk holder ikke alltid, så knappen kan trykkes flere ganger.
+                        if (capId === 'display_toggle' && device.capabilitiesObj?.[capId]) {
+                            return (
+                                <div key={capId} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                                    <label style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                        {capConfig.title || 'Skjerm på pumpa'}
+                                    </label>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDisplayPulseSent(true);
+                                            api.setCapability(device.id, capId, true)
+                                                .catch(err => console.error('Failed to press display toggle', err));
+                                        }}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', padding: '8px 12px' }}
+                                    >
+                                        {displayPulseSent
+                                            ? <><Check size={16} /> Sendt</>
+                                            : <><MonitorOff size={16} /> Skjerm av/på</>}
+                                    </button>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                                        Sender IR-signal. Trykk igjen hvis skjermen ikke reagerte.
                                     </div>
                                 </div>
                             );

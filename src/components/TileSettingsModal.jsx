@@ -29,6 +29,7 @@ const CAP_TITLE_MAP = {
     'energy_daily': 'Energi i dag',
     'energy_monthly': 'Energi denne måneden',
     'thermostat_state': 'Status',
+    'display_toggle': 'Skjerm på pumpa (puls-knapp)',
 };
 
 const getCapTitle = (capId, capObj) => capObj?.title || CAP_TITLE_MAP[capId] || capId;

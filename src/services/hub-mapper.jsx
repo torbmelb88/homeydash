@@ -1019,6 +1019,10 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                 }
             } else if (domain === 'switch') {
                 addCap('onoff', value === 'on', null, 'boolean');
+            } else if (domain === 'button' && obj.endsWith('_display_toggle')) {
+                // Puls-knapp (IR-sending) for å slå displayet på pumpa av/på.
+                // HA vet ikke om displayet faktisk er på — verdien er kun sist-trykket-tidspunkt.
+                addCap('display_toggle', value, null, 'button');
             } else if (domain === 'sensor') {
                 const val = parseFloat(value);
                 if (obj.includes('outdoor_temp') || obj.endsWith('_outdoor_temperature')) {
