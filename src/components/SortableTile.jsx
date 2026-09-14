@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Tile from './Tile';
 
-const SortableTile = ({ tile, onEdit, onDelete, isEditMode, isVisible = true }) => {
+const SortableTile = ({ tile, onEdit, onDelete, isEditMode, isVisible = true, extraRows = 0, onSpanChange }) => {
+    // Naturlig høyde (målt av Tile.jsx). extraRows kommer fra TileGrid sitt
+    // «Fyll ned til bunnen av flis»-pass og holdes adskilt, så flisen krymper igjen
+    // når referanseflisen blir lavere.
     const [rowSpan, setRowSpan] = useState(null);
+
+    useEffect(() => {
+        if (rowSpan) onSpanChange?.();
+    }, [rowSpan, onSpanChange]);
 
     const {
         attributes,
@@ -18,6 +25,8 @@ const SortableTile = ({ tile, onEdit, onDelete, isEditMode, isVisible = true }) 
         disabled: !isEditMode
     });
 
+    const totalSpan = rowSpan ? rowSpan + (extraRows || 0) : null;
+
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
@@ -25,7 +34,7 @@ const SortableTile = ({ tile, onEdit, onDelete, isEditMode, isVisible = true }) 
         // zIndex is handled by DragOverlay now
         position: 'relative',
         touchAction: isEditMode ? 'none' : 'manipulation', // Prevents browser scroll interference during drag on touch devices
-        gridRowEnd: rowSpan ? `span ${rowSpan}` : undefined
+        gridRowEnd: totalSpan ? `span ${totalSpan}` : undefined
     };
 
     const size = tile.size || '1x1';
@@ -42,6 +51,8 @@ const SortableTile = ({ tile, onEdit, onDelete, isEditMode, isVisible = true }) 
                 minHeight: 0,
             }}
             className={`tile size-${size} type-${tile.type || 'unknown'}`}
+            data-sortable-tile-id={tile.id}
+            data-natural-rows={rowSpan || ''}
             {...attributes}
             {...listeners}
         >
@@ -52,6 +63,7 @@ const SortableTile = ({ tile, onEdit, onDelete, isEditMode, isVisible = true }) 
                 onResize={setRowSpan}
                 isDragEnabled={isEditMode}
                 isVisible={isVisible}
+                extraRows={extraRows}
             />
         </div>
     );

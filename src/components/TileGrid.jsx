@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useHomey } from '../context/HomeyContext';
 import Tile from './Tile';
 import SortableTile from './SortableTile';
@@ -48,6 +48,84 @@ const TileGrid = () => {
         };
         loadTiles();
     }, []);
+
+    // ── «Fyll ned til bunnen av flis» (settings.stretchToTileId) ─────────────────
+    // Rutenettet vet ikke hva en «rad» er; hver flis setter sitt eget span. Etter at flisene
+    // har rapportert naturlig høyde, leses faktisk posisjon fra DOM: en flis med referanse
+    // forlenges fra sin naturlige bunn ned til referanseflisens bunn — men bare når de to
+    // faktisk ligger side om side (vertikalt overlapp). Ellers gjør den ingenting, så
+    // mobil-reflow og redigeringsmodus (radflyt uten tett pakking) degraderer ufarlig.
+    const [extraRows, setExtraRows] = useState({});
+    const gridRefs = useRef({});
+    const passRef = useRef({ raf: 0, iterations: 0 });
+    const activeIdRef = useRef(null);
+    activeIdRef.current = activeId;
+
+    const runStretchPass = useCallback(() => {
+        passRef.current.raf = 0;
+        if (activeIdRef.current) return; // under drag er posisjonene transformert
+        const grid = gridRefs.current[currentPage];
+
+        const cs = window.getComputedStyle(grid);
+        const rowH = parseFloat(cs.getPropertyValue('grid-auto-rows')) || 16;
+        const gap = parseFloat(cs.getPropertyValue('gap').split(' ')[0]) || 16;
+        const unit = rowH + gap;
+
+        const elems = {};
+        grid.querySelectorAll(':scope > [data-sortable-tile-id]').forEach(el => {
+            elems[el.dataset.sortableTileId] = el;
+        });
+
+        const next = {};
+        for (const t of tiles) {
+            if (t.pageId !== currentPage) continue;
+            const refId = t.settings?.stretchToTileId;
+            if (!refId || refId === t.id) continue;
+            const me = elems[t.id];
+            const ref = elems[refId];
+            if (!me || !ref) continue;
+            const natural = parseInt(me.dataset.naturalRows, 10);
+            if (!natural) continue;
+
+            const meRect = me.getBoundingClientRect();
+            const refRect = ref.getBoundingClientRect();
+            const naturalBottom = meRect.top + natural * unit - gap;
+
+            // Ligger de side om side? Referansen må overlappe min naturlige høyde.
+            const sideBySide = refRect.top < naturalBottom - 1 && refRect.bottom > meRect.top + 1;
+            if (!sideBySide) continue;
+
+            const extra = Math.round((refRect.bottom - naturalBottom) / unit);
+            if (extra > 0) next[t.id] = extra;
+        }
+
+        setExtraRows(prev => {
+            const prevKeys = Object.keys(prev);
+            const nextKeys = Object.keys(next);
+            const same = prevKeys.length === nextKeys.length && nextKeys.every(k => prev[k] === next[k]);
+            if (same) { passRef.current.iterations = 0; return prev; }
+            // Kjedede/sirkulære referanser kan ellers vokse i det uendelige.
+            if (++passRef.current.iterations > 6) return prev;
+            return next;
+        });
+    }, [tiles, currentPage]);
+
+    const scheduleStretchPass = useCallback(() => {
+        if (passRef.current.raf) return;
+        passRef.current.raf = requestAnimationFrame(runStretchPass);
+    }, [runStretchPass]);
+
+    // Kjør på nytt når spans/ekstra rader er påført DOM, ved sidebytte, moduskifte og
+    // vindusstørrelse (kolonnetallet endrer hvem som er nabo).
+    useEffect(() => { scheduleStretchPass(); }, [scheduleStretchPass, extraRows, isEditMode, activeId]);
+    useEffect(() => {
+        window.addEventListener('resize', scheduleStretchPass);
+        return () => {
+            window.removeEventListener('resize', scheduleStretchPass);
+            if (passRef.current.raf) cancelAnimationFrame(passRef.current.raf);
+            passRef.current.raf = 0;
+        };
+    }, [scheduleStretchPass]);
 
     // Helper to get tiles for the *current active* page (for drag logic)
     const getActivePageTiles = () => tiles.filter(t => t.pageId === currentPage);
@@ -173,6 +251,7 @@ const TileGrid = () => {
                 return (
                     <div
                         key={page.id}
+                        ref={el => { gridRefs.current[page.id] = el; }}
                         className="tile-grid"
                         style={{
                             ...getGridStyles(),
@@ -191,6 +270,8 @@ const TileGrid = () => {
                                     onDelete={handleDeleteTile}
                                     isEditMode={isEditMode}
                                     isVisible={isActive}
+                                    extraRows={extraRows[tile.id] || 0}
+                                    onSpanChange={scheduleStretchPass}
                                 />
                             ))}
                         </SortableContext>
@@ -223,6 +304,7 @@ const TileGrid = () => {
             {editingTile && (
                 <TileSettingsModal
                     tile={editingTile}
+                    pageTiles={tiles.filter(t => t.pageId === editingTile.pageId)}
                     onClose={() => setEditingTile(null)}
                     onSave={handleSaveTile}
                     onDelete={handleDeleteTile}

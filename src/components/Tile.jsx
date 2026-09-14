@@ -48,7 +48,7 @@ import LightPanelTile from './TileContent/LightPanelTile';
 
 // ... (keep unused imports if needed, but standardizing)
 
-const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) => {
+const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 0, ...props }) => {
     const { api, devices, isEditMode, settings, setCurrentPage } = useHomey();
     const [isExpanded, setIsExpanded] = useState(false);
     const contentRef = React.useRef(null);
@@ -135,6 +135,13 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
             }
         }
 
+        // «Fyll ned til bunnen av flis»: TileGrid legger ekstra rader utenpå den naturlige
+        // høyden. Wrapperen er height: 100 %, så scrollHeight inkluderer strekkingen — trekk
+        // den fra, ellers måles den strukne høyden som naturlig og flisen låser seg der.
+        if (extraRows > 0 && typeof forceContentHeight !== 'number' && type !== 'light-panel') {
+            contentHeight = Math.max(0, contentHeight - extraRows * (rowHeight + gap));
+        }
+
         const tilePadding = (
             type === 'weather' ||
             type === 'video' ||
@@ -166,7 +173,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
         } else {
             setRowSpan(finalRows);
         }
-    }, [tile.size, type, onResize, settings?.gridDensity, isVisible, isEditMode, device]);
+    }, [tile.size, type, onResize, settings?.gridDensity, isVisible, isEditMode, device, extraRows]);
 
     React.useLayoutEffect(() => {
         if (!contentRef.current) return;
@@ -281,7 +288,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
     return (
         <>
             <div
-                className={`tile ${sizeClass} type-${type} ${props.className || ''}`}
+                className={`tile ${sizeClass} type-${type} ${extraRows > 0 ? 'is-stretched' : ''} ${props.className || ''}`}
                 data-tile-id={tile.id}
                 style={finalStyle}
                 onClick={handleTileClick}

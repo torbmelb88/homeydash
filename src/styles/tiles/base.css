@@ -187,6 +187,12 @@ body.edit-mode .tile-grid {
     background: var(--color-bg-elevated);
 }
 
+/* «Fyll ned til bunnen av flis»: ekstra plass fordeles rundt innholdet i stedet for
+   å ligge tom i bunnen. */
+.tile.is-stretched .tile-content-wrapper {
+    justify-content: center;
+}
+
 /* ===== Tile Content ===== */
 .tile-content {
     flex: 1;

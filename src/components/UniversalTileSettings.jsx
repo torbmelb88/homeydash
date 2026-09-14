@@ -190,9 +190,9 @@ const FIXED_TYPE_TILES = new Set([
 // ─────────────────────────────────────────────
 //  Component
 // ─────────────────────────────────────────────
-const UniversalTileSettings = ({ device, originalTile, values, onChange }) => {
+const UniversalTileSettings = ({ device, originalTile, values, onChange, stretchCandidates = [] }) => {
     const {
-        size, customName, forcedType, mainIcon, customIcon,
+        size, customName, forcedType, mainIcon, customIcon, stretchToTileId = '',
     } = values;
 
     const [iconSearch, setIconSearch] = useState('');
@@ -262,6 +262,32 @@ const UniversalTileSettings = ({ device, originalTile, values, onChange }) => {
                             <option key={s.id} value={s.id}>{s.name}</option>
                         ))}
                     </select>
+                </div>
+
+                <div className="form-group">
+                    <label>Fyll ned til bunnen av flis</label>
+                    <select
+                        className="select-input"
+                        value={stretchToTileId}
+                        onChange={e => onChange('stretchToTileId', e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '8px',
+                            background: 'var(--color-bg-secondary)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 'var(--radius-md)',
+                            color: 'var(--color-text-primary)',
+                        }}
+                    >
+                        <option value="">– Ingen (naturlig høyde) –</option>
+                        {stretchCandidates.map(c => (
+                            <option key={c.id} value={c.id}>{c.label}</option>
+                        ))}
+                    </select>
+                    <div className="hint">
+                        Flisen forlenges så bunnkanten møter den valgte flisen når de ligger side om side.
+                        Ligger de ikke ved siden av hverandre (f.eks. på mobil), beholdes naturlig høyde.
+                    </div>
                 </div>
 
                 {/* Type override — only for non-fixed types */}

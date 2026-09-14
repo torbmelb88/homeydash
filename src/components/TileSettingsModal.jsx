@@ -35,8 +35,35 @@ const CAP_TITLE_MAP = {
 
 const getCapTitle = (capId, capObj) => capObj?.title || CAP_TITLE_MAP[capId] || capId;
 
-const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
+const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) => {
     const { devices, flows, api, settings } = useHomey();
+
+    // Kandidater for «Fyll ned til bunnen av flis»: andre fliser på samme side, minus de som
+    // (direkte eller via kjede) allerede refererer til denne flisen — ellers får vi en sirkel
+    // der begge vokser mot hverandre.
+    const stretchCandidates = (() => {
+        const byId = Object.fromEntries(pageTiles.map(t => [t.id, t]));
+        const pointsBackToMe = (t) => {
+            const seen = new Set();
+            let cur = t;
+            while (cur && !seen.has(cur.id)) {
+                seen.add(cur.id);
+                const refId = cur.settings?.stretchToTileId;
+                if (!refId) return false;
+                if (refId === tile.id) return true;
+                cur = byId[refId];
+            }
+            return false;
+        };
+        return pageTiles
+            .filter(t => t.id !== tile.id && !pointsBackToMe(t))
+            .map(t => {
+                const dev = resolveTileDevice(devices, t.settings?.deviceId || t.deviceId, t.settings?.fallbackEntityId);
+                const label = t.name || dev?.name || t.settings?.title || t.type || 'Flis';
+                return { id: t.id, label: `${label} (${t.size || '1x1'})` };
+            })
+            .sort((a, b) => a.label.localeCompare(b.label, 'nb'));
+    })();
     const isMultiLight = tile.type === 'multi-light';
     const isMultiThermostat = tile.type === 'multi-thermostat';
     const isMultiSensor = tile.type === 'multi-sensor';
@@ -544,13 +571,16 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
                                 forcedType,
                                 mainIcon,
                                 customIcon,
+                                stretchToTileId: widgetSettings.stretchToTileId || '',
                             }}
+                            stretchCandidates={stretchCandidates}
                             onChange={(key, val) => {
                                 if (key === 'size') setSize(val);
                                 if (key === 'customName') setCustomName(val);
                                 if (key === 'forcedType') setForcedType(val);
                                 if (key === 'mainIcon') setMainIcon(val);
                                 if (key === 'customIcon') setCustomIcon(val);
+                                if (key === 'stretchToTileId') setWidgetSettings(prev => ({ ...prev, stretchToTileId: val || '' }));
                             }}
                         />
                     )}
