@@ -81,6 +81,11 @@ const PostalTile = ({ tile, device, expanded }) => {
 
     const futureDates = upcomingDates.slice(1, 6);
 
+    // Antall kolonner flisen spenner over ('1x1', '2x1', ...). Smal flis (én
+    // kolonne) har ikke plass til datolisten – den vises da kun i utvidet visning.
+    const cols = parseInt((tile?.size || '1x1').split('x')[0], 10) || 1;
+    const isNarrow = cols < 2;
+
     // ── EXPANDED VIEW ─────────────────────────────────────────────────────
     if (expanded) {
         const showNextDate = tile?.settings?.showNextDate !== false;
@@ -188,7 +193,54 @@ const PostalTile = ({ tile, device, expanded }) => {
         );
     }
 
-    // ── COMPACT VIEW ──────────────────────────────────────────────────────
+    // ── COMPACT VIEW, SMAL (1 kolonne) ────────────────────────────────────
+    if (isNarrow) {
+        const nextDate = capObj.posten_next_date?.value;
+        return (
+            <div className="tile-content" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                padding: '10px 12px',
+                gap: '8px',
+                overflow: 'hidden',
+            }}>
+                <div style={{
+                    width: 48, height: 48,
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    boxShadow: `0 3px 10px ${POSTEN_GLOW}`,
+                    flexShrink: 0,
+                }}>
+                    <PostenLogo size={48} />
+                </div>
+                <span style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 800,
+                    color: POSTEN_RED,
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                    whiteSpace: 'nowrap',
+                }}>
+                    {countdownLabel}
+                </span>
+                {nextDate && !isToday && (
+                    <span style={{
+                        fontSize: '0.72rem',
+                        color: 'var(--color-text-secondary)',
+                        textAlign: 'center',
+                        whiteSpace: 'nowrap',
+                    }}>
+                        {formatDate(nextDate)}
+                    </span>
+                )}
+            </div>
+        );
+    }
+
+    // ── COMPACT VIEW, BRED (2+ kolonner) ──────────────────────────────────
     return (
         <div className="tile-content" style={{
             display: 'flex',
