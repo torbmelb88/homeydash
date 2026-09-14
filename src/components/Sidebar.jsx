@@ -36,9 +36,15 @@ const PageItem = ({ page, isActive, onClick, isEditMode, onEdit, onDelete, dragH
         <div
             className={`page-item ${isActive ? 'active' : ''}`}
             onClick={onClick}
-            style={{ touchAction: isEditMode ? 'none' : 'pan-y', ...props.style }} // Lock scroll only in edit mode to allow dragging
-            {...dragHandleProps} // Spread drag listeners on the whole card
+            style={props.style}
         >
+            {isEditMode && (
+                // Drag only from the grip handle so the rest of the card keeps
+                // native touch scrolling (touch-action: none lives on .drag-handle)
+                <div className="drag-handle" {...dragHandleProps}>
+                    <GripVertical />
+                </div>
+            )}
             <IconComponent size={20} />
             <span className="page-name">{page.name}</span>
 
@@ -111,7 +117,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         }),
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 250, // 250ms press required to start drag
+                delay: 100, // Short press on the grip handle starts the drag
                 tolerance: 5, // Allow slight movement during press
             },
         }),
@@ -197,8 +203,11 @@ const Sidebar = ({ isOpen, onClose }) => {
             const itemHeight = 74; // 60px height + 12px gap + border/margin approx
             const maxItemsPerColumn = Math.floor(availableHeight / itemHeight);
 
-            // If we have more pages than fit in one column, go wide (2 columns)
-            setIsWide(pages.length > maxItemsPerColumn);
+            // If we have more pages than fit in one column, go wide (2 columns).
+            // Never on narrow screens (mobile): the 600px wide sidebar would overflow
+            // the viewport and hide the edit/delete buttons in the right column.
+            const fitsWide = window.innerWidth >= 768;
+            setIsWide(fitsWide && pages.length > maxItemsPerColumn);
         };
 
         checkCapacity();

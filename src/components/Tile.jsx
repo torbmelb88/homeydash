@@ -44,6 +44,7 @@ import EnergyDashboardWidget from './TileContent/EnergyDashboardWidget';
 import IntercomTile from './TileContent/IntercomTile';
 import ApplianceTile from './TileContent/ApplianceTile';
 import PresenceTile from './TileContent/PresenceTile';
+import LightPanelTile from './TileContent/LightPanelTile';
 
 // ... (keep unused imports if needed, but standardizing)
 
@@ -105,9 +106,16 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
     const updateSize = React.useCallback((forceContentHeight) => {
         if (!contentRef.current) return;
 
-        const contentHeight = typeof forceContentHeight === 'number'
+        let contentHeight = typeof forceContentHeight === 'number'
             ? forceContentHeight
             : contentRef.current.scrollHeight;
+        // Lyspanelet vokser OG krymper (rom åpnes/lukkes). scrollHeight kan aldri bli mindre
+        // enn flisens nåværende høyde, så mål panelets egen høyde i stedet — ellers låser
+        // flisen seg på største størrelse.
+        if (type === 'light-panel') {
+            const panel = contentRef.current.querySelector('.light-panel');
+            if (panel) contentHeight = panel.offsetHeight;
+        }
         const grid = contentRef.current.closest('.tile-grid');
         let rowHeight = 16;
         let gap = 24;
@@ -201,7 +209,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
             return;
         }
 
-        if (type === 'thermostat' || type === 'light' || type === 'switch' || type === 'multi-light' || type === 'cleaning' || type === 'fan' || type === 'trash' || type === 'postal' || type === 'ev-charger' || type === 'hierarchy' || type === 'water-heater' || type === 'weather' || type === 'keypad' || type === 'vacuum' || type === 'lawn-mower' || type === 'irrigation' || type === 'appliance' || type === 'intercom') {
+        if (type === 'thermostat' || type === 'light' || type === 'switch' || type === 'multi-light' || type === 'cleaning' || type === 'fan' || type === 'trash' || type === 'postal' || type === 'ev-charger' || type === 'hierarchy' || type === 'water-heater' || type === 'weather' || type === 'keypad' || type === 'vacuum' || type === 'lawn-mower' || type === 'irrigation' || type === 'appliance' || type === 'intercom' || type === 'light-panel') {
             setIsExpanded(true);
         }
     };
@@ -256,6 +264,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
             case 'intercom': return <IntercomTile {...props} />;
             case 'appliance': return <ApplianceTile {...props} />;
             case 'presence': return <PresenceTile {...props} />;
+            case 'light-panel': return <LightPanelTile {...props} onContentUpdate={updateSize} />;
             default: return <div className="tile-content">Unknown type</div>;
         }
     };
@@ -364,6 +373,8 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, ...props }) 
                             borderRadius: '1.5rem',
                         } : (type === 'thermostat' || type === 'ev-charger' || type === 'vacuum' || type === 'water-heater') ? {
                             minWidth: 'min(760px, 95vw)',
+                        } : type === 'light-panel' ? {
+                            minWidth: 'min(900px, 95vw)',
                         } : {}}
                     >
                         <button

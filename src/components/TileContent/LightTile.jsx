@@ -4,6 +4,7 @@ import { Lightbulb } from 'lucide-react';
 import InteractiveCircularSlider from '../InteractiveCircularSlider';
 import TileCapabilities from '../TileCapabilities';
 import MiniPowerGraph from './MiniPowerGraph';
+import { DEFAULT_LIGHT_PRESETS } from './LightPanelTile';
 
 const LightTile = ({ tile, device, expanded = false }) => {
     const { api, setIsInteracting, devices } = useHomey();
@@ -127,7 +128,7 @@ const LightTile = ({ tile, device, expanded = false }) => {
                             endAngle={isHorizontal ? 90 : 130}
                             size={expanded ? "250px" : (isHorizontal ? "190px" : "135px")}
                             strokeWidth={expanded ? 16 : (isHorizontal ? 14 : 10)}
-                            interactionMode="knob"
+                            interactionMode="any"
                         >
                             <div
                                 onClick={handleToggle}
@@ -243,6 +244,24 @@ const LightTile = ({ tile, device, expanded = false }) => {
                     padding: '1rem',
                     borderRadius: '1rem'
                 }}>
+                    {/* Hurtignivåer – trykk setter nivået direkte */}
+                    {hasDim && settings.showPresets !== false && (
+                        <div className="light-presets" onClick={e => e.stopPropagation()}>
+                            {(settings.presets?.length ? settings.presets : DEFAULT_LIGHT_PRESETS).map(p => (
+                                <button
+                                    key={p}
+                                    className="light-preset-chip"
+                                    onClick={() => {
+                                        setIsOn(p > 0);
+                                        handleDimChangeEnd(p / 100);
+                                    }}
+                                >
+                                    {p} %
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     {tile.expandedCapabilities?.map((capConfig) => (
                         <TileCapabilities key={typeof capConfig === 'string' ? capConfig : capConfig.id} device={device} capabilities={[capConfig]} />
                     ))}

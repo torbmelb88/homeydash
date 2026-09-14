@@ -57,7 +57,8 @@
     flex-shrink: 0;
 }
 
-.multi-light-container.vertical .slider-wrapper {
+.multi-light-container.vertical .slider-wrapper,
+.multi-light-container.vertical .light-slider {
     order: 2;
     flex: 1 1 auto;
     /* Grow and shrink */
@@ -101,7 +102,8 @@
     grid-row: 1;
 }
 
-.multi-light-container.horizontal .slider-wrapper {
+.multi-light-container.horizontal .slider-wrapper,
+.multi-light-container.horizontal .light-slider {
     grid-column: 1 / -1;
     /* Span full width */
     grid-row: 2;

@@ -46,6 +46,7 @@ const PAGE_TYPES = [
     { key: 'media',  label: 'Mediebibliotek',  Icon: Film },
     { key: 'smoke',  label: 'Røykvarslere',    Icon: Flame },
     { key: 'keypad', label: 'Kodepanel',       Icon: Lock },
+    { key: 'lights', label: 'Lys',             Icon: Lightbulb },
 ];
 
 const PageModal = ({ isOpen, onClose, onSave, onDelete, initialName = '', initialIcon = 'FileText', initialIframeUrl = '', initialPageType = 'tile', title = 'Ny side', pageIndex = -1, pageCount = 0, onMove }) => {

@@ -12,6 +12,7 @@ import UniversalTileSettings from './UniversalTileSettings';
 import MultiSensorSettings from './MultiSensorSettings';
 import KeypadSettings from './KeypadSettings';
 import MultiDeviceSettings from './MultiDeviceSettings';
+import LightPanelSettings from './LightPanelSettings';
 import { CheckboxRow, ShowOptionsGroup } from './SettingsControls';
 import { resolveTileDevice } from '../services/utils';
 
@@ -293,7 +294,7 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
         // Tiles with settings but no expanded view
         if ([
             'flow', 'graph', 'hierarchy', 'clock',
-            'video', 'web', 'app-launcher', 'door-control', 'header', 'intercom'
+            'video', 'web', 'app-launcher', 'door-control', 'header', 'intercom', 'light-panel'
         ].includes(type)) {
             return [
                 ...base,
@@ -359,11 +360,10 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
             updatedTile.devices = multiDevices;
             updatedTile.orientation = orientation;
             if (isMultiLight) {
+                // Spre widgetSettings så deviceEntityHints/showPresets satt i denne økten overlever
                 updatedTile.settings = {
                     ...tile.settings,
-                    compact: widgetSettings.compact,
-                    columns: widgetSettings.columns,
-                    customNames: widgetSettings.customNames,
+                    ...widgetSettings,
                     expandedOrientation: expandedOrientation
                 };
             }
@@ -658,6 +658,14 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
                                         />
                                     </div>
                                 </div>
+                            )}
+
+                            {tile.type === 'light-panel' && (
+                                <LightPanelSettings
+                                    devices={devices}
+                                    settings={widgetSettings}
+                                    onChange={(patch) => setWidgetSettings(prev => ({ ...prev, ...patch }))}
+                                />
                             )}
 
                             {tile.type === 'door-control' && (
@@ -2063,6 +2071,17 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete }) => {
                                     <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: 0 }}>
                                         Layoutinnstillinger for utvidet visning – som orientering og kompakt modus – finner du under <strong style={{ color: 'var(--color-text-primary)' }}>Layout</strong>-fanen.
                                     </p>
+                                </div>
+                            )}
+
+                            {isMultiLight && (
+                                <div className="form-group" style={{ marginTop: 12 }}>
+                                    <CheckboxRow
+                                        label="Vis hurtignivå-knapper (10 / 40 / 100 %)"
+                                        description="Setter alle dimbare lys i flisen til nivået. Vises kun i utvidet visning."
+                                        checked={widgetSettings.showPresets !== false}
+                                        onChange={(checked) => setWidgetSettings(prev => ({ ...prev, showPresets: checked }))}
+                                    />
                                 </div>
                             )}
 

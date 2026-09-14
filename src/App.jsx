@@ -13,6 +13,7 @@ import MusicPage from './components/MusicPage';
 import MediaLibraryPage from './components/MediaLibraryPage';
 import SmokeDetectorPage from './components/SmokeDetectorPage';
 import KeypadPage from './components/KeypadPage';
+import LightPage from './components/LightPage';
 import ProfileSelector from './components/ProfileSelector';
 import { useHomey } from './context/HomeyContext';
 import { useFullyKiosk } from './hooks/useFullyKiosk';
@@ -33,7 +34,8 @@ function App() {
   const isMediaPage  = activePage?.pageType === 'media';
   const isSmokePage  = activePage?.pageType === 'smoke';
   const isKeypadPage = activePage?.pageType === 'keypad';
-  const isIframePage = !isFamilyPage && !isEnergyPage && !isMusicPage && !isMediaPage && !isSmokePage && !isKeypadPage && !!activePage?.iframeUrl;
+  const isLightsPage = activePage?.pageType === 'lights';
+  const isIframePage = !isFamilyPage && !isEnergyPage && !isMusicPage && !isMediaPage && !isSmokePage && !isKeypadPage && !isLightsPage && !!activePage?.iframeUrl;
 
   // Fullskjerm kodepanel: siden kan be om at topbar + bunnmeny skjules (page.hideChrome).
   // En diskret hjørneknapp viser menyene igjen midlertidig; de skjules på nytt etter
@@ -120,10 +122,10 @@ function App() {
       <IncomingCallOverlay />
       <main className="dashboard" style={{
         overflow: isLoading || isInteracting ? 'hidden' : 'auto',
-        padding: (isIframePage || isFamilyPage || isEnergyPage || isMusicPage || isMediaPage || isSmokePage || isKeypadPage) ? 0 : undefined
+        padding: (isIframePage || isFamilyPage || isEnergyPage || isMusicPage || isMediaPage || isSmokePage || isKeypadPage || isLightsPage) ? 0 : undefined
       }}>
         {/* Main Grid - Keep mounted but hide if showing an iframe, family, energy or music page */}
-        <div style={{ display: (isIframePage || isFamilyPage || isEnergyPage || isMusicPage || isMediaPage || isSmokePage || isKeypadPage) ? 'none' : 'block', height: '100%' }}>
+        <div style={{ display: (isIframePage || isFamilyPage || isEnergyPage || isMusicPage || isMediaPage || isSmokePage || isKeypadPage || isLightsPage) ? 'none' : 'block', height: '100%' }}>
           <TileGrid />
         </div>
 
@@ -184,6 +186,16 @@ function App() {
             style={{ display: currentPage === page.id ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}
           >
             <KeypadPage page={page} />
+          </div>
+        ))}
+
+        {/* Light pages */}
+        {pages.filter(p => p.pageType === 'lights').map(page => (
+          <div
+            key={page.id}
+            style={{ display: currentPage === page.id ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}
+          >
+            <LightPage page={page} />
           </div>
         ))}
 

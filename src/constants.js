@@ -6,7 +6,7 @@
 export const WIDGET_TYPES = new Set([
     'clock', 'weather', 'video', 'web', 'app-launcher', 'graph',
     'flow', 'hierarchy', 'door-control', 'header', 'keypad', 'energy-dashboard',
-    'intercom',
+    'intercom', 'light-panel',
 ]);
 
 // Widget types that also skip device lookup in TileSettingsModal

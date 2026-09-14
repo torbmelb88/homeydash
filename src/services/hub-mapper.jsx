@@ -133,12 +133,19 @@ export const mapHassToHomey = (entity, areaMapping = {}) => {
         const { entity_id, attributes = {}, state: value } = entity;
         const [domain, object_id] = entity_id.split('.');
 
+        // areaMapping kan være hele entityToArea-kartet (HomeyContext live-oppdatering)
+        // ELLER allerede oppslått områdenavn som streng (groupEntitiesByDevice).
+        // Streng-varianten ga tidligere zoneName '' ved første last (bug).
+        const zoneName = typeof areaMapping === 'string'
+            ? areaMapping
+            : (areaMapping?.[entity_id] || '');
+
         // Base object
         const device = {
             id: entity_id,
             entityId: entity_id,
             name: attributes.friendly_name || object_id || entity_id,
-            zoneName: areaMapping[entity_id] || '',
+            zoneName,
             class: domain === 'light' ? 'light' :
                    domain === 'climate' ? 'thermostat' :
                    domain === 'switch' ? 'socket' :

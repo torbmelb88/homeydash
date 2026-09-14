@@ -193,6 +193,7 @@ export const DEMO_SETTINGS = {
 export const DEMO_PAGES = [
     { id: 'demo-hjem', name: 'Hjem', icon: 'Home', pageType: 'tile', tiles: [] },
     { id: 'demo-maskiner', name: 'Maskiner', icon: 'WashingMachine', pageType: 'tile', tiles: [] },
+    { id: 'demo-lys', name: 'Lys', icon: 'Lightbulb', pageType: 'lights', tiles: [], lightSettings: { mode: 'areas', tabs: [{ id: 't1', name: '1. etasje', groupIds: ['zone:Stue'] }, { id: 't2', name: 'Kjøkken', groupIds: ['zone:Kjøkken'] }] } },
 ];
 
 export const DEMO_TILES = [
@@ -203,6 +204,8 @@ export const DEMO_TILES = [
     { id: 'dt-taklys', pageId: 'demo-hjem', type: 'light', size: '1x1', deviceId: 'light.stue_taklys' },
     { id: 'dt-gulvlampe', pageId: 'demo-hjem', type: 'light', size: '1x1', deviceId: 'light.stue_gulvlampe' },
     { id: 'dt-benkelys', pageId: 'demo-hjem', type: 'light', size: '1x1', deviceId: 'light.kjokken_benkelys' },
+    { id: 'dt-lyspanel', pageId: 'demo-hjem', type: 'light-panel', size: '2x2', name: 'Lys', settings: { mode: 'areas', presets: [10, 40, 100] } },
+    { id: 'dt-multilys', pageId: 'demo-hjem', type: 'multi-light', size: '2x1', name: 'Stue', orientation: 'horizontal', devices: ['light.stue_taklys', 'light.stue_gulvlampe'], settings: {} },
     { id: 'dt-markise', pageId: 'demo-hjem', type: 'sunshade', size: '1x1', deviceId: 'cover.stue_markise' },
     { id: 'dt-varmepumpe', pageId: 'demo-hjem', type: 'thermostat', size: '1x1', deviceId: 'climate.stue_varmepumpe' },
     { id: 'dt-panelovn', pageId: 'demo-hjem', type: 'thermostat', size: '1x1', deviceId: 'climate.soverom_panelovn' },

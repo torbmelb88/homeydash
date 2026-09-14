@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useHomey } from '../../context/HomeyContext';
 import { resolveTileDevice } from '../../services/utils';
 import { Power, AlertCircle } from 'lucide-react';
+import LightSlider from '../LightSlider';
+import { DEFAULT_LIGHT_PRESETS } from './LightPanelTile';
 
 const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => {
     const { api, devices, isInteracting, setIsInteracting } = useHomey();
     const [localStates, setLocalStates] = useState({});
     const [optimisticStates, setOptimisticStates] = useState({});
-    const [sliderHeight, setSliderHeight] = useState(150);
-    const sliderRef = useRef(null);
 
     // Filter valid devices (entity-hint fallback survives nye HA device-ID-er)
     const deviceEntityHints = tile.settings?.deviceEntityHints || {};
@@ -53,20 +53,6 @@ const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => 
         }
     }, [devices, isInteracting, optimisticStates]); // Sync when devices update
 
-    // Measure slider height for vertical orientation
-    useEffect(() => {
-        if (!sliderRef.current) return;
-
-        const observer = new ResizeObserver(entries => {
-            for (let entry of entries) {
-                setSliderHeight(entry.contentRect.height);
-            }
-        });
-
-        observer.observe(sliderRef.current);
-        return () => observer.disconnect();
-    }, []);
-
     const handleToggle = (e, device) => {
         e.stopPropagation();
         const newState = !localStates[device.id]?.onoff;
@@ -82,29 +68,30 @@ const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => 
         });
     };
 
-    const handleDimChange = (e, deviceId) => {
-        const val = parseFloat(e.target.value);
-
-        // Update optimistic state immediately
-        setOptimisticStates(prev => ({
-            ...prev,
-            [deviceId]: val
-        }));
-
-        // Only trigger interaction state if not already interacting
-        if (!isInteracting) {
-            setIsInteracting(true);
-        }
+    const handleDimChange = (deviceId, val) => {
+        setOptimisticStates(prev => ({ ...prev, [deviceId]: val }));
     };
 
-    const handleDimChangeEnd = (e, deviceId) => {
-        const val = parseFloat(e.target.value);
-
-        // Send command
+    const handleDimChangeEnd = (deviceId, val) => {
+        setOptimisticStates(prev => ({ ...prev, [deviceId]: val }));
+        setLocalStates(prev => ({
+            ...prev,
+            [deviceId]: { ...prev[deviceId], onoff: val > 0 }
+        }));
         api.setDim(deviceId, val);
-
         // Don't clear optimistic state here; let the useEffect handle it when value syncs
-        setIsInteracting(false);
+    };
+
+    // Hurtignivå: alle dimbare lys i flisen til samme nivå
+    const applyPreset = (pct) => {
+        tileDevices.forEach(device => {
+            if (device.capabilities.includes('dim')) {
+                handleDimChangeEnd(device.id, pct / 100);
+            } else if (!localStates[device.id]?.onoff) {
+                setLocalStates(prev => ({ ...prev, [device.id]: { ...prev[device.id], onoff: true } }));
+                api.setCapability(device.id, 'onoff', true).catch(() => { });
+            }
+        });
     };
 
     if (tileDevices.length === 0) {
@@ -118,11 +105,13 @@ const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => 
     }
 
     const isCompact = tile.settings?.compact && !expanded;
-    const effectiveOrientation = (expanded && tile.settings?.expandedOrientation) 
-        ? tile.settings.expandedOrientation 
+    const effectiveOrientation = (expanded && tile.settings?.expandedOrientation)
+        ? tile.settings.expandedOrientation
         : tile.orientation;
     const isVertical = effectiveOrientation === 'vertical';
     const columns = tile.settings?.columns || 'auto';
+    const showPresets = expanded && tile.settings?.showPresets !== false && tileDevices.some(d => d.capabilities.includes('dim'));
+    const presets = (tile.settings?.presets && tile.settings.presets.length ? tile.settings.presets : DEFAULT_LIGHT_PRESETS);
 
     // Auto-detect columns based on tile width if 'auto'
     let effectiveColumns = columns;
@@ -204,8 +193,8 @@ const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => 
                                     }}
                                 >
                                     {device.LucideIcon ? (
-                                        <device.LucideIcon 
-                                            size={28} 
+                                        <device.LucideIcon
+                                            size={28}
                                             strokeWidth={1.5}
                                             style={{
                                                 color: isOn ? 'var(--color-accent-primary)' : 'inherit',
@@ -245,11 +234,6 @@ const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => 
     }
 
     // Standard / Expanded View (Sliders)
-    // If vertical, use flex-row to place items side by side (columns), but sliders are vertical inside.
-    // Wait, the user said "Vertical (Kolonner)" -> this means items are side-by-side?
-    // In Settings: "Vertikal (Kolonner)" sets orientation='vertical'.
-    // If orientation='vertical', existing code used flex-direction: column? No, class 'vertical' usually implies something.
-    // Let's redefine:
     // Horizontal (Rader): Items stacked vertically (rows), sliders horizontal.
     // Vertical (Kolonner): Items side-by-side (columns), sliders VERTICAL.
 
@@ -264,13 +248,12 @@ const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => 
                     minHeight: 0,
                     display: 'flex',
                     flexDirection: isVertical ? 'row' : 'column',
-                    // overflowX: isVertical ? 'auto' : 'hidden', // Let parent handle width
                     overflowY: isVertical ? 'hidden' : 'auto',
                     gap: '16px',
                     padding: '8px'
                 }}
             >
-                {tileDevices.map((device, index) => {
+                {tileDevices.map((device) => {
                     const state = localStates[device.id] || {};
                     const isOn = state.onoff;
                     const dim = optimisticStates[device.id] !== undefined ? optimisticStates[device.id] : state.dim;
@@ -300,59 +283,21 @@ const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => 
                                 justifyContent: 'center'
                             }} title={name}>{name}</div>
 
-                            {/* Slider Container */}
+                            {/* Slider: trykk hvor som helst setter nivået, dra justerer */}
                             {device.capabilities.includes('dim') ? (
-                                <div
-                                    className="slider-wrapper"
-                                    style={{
-                                        '--val': dim,
-                                        flex: 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        width: isVertical ? '100%' : 'auto',
-                                        height: isVertical ? '100%' : '48px', // Increased from auto/default to 48px
-                                        minHeight: isVertical ? '200px' : '48px',
-                                        position: 'relative' // Ensure relative for absolute input
-                                    }}
-                                    ref={index === 0 ? sliderRef : null}
-                                >
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="1"
-                                        step="0.01"
-                                        value={dim || 0}
-                                        onChange={(e) => handleDimChange(e, device.id)}
-                                        onMouseUp={(e) => handleDimChangeEnd(e, device.id)}
-                                        onTouchEnd={(e) => handleDimChangeEnd(e, device.id)}
-                                        className="multi-light-slider"
-                                        style={isVertical ? {
-                                            // Vertical slider using transform
-                                            width: `${sliderHeight}px`, // Set width to the height of container
-                                            height: '42px', // Match standard width
-                                            position: 'absolute',
-                                            top: '50%',
-                                            left: '50%',
-                                            transform: 'translate(-50%, -50%) rotate(-90deg)',
-                                            margin: 0,
-                                            opacity: 0, // Invisible
-                                            cursor: 'pointer'
-                                        } : {
-                                            // Horizontal slider
-                                            width: '100%',
-                                            height: '100%',
-                                            opacity: 0,
-                                            cursor: 'pointer'
-                                        }}
-                                    />
-                                    {/* Percent inside/next to the bar */}
-                                    {!isVertical && <div className="slider-percent" style={{ width: '40px', textAlign: 'right', fontSize: '0.8rem' }}>{Math.round((dim || 0) * 100)}%</div>}
-                                    {isVertical && <div className="slider-percent" style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{Math.round((dim || 0) * 100)}%</div>}
-                                </div>
+                                <LightSlider
+                                    value={dim || 0}
+                                    orientation={isVertical ? 'vertical' : 'horizontal'}
+                                    off={!isOn}
+                                    onInteractionStart={() => setIsInteracting(true)}
+                                    onInteractionEnd={() => setIsInteracting(false)}
+                                    onChange={(v) => handleDimChange(device.id, v)}
+                                    onChangeEnd={(v) => handleDimChangeEnd(device.id, v)}
+                                    style={isVertical ? { minHeight: '200px', height: '100%' } : undefined}
+                                />
                             ) : (
                                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    {/* Spacer for non-dimmable devices to maintain alignment if needed, or just leave empty */}
+                                    {/* Spacer for non-dimmable devices to maintain alignment */}
                                 </div>
                             )}
 
@@ -379,6 +324,16 @@ const MultiLightTile = ({ tile, expanded, onOpenExpanded, onCloseExpanded }) => 
                     );
                 })}
             </div>
+
+            {showPresets && (
+                <div className="light-presets" style={{ padding: '4px 8px 8px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    {presets.map(p => (
+                        <button key={p} className="light-preset-chip" onClick={() => applyPreset(p)}>
+                            {p} %
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

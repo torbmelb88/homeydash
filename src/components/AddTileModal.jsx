@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useHomey } from '../context/HomeyContext';
 import { storage } from '../services/storage';
 import { getDeviceType } from '../services/utils';
-import { X, Search, Zap, Thermometer, ToggleLeft, Activity, Trash2, Mail, Blinds, Clock, CloudSun, Video, Globe, Square, Layers, Lock, WashingMachine, Droplets, Disc2, Scissors, BarChart2, Phone, Utensils, UserRound } from 'lucide-react';
+import { X, Search, Zap, Thermometer, ToggleLeft, Activity, Trash2, Mail, Blinds, Clock, CloudSun, Video, Globe, Square, Layers, Lock, WashingMachine, Droplets, Disc2, Scissors, BarChart2, Phone, Utensils, UserRound, Lightbulb } from 'lucide-react';
 
 const AddTileModal = ({ onClose, onAdd }) => {
     const { devices, api } = useHomey();
@@ -145,6 +145,10 @@ const AddTileModal = ({ onClose, onAdd }) => {
                 pinCode: '0000',
                 successValue: 'true'
             };
+        } else if (type === 'light-panel') {
+            newTile.settings = { mode: 'areas', presets: [10, 40, 100] };
+            newTile.size = '2x2';
+            newTile.name = 'Lys';
         } else if (type === 'intercom') {
             newTile.size = '1x1';
             newTile.settings = {
@@ -307,6 +311,7 @@ const AddTileModal = ({ onClose, onAdd }) => {
                 { type: 'door-control', icon: <ToggleLeft size={24} />, name: 'Dørkontroll', desc: 'Lås/Klokke' },
                 { type: 'keypad', icon: <Lock size={24} />, name: 'PIN-tastatur', desc: 'Kodelås for enheter' },
                 { type: 'intercom', icon: <Phone size={24} />, name: 'Intercom', desc: 'Toveis tale til intercom-enheter' },
+                { type: 'light-panel', icon: <Lightbulb size={24} />, name: 'Lyspanel', desc: 'Alle lys, rom for rom' },
             ].map(w => (
                 <div
                     key={w.type}
