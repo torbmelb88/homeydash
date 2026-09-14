@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHomey } from '../../context/HomeyContext';
-import { Utensils, Shirt, Check, Power, Activity, Clock, DoorOpen, AlertTriangle } from 'lucide-react';
+import { Utensils, Shirt, Check, Power, Activity, Clock, DoorOpen, AlertTriangle, Sparkles, Droplets, Wind, CircleDashed, Pause, Timer } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import { useFinishedPrompt } from '../FinishedPromptOverlay';
 import { useApplianceState, findCycleDevice, nativeStateOf } from '../../hooks/useApplianceState';
@@ -27,6 +27,17 @@ const formatDuration = (ms) => {
     const h = Math.floor(min / 60);
     const m = min % 60;
     return h > 0 ? `${h}t ${m}m` : `${m}m`;
+};
+
+// Tidspunkt med dagsprefiks når det ikke er i dag («i går 18:12», «12.9. 18:12»)
+const formatWhen = (tMs) => {
+    const d = new Date(tMs);
+    const now = new Date();
+    const clock = formatClock(tMs);
+    if (d.toDateString() === now.toDateString()) return clock;
+    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) return `i går ${clock}`;
+    return `${d.getDate()}.${d.getMonth() + 1}. ${clock}`;
 };
 
 const formatMinutes = (min) => {
@@ -170,27 +181,46 @@ const ApplianceTile = ({ tile, device, expanded = false }) => {
 
     const isActive = isRunning || washActive;
 
-    // ── Visningsstatus ─────────────────────────────────────────────────
+    // ── Innholdsstatus: hva står det i maskinen? ───────────────────────
     // Native maskintilstand vinner når den melder aktiv syklus; ellers effektbasert.
-    let statusText, statusColor;
-    if (!isOn) {
-        statusText = 'Av';
-        statusColor = 'var(--color-text-tertiary)';
-    } else if (washActive) {
-        statusText = WASH_STATE_LABELS[washState] || 'Kjører';
-        statusColor = WASH_PAUSED_STATES.has(washState)
-            ? 'var(--color-warning, #f59e0b)'
-            : 'var(--color-success)';
-    } else if (isRunning) {
-        statusText = 'Kjører';
-        statusColor = 'var(--color-success)';
-    } else if (isFinished) {
-        statusText = `Ferdig ${formatClock(machineState.finishedAt)}`;
-        statusColor = 'var(--color-accent)';
-    } else {
-        statusText = 'Standby';
-        statusColor = 'var(--color-text-secondary)';
+    //   off     → stikkontakten er av
+    //   running → program pågår
+    //   paused  → pause / utsatt start (native)
+    //   clean   → ferdig og ikke tømt (rent innhold, venter på tømming)
+    //   empty   → tømt (kvittert) eller ingen kjent kjøring — klar til lasting
+    let content;
+    if (!isOn) content = 'off';
+    else if (washActive) content = WASH_PAUSED_STATES.has(washState) ? 'paused' : 'running';
+    else if (isRunning) content = 'running';
+    else if (isFinished) content = 'clean';
+    else content = 'empty';
+
+    const isDishwasher = kind === 'dishwasher';
+    const CONTENT_INFO = {
+        off:     { title: 'Av',                                    pill: 'Stikkontakt av',   color: 'var(--color-text-tertiary)',    Icon: Power },
+        running: { title: 'Kjører',                                pill: null,               color: 'var(--color-success)',          Icon: isDishwasher ? Droplets : Wind },
+        paused:  { title: WASH_STATE_LABELS[washState] || 'Pause', pill: null,               color: 'var(--color-warning, #f59e0b)', Icon: washState === 'delay_wait' ? Timer : Pause },
+        clean:   { title: isDishwasher ? 'Rent' : 'Tørt',          pill: 'Venter på tømming', color: '#38bdf8',                       Icon: Sparkles },
+        empty:   { title: 'Tom',                                   pill: 'Klar til lasting', color: 'var(--color-text-secondary)',   Icon: CircleDashed },
+    };
+    const info = CONTENT_INFO[content];
+    const statusColor = info.color;
+    // Kort statustekst til utvidet visning (tidspunkt legges på egen linje der)
+    const statusText = info.title;
+
+    // Aktiv kjøring: pillen viser tid igjen (maskinens egen nedtelling), ellers effekt
+    const showRemaining = settings.showTimeRemaining !== false && washRemaining != null;
+    const activePill = showRemaining ? `≈ ${formatMinutes(washRemaining)} igjen` : `${Math.round(power)} W`;
+
+    // Fremdrift kan bare anslås når både start og tid igjen er kjent
+    let progress = null;
+    if (isActive && showRemaining && machineState.runStartedAt) {
+        const elapsed = Date.now() - machineState.runStartedAt;
+        progress = Math.max(0.03, Math.min(0.97, elapsed / (elapsed + washRemaining * 60000)));
     }
+
+    // Sist ferdig — beholdes i tilstandsmaskinen også etter kvittering
+    const lastFinishedAt = machineState.finishedAt || null;
 
     // ── Statistikk-rader (utvidet) ─────────────────────────────────────
     const statRows = [];
@@ -238,30 +268,31 @@ const ApplianceTile = ({ tile, device, expanded = false }) => {
     }, [history]);
 
     // ── Kompakt visning ────────────────────────────────────────────────
+    // Statusmerke + innholdsstatus (Rent / Tom / Kjører). Tidspunktet for
+    // «ferdig» hører hjemme i utvidet visning, ikke her.
     if (!expanded) {
+        const hasAlert = alertSalt || alertRinseAid || tabletsLow;
+        const StateIcon = info.Icon;
         return (
-            <div className="tile-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'flex-end' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                    <div style={{
-                        width: '8px', height: '8px', borderRadius: '50%',
-                        background: statusColor,
-                        boxShadow: (isActive || isFinished) ? `0 0 6px ${isActive ? statusColor : 'var(--color-accent)'}` : 'none',
-                        flexShrink: 0,
-                    }} />
-                    <span style={{ fontSize: '0.95rem', fontWeight: 600, color: statusColor }}>
-                        {isFinished && <Check size={14} strokeWidth={3} style={{ verticalAlign: '-2px', marginRight: '2px' }} />}
-                        {statusText}
-                    </span>
-                </div>
-                {isActive && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {settings.showTimeRemaining !== false && washRemaining != null && (
-                            <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>≈ {formatMinutes(washRemaining)} igjen</span>
-                        )}
-                        <span style={{ color: 'var(--color-accent)' }}>{Math.round(power)} W</span>
-                        {washRemaining == null && machineState.runStartedAt && <span>Startet {formatClock(machineState.runStartedAt)}</span>}
+            <div className={`tile-content appliance-compact is-${content}`}>
+                {hasAlert && (
+                    <div className="appliance-alert">
+                        <AlertTriangle size={14} strokeWidth={2.2} />
                     </div>
                 )}
+                <div
+                    className={`appliance-badge${progress != null ? ' has-ring' : ''}`}
+                    style={progress != null ? { '--appl-progress': Math.round(progress * 100) } : undefined}
+                >
+                    {progress != null && <div className="appliance-ring" />}
+                    <StateIcon size={26} strokeWidth={1.8} />
+                </div>
+                {/* Under kjøring erstatter fasen «Kjører» — programnavnet vises i utvidet visning */}
+                <div className="appliance-title">{content === 'running' && washPhase ? washPhase : info.title}</div>
+                <div className="appliance-pill">
+                    {content === 'clean' && <Check size={13} strokeWidth={3} />}
+                    {isActive ? activePill : info.pill}
+                </div>
             </div>
         );
     }
@@ -285,6 +316,18 @@ const ApplianceTile = ({ tile, device, expanded = false }) => {
                         {isFinished && <Check size={22} strokeWidth={3} />}
                         {statusText}
                     </span>
+                    {content === 'clean' && (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <Clock size={13} /> Ferdig {formatWhen(machineState.finishedAt)} · venter på tømming
+                        </span>
+                    )}
+                    {content === 'empty' && (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            {lastFinishedAt
+                                ? <><Clock size={13} /> Klar til lasting · sist ferdig {formatWhen(lastFinishedAt)}</>
+                                : 'Klar til lasting'}
+                        </span>
+                    )}
                     {isActive && (washProgram || washPhase || machineState.runStartedAt) && (
                         <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                             <Clock size={13} />
