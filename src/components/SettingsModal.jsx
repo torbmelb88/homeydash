@@ -422,6 +422,18 @@ const SettingsModal = ({ onClose }) => {
                                                             style={numInputStyle}
                                                         />
                                                     </label>
+                                                    <label style={numRowStyle}>
+                                                        <span style={{ fontSize: '0.85rem' }}>Popup forsvinner av seg selv etter (timer, 0 = aldri)</span>
+                                                        <input
+                                                            type="number" min="0" max="168" step="1"
+                                                            value={cfg.autoDismissHours}
+                                                            onChange={e => setPopup(kind, 'autoDismissHours', e.target.value)}
+                                                            style={numInputStyle}
+                                                        />
+                                                    </label>
+                                                    <p className="hint" style={{ marginTop: 0 }}>
+                                                        Flisen viser «Rent» til noen kvitterer uansett — grensen gjelder bare popupen.
+                                                    </p>
                                                 </>
                                             )}
                                         </div>

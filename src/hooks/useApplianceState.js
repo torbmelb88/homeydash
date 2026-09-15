@@ -19,7 +19,7 @@ export const APPLIANCE_DEFAULTS = {
     standbyThreshold: 5,      // W – under dette regnes maskinen som inaktiv
     runThreshold: 10,         // W – over dette regnes maskinen som i gang
     finishedDelayMin: 4,      // min sammenhengende under standby før «Ferdig»
-    autoDismissHours: 12,     // «Ferdig» forsvinner av seg selv etter så mange timer
+    autoDismissHours: 12,     // popupen forsvinner av seg selv etter så mange timer (0 = aldri)
 };
 
 // Tersklene slås opp med getMachinePopupCfg() i services/popup-settings.js
@@ -240,8 +240,10 @@ export const useApplianceState = (device, cfg, nativeState = null) => {
         });
     }, [power]);
 
-    const finishedExpired = machineState.finishedAt &&
-        (Date.now() - machineState.finishedAt) > cfg.autoDismissHours * 60 * 60 * 1000;
+    // Gjelder kun popupen (FinishedPromptManager) — flisen viser «Rent» til
+    // kvittering uansett. 0 = popupen utløper aldri.
+    const finishedExpired = Boolean(machineState.finishedAt && cfg.autoDismissHours > 0 &&
+        (Date.now() - machineState.finishedAt) > cfg.autoDismissHours * 60 * 60 * 1000);
 
     return { machineState, history, finishedExpired };
 };

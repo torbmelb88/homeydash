@@ -115,16 +115,20 @@ const ApplianceTile = ({ tile, device, expanded = false }) => {
     // Native maskintilstand (enheter med appliance_native) lar tilstandsmaskinen
     // gå til Ferdig umiddelbart ved «End Of Cycle» og undertrykker falsk Ferdig
     // i laveffekt-faser midt i programmet.
-    const { machineState, history, finishedExpired } = useApplianceState(device, cfg, nativeStateOf(washDevice));
+    const { machineState, history } = useApplianceState(device, cfg, nativeStateOf(washDevice));
 
-    // Kvitteringsstatus — selve popupen rendres globalt av FinishedPromptManager
+    // Kvitteringsstatus — selve popupen rendres globalt av FinishedPromptManager.
+    // Flisen bryr seg IKKE om autoDismissHours (finishedExpired): innholdet er
+    // rent til noen faktisk kvitterer (felles via HA) eller en ny kjøring
+    // starter — en maskin som står over natta er fortsatt full av rent.
+    // Popupen har fortsatt sin egen utløpstid (Innstillinger → Popups).
     const { acked, acknowledge } = useFinishedPrompt({
         deviceId: device?.id || tile.id,
-        finishedAt: (machineState.phase === 'finished' && !finishedExpired) ? machineState.finishedAt : null,
+        finishedAt: machineState.phase === 'finished' ? machineState.finishedAt : null,
         ackKind: kind,
     });
 
-    const isFinished = machineState.phase === 'finished' && !finishedExpired && !acked;
+    const isFinished = machineState.phase === 'finished' && !acked;
     const isRunning = machineState.phase === 'running';
 
     const washCapNum = (id) => {
@@ -141,7 +145,7 @@ const ApplianceTile = ({ tile, device, expanded = false }) => {
     // «Kjører» i det brukeren kvitterte popupen (sett 2/8-2026). Effekt-
     // tilstandsmaskinen er alltid fersk (pluggen rapporterer uansett) og
     // vinner derfor over native i visningen når den sier Ferdig.
-    const cycleDone = machineState.phase === 'finished' && !finishedExpired;
+    const cycleDone = machineState.phase === 'finished';
     const washActive = !!WASH_STATE_LABELS[washState] && !cycleDone;
     const washRemaining = washActive ? washCapNum('washdata_time_remaining') : null;
     const washPhase = washActive ? prettyPhase(washDevice?.capabilitiesObj?.washdata_phase?.value) : null;
