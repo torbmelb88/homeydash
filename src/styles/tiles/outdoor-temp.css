@@ -1,0 +1,190 @@
+/* Utetemperatur-widget (OutdoorTempTile): husskisse med utedeler, sol og skygge */
+
+.otemp {
+    --ot-sun: var(--color-accent-primary);
+    --ot-shade: #60a5fa;
+    --ot-house: var(--color-bg-elevated);
+    --ot-edge: rgba(255, 255, 255, 0.16);
+    --ot-shadow: rgba(0, 0, 0, 0.5);
+    --ot-pill: var(--color-bg-secondary);
+    --ot-ink: var(--color-text-primary);
+    --ot-ink-2: var(--color-text-secondary);
+    --ot-ink-3: var(--color-text-tertiary);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    color: var(--ot-ink);
+}
+
+.otemp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 20px;
+}
+
+.otemp.expanded .otemp-header {
+    padding-right: 56px; /* plass til lukkeknappen i utvidet visning */
+}
+
+.otemp-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ot-ink-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.otemp.expanded .otemp-title {
+    font-size: 1.1rem;
+    color: var(--ot-ink);
+}
+
+.otemp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--ot-ink-2);
+    white-space: nowrap;
+}
+
+.otemp-chip.sun { background: rgba(245, 158, 11, 0.18); color: #fbbf24; }
+.otemp-chip.night { background: rgba(96, 165, 250, 0.14); color: #93c5fd; }
+
+.otemp-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: inherit;
+}
+
+.otemp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 18px 8px;
+    text-align: center;
+    color: var(--ot-ink-3);
+    font-size: 0.8rem;
+}
+
+/* Utvidet visning: skisse til venstre, anslag og liste til høyre */
+.otemp.expanded .otemp-body {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+}
+
+.otemp.expanded .otemp-scene {
+    flex: 1.15 1 0;
+    min-width: 0;
+}
+
+.otemp.expanded .otemp-side {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.otemp-hero {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.otemp-hero-val {
+    font-size: 2.1rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.otemp-hero-val small {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--ot-ink-2);
+    margin-left: 2px;
+}
+
+.otemp-hero-cap {
+    font-size: 0.72rem;
+    color: var(--ot-ink-3);
+    margin-top: 6px;
+}
+
+.otemp-list { display: flex; flex-direction: column; }
+
+.otemp-row {
+    display: grid;
+    grid-template-columns: 10px 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    font-size: 0.8rem;
+}
+
+.otemp-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--ot-shade);
+}
+
+.otemp-row.sun .otemp-dot { background: var(--ot-sun); border-color: var(--ot-sun); }
+.otemp-row.cooling .otemp-dot { background: linear-gradient(90deg, var(--ot-sun) 50%, transparent 50%); border-color: var(--ot-sun); }
+.otemp-row.night .otemp-dot,
+.otemp-row.unknown .otemp-dot,
+.otemp-row.nodata .otemp-dot { border-color: var(--ot-ink-3); }
+
+.otemp-row-name { font-weight: 600; min-width: 0; }
+.otemp-row-sub { color: var(--ot-ink-3); font-size: 0.7rem; font-weight: 400; }
+
+.otemp-row-temp {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.otemp-row.sun .otemp-row-temp,
+.otemp-row.cooling .otemp-row-temp,
+.otemp-row.nodata .otemp-row-temp { color: var(--ot-ink-3); font-weight: 500; }
+
+.otemp-row-status {
+    font-size: 0.7rem;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(96, 165, 250, 0.14);
+    color: #93c5fd;
+    white-space: nowrap;
+}
+
+.otemp-row.sun .otemp-row-status { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+.otemp-row.cooling .otemp-row-status { background: rgba(245, 158, 11, 0.1); color: #fcd34d; }
+.otemp-row.night .otemp-row-status,
+.otemp-row.unknown .otemp-row-status,
+.otemp-row.nodata .otemp-row-status { background: rgba(255, 255, 255, 0.07); color: var(--ot-ink-2); }
+
+.otemp-next {
+    font-size: 0.72rem;
+    color: var(--ot-ink-3);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    padding-top: 8px;
+    margin-top: auto;
+}
+
+@media (max-width: 600px) {
+    .otemp.expanded .otemp-body { flex-direction: column; }
+}

@@ -13,6 +13,7 @@ import MultiSensorSettings from './MultiSensorSettings';
 import KeypadSettings from './KeypadSettings';
 import MultiDeviceSettings from './MultiDeviceSettings';
 import LightPanelSettings from './LightPanelSettings';
+import OutdoorTempSettings from './OutdoorTempSettings';
 import { CheckboxRow, ShowOptionsGroup } from './SettingsControls';
 import { resolveTileDevice } from '../services/utils';
 
@@ -321,7 +322,7 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
         // Tiles with settings but no expanded view
         if ([
             'flow', 'graph', 'hierarchy', 'clock',
-            'video', 'web', 'app-launcher', 'door-control', 'header', 'intercom', 'light-panel'
+            'video', 'web', 'app-launcher', 'door-control', 'header', 'intercom', 'light-panel', 'outdoor-temp'
         ].includes(type)) {
             return [
                 ...base,
@@ -693,6 +694,13 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
                             {tile.type === 'light-panel' && (
                                 <LightPanelSettings
                                     devices={devices}
+                                    settings={widgetSettings}
+                                    onChange={(patch) => setWidgetSettings(prev => ({ ...prev, ...patch }))}
+                                />
+                            )}
+
+                            {tile.type === 'outdoor-temp' && (
+                                <OutdoorTempSettings
                                     settings={widgetSettings}
                                     onChange={(patch) => setWidgetSettings(prev => ({ ...prev, ...patch }))}
                                 />

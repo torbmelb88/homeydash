@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom';
 import { useHomey } from '../context/HomeyContext';
 import { storage } from '../services/storage';
 import { getDeviceType } from '../services/utils';
-import { X, Search, Zap, Thermometer, ToggleLeft, Activity, Trash2, Mail, Blinds, Clock, CloudSun, Video, Globe, Square, Layers, Lock, WashingMachine, Droplets, Disc2, Scissors, BarChart2, Phone, Utensils, UserRound, Lightbulb } from 'lucide-react';
+import { hassAPI } from '../services/hass-api';
+import { DEFAULT_OUTDOOR_TEMP_SETTINGS, detectOutdoorTempSensors } from '../services/outdoor-temp';
+import { X, Search, Zap, Thermometer, ToggleLeft, Activity, Trash2, Mail, Blinds, Clock, CloudSun, Video, Globe, Square, Layers, Lock, WashingMachine, Droplets, Disc2, Scissors, BarChart2, Phone, Utensils, UserRound, Lightbulb, ThermometerSun } from 'lucide-react';
 
 const AddTileModal = ({ onClose, onAdd }) => {
     const { devices, api } = useHomey();
@@ -91,6 +93,13 @@ const AddTileModal = ({ onClose, onAdd }) => {
         if (type === 'clock') {
             newTile.settings = { design: 'digital', showSeconds: false };
             newTile.size = '2x1';
+        } else if (type === 'outdoor-temp') {
+            // Utedeler foreslås fra *_outdoor_temperature-sensorer; vegg/plassering justeres i innstillingene
+            newTile.settings = {
+                ...DEFAULT_OUTDOOR_TEMP_SETTINGS,
+                units: detectOutdoorTempSensors(hassAPI.entities, hassAPI.entityToArea),
+            };
+            newTile.size = '2x2';
         } else if (type === 'weather') {
             newTile.settings = { location: '' };
             newTile.size = '2x1';
@@ -312,6 +321,7 @@ const AddTileModal = ({ onClose, onAdd }) => {
                 { type: 'keypad', icon: <Lock size={24} />, name: 'PIN-tastatur', desc: 'Kodelås for enheter' },
                 { type: 'intercom', icon: <Phone size={24} />, name: 'Intercom', desc: 'Toveis tale til intercom-enheter' },
                 { type: 'light-panel', icon: <Lightbulb size={24} />, name: 'Lyspanel', desc: 'Alle lys, rom for rom' },
+                { type: 'outdoor-temp', icon: <ThermometerSun size={24} />, name: 'Utetemperatur', desc: 'Utedelene på huset, sol og skygge' },
             ].map(w => (
                 <div
                     key={w.type}

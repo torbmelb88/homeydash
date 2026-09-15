@@ -45,6 +45,7 @@ import IntercomTile from './TileContent/IntercomTile';
 import ApplianceTile from './TileContent/ApplianceTile';
 import PresenceTile from './TileContent/PresenceTile';
 import LightPanelTile from './TileContent/LightPanelTile';
+import OutdoorTempTile from './TileContent/OutdoorTempTile';
 
 // ... (keep unused imports if needed, but standardizing)
 
@@ -216,7 +217,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
             return;
         }
 
-        if (type === 'thermostat' || type === 'light' || type === 'switch' || type === 'multi-light' || type === 'cleaning' || type === 'fan' || type === 'trash' || type === 'postal' || type === 'ev-charger' || type === 'hierarchy' || type === 'water-heater' || type === 'weather' || type === 'keypad' || type === 'vacuum' || type === 'lawn-mower' || type === 'irrigation' || type === 'appliance' || type === 'intercom' || type === 'light-panel') {
+        if (type === 'thermostat' || type === 'light' || type === 'switch' || type === 'multi-light' || type === 'cleaning' || type === 'fan' || type === 'trash' || type === 'postal' || type === 'ev-charger' || type === 'hierarchy' || type === 'water-heater' || type === 'weather' || type === 'keypad' || type === 'vacuum' || type === 'lawn-mower' || type === 'irrigation' || type === 'appliance' || type === 'intercom' || type === 'light-panel' || type === 'outdoor-temp') {
             setIsExpanded(true);
         }
     };
@@ -272,6 +273,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
             case 'appliance': return <ApplianceTile {...props} />;
             case 'presence': return <PresenceTile {...props} />;
             case 'light-panel': return <LightPanelTile {...props} onContentUpdate={updateSize} />;
+            case 'outdoor-temp': return <OutdoorTempTile {...props} />;
             default: return <div className="tile-content">Unknown type</div>;
         }
     };
@@ -378,7 +380,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
                             maxWidth: 'none',
                             maxHeight: 'none',
                             borderRadius: '1.5rem',
-                        } : (type === 'thermostat' || type === 'ev-charger' || type === 'vacuum' || type === 'water-heater') ? {
+                        } : (type === 'thermostat' || type === 'ev-charger' || type === 'vacuum' || type === 'water-heater' || type === 'outdoor-temp') ? {
                             minWidth: 'min(760px, 95vw)',
                         } : type === 'light-panel' ? {
                             minWidth: 'min(900px, 95vw)',
