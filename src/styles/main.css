@@ -101,6 +101,11 @@ body {
     color: var(--color-text-primary);
     overflow-x: hidden;
     min-height: 100vh;
+    /* Mobil-Chrome: 100vh er høyden MED adresselinjen skjult, mens .app-container er
+       100dvh (synlig område). Med 100vh ble dokumentet noen titalls px høyere enn skjermen,
+       og når rullingen i .dashboard nådde bunnen, fortsatte den i selve dokumentet og dro
+       toppmenyen ut av syne. dvh holder dokumentet nøyaktig like høyt som det synlige. */
+    min-height: 100dvh;
     touch-action: pan-y;
 }
 
