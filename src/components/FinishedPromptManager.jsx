@@ -34,6 +34,7 @@ const ApplianceWatcher = ({ device, kind, tileSettings }) => {
     const { visible, acknowledge, snooze } = useFinishedPrompt({
         deviceId: device.id,
         finishedAt: (machineState.phase === 'finished' && !finishedExpired) ? machineState.finishedAt : null,
+        ackKind: kind,
         enabled: cfg.enabled,
     });
     useLedAlert(visible);
@@ -165,6 +166,7 @@ const WasherWatcher = ({ device, tileSettings }) => {
         deviceId: device.id,
         finishedAt,
         enabled: cfg.enabled,
+        ackKind: 'washer',
     });
     useLedAlert(visible);
 
@@ -226,6 +228,7 @@ const WasteWatcher = ({ device }) => {
         deviceId: `waste:${device.id}`,
         finishedAt: active ? todayMidnight.getTime() : null,
         enabled: true,
+        ackKind: 'waste',
     });
 
     const names = todaysFractions.map(f => f.title);
@@ -305,6 +308,7 @@ const BladeWatcher = ({ device }) => {
         deviceId: `blades:${device.id}`,
         finishedAt: (due && dueSince && inWindow) ? dueSince : null,
         enabled: true,
+        ackKind: 'blades',
     });
 
     // «Ja» = knivene er byttet: nullstill telleren i HA (så status går til ok

@@ -353,6 +353,8 @@ const SettingsModal = ({ onClose }) => {
                         <p className="hint" style={{ marginTop: 0, marginBottom: '1rem' }}>
                             Gjelder kun denne enheten/profilen — andre nettbrett og mobiler har egne valg.
                             Popupene vises uansett hvilken side som er aktiv, og trenger ingen flis.
+                            Kvittering og slumring deles via Home Assistant (input_text.dashboard_kvittering_*),
+                            så et «Ja» på én skjerm fjerner popupen på alle.
                         </p>
 
                         {MACHINE_POPUP_KINDS.map(({ kind, label }) => {

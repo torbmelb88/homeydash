@@ -121,6 +121,7 @@ const ApplianceTile = ({ tile, device, expanded = false }) => {
     const { acked, acknowledge } = useFinishedPrompt({
         deviceId: device?.id || tile.id,
         finishedAt: (machineState.phase === 'finished' && !finishedExpired) ? machineState.finishedAt : null,
+        ackKind: kind,
     });
 
     const isFinished = machineState.phase === 'finished' && !finishedExpired && !acked;

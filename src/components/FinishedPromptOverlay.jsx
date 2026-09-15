@@ -2,23 +2,56 @@ import React, { useEffect, useReducer, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, AlarmClock, ChevronUp, ChevronDown } from 'lucide-react';
 import useKeepScreenAwake from '../hooks/useKeepScreenAwake';
+import { useHomey } from '../context/HomeyContext';
+import { hassAPI } from '../services/hass-api';
 
 /**
  * «Dynamisk flis»-popup: vises i stort format over hele dashbordet når et
  * apparat er ferdig, og krever et aktivt valg — «Ja» (kvitter ut) eller
  * «Slumre 5 min» (kommer tilbake).
  *
- * Kvittering/slumring lagres i localStorage per enhet, nøklet på finishedAt-
- * tidspunktet, slik at samme fullførte kjøring ikke spør på nytt etter reload.
+ * Kvittering/slumring er nøklet på finishedAt-tidspunktet, slik at samme
+ * fullførte kjøring ikke spør på nytt etter reload.
+ *
+ * Kvitteringen er FELLES for alle skjermer (sep 2026): én input_text-hjelper
+ * per popup-type i Home Assistant (ACK_ENTITY_BY_KIND) holder
+ * {ackFor, snoozeUntil, at}. Tilstanden er enten/eller — maskinen er tømt
+ * eller ikke — så en kvittering på nettbrettet skal også gjelde mobilen.
+ * Finnes hjelperen i enhetslisten, er den fasit og skrives ved kvittering/
+ * slumring; localStorage brukes som fallback (ingen HA / hjelper mangler) og
+ * som lokalt speil så UI-et svarer umiddelbart før HA-hendelsen kommer.
  */
 
-const readState = (key) => {
+export const ACK_ENTITY_BY_KIND = {
+    dishwasher: 'input_text.dashboard_kvittering_oppvaskmaskin',
+    dryer: 'input_text.dashboard_kvittering_torketrommel',
+    washer: 'input_text.dashboard_kvittering_vaskemaskin',
+    waste: 'input_text.dashboard_kvittering_renovasjon',
+    blades: 'input_text.dashboard_kvittering_robotklipper',
+};
+
+const parseRecord = (raw) => {
     try {
-        return JSON.parse(localStorage.getItem(key)) || {};
+        const o = JSON.parse(raw);
+        return o && typeof o === 'object' ? o : {};
     } catch {
         return {};
     }
 };
+
+const readState = (key) => {
+    try {
+        return parseRecord(localStorage.getItem(key));
+    } catch {
+        return {};
+    }
+};
+
+// Tidsstempel for «nyeste vinner»-valget mellom HA og localStorage. Poster
+// uten innhold teller som eldst, og gamle lokale poster (før `at` fantes)
+// som nest eldst — slik at en tom hjelper ikke nullstiller en gammel lokal
+// kvittering ved første lasting etter oppgraderingen.
+const recordAge = (r) => (r.ackFor == null && r.snoozeUntil == null) ? -1 : (r.at || 0);
 
 // finishedAt rekonstrueres fra HA-historikk ved reload og kan avvike noen
 // minutter fra live-verdien som ble kvittert ut — bruk toleranse ved matching.
@@ -26,11 +59,16 @@ const ACK_TOLERANCE_MS = 10 * 60 * 1000;
 const isAcked = (stored, finishedAt) =>
     stored.ackFor != null && Math.abs(stored.ackFor - finishedAt) < ACK_TOLERANCE_MS;
 
-export const useFinishedPrompt = ({ deviceId, finishedAt, enabled = true }) => {
+export const useFinishedPrompt = ({ deviceId, finishedAt, enabled = true, ackKind = null }) => {
+    const { devices } = useHomey();
     const storageKey = `finishedPrompt:${deviceId}`;
     const [, forceRender] = useReducer(x => x + 1, 0);
 
-    const stored = readState(storageKey);
+    const ackEntityId = ackKind ? ACK_ENTITY_BY_KIND[ackKind] : null;
+    const ackDevice = ackEntityId ? devices.find(d => d.id === ackEntityId) : null;
+    const haRecord = ackDevice ? parseRecord(ackDevice.state) : {};
+    const localRecord = readState(storageKey);
+    const stored = recordAge(haRecord) >= recordAge(localRecord) ? haRecord : localRecord;
     const snoozedUntil = stored.snoozeUntil || 0;
     const acked = finishedAt ? isAcked(stored, finishedAt) : false;
     const visible = Boolean(
@@ -63,21 +101,29 @@ export const useFinishedPrompt = ({ deviceId, finishedAt, enabled = true }) => {
         window.dispatchEvent(new CustomEvent('finished-prompt-changed', { detail: { deviceId } }));
     }, [deviceId]);
 
-    const acknowledge = useCallback(() => {
-        localStorage.setItem(storageKey, JSON.stringify({ ackFor: finishedAt }));
+    // Skriv lokalt først (umiddelbar respons), deretter til HA-hjelperen så
+    // alle andre skjermer får samme svar via state_changed.
+    const write = useCallback(async (record) => {
+        const rec = { ...record, at: Date.now() };
+        try { localStorage.setItem(storageKey, JSON.stringify(rec)); } catch { /* ignore */ }
         forceRender();
         notifyChange();
-    }, [storageKey, finishedAt, notifyChange]);
+        if (!ackDevice) return;
+        try {
+            await hassAPI.callService('input_text', 'set_value', ackEntityId, { value: JSON.stringify(rec) });
+        } catch (err) {
+            console.warn('useFinishedPrompt: kunne ikke lagre kvittering i Home Assistant', err);
+        }
+    }, [storageKey, ackEntityId, ackDevice, notifyChange]);
+
+    const acknowledge = useCallback(() => {
+        write({ ackFor: finishedAt });
+    }, [write, finishedAt]);
 
     const snooze = useCallback((minutes = 5) => {
-        const prev = readState(storageKey);
-        localStorage.setItem(storageKey, JSON.stringify({
-            ...prev,
-            snoozeUntil: Date.now() + minutes * 60 * 1000,
-        }));
-        forceRender();
-        notifyChange();
-    }, [storageKey, notifyChange]);
+        write({ ...stored, snoozeUntil: Date.now() + minutes * 60 * 1000 });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [write, stored.ackFor, stored.snoozeUntil, stored.at]);
 
     return { visible, acked, acknowledge, snooze };
 };
