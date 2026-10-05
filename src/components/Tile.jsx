@@ -28,6 +28,7 @@ import AppLauncherTile from './TileContent/AppLauncherTile';
 import GraphWidget from './TileContent/GraphWidget';
 import FlowTile from './TileContent/FlowTile';
 import EVChargerTile from './TileContent/EVChargerTile';
+import VehicleTile from './TileContent/VehicleTile';
 import HierarchyTile from './TileContent/HierarchyTile';
 
 import FanTile from './TileContent/FanTile';
@@ -88,6 +89,8 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
         type = 'cleaning';
     } else if (device && device.capabilities.includes('homey_ev_charger')) {
         type = 'ev-charger';
+    } else if (device && (device.capabilities.includes('homey_vehicle') || device.settings?.compositeType === 'vehicle')) {
+        type = 'vehicle';
     } else if (device && device.capabilities.includes('homey_vacuum')) {
         type = 'vacuum';
     } else if (device && device.capabilities.includes('homey_lawn_mower')) {
@@ -217,7 +220,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
             return;
         }
 
-        if (type === 'thermostat' || type === 'light' || type === 'switch' || type === 'multi-light' || type === 'cleaning' || type === 'fan' || type === 'trash' || type === 'postal' || type === 'ev-charger' || type === 'hierarchy' || type === 'water-heater' || type === 'weather' || type === 'keypad' || type === 'vacuum' || type === 'lawn-mower' || type === 'irrigation' || type === 'appliance' || type === 'intercom' || type === 'light-panel' || type === 'outdoor-temp') {
+        if (type === 'thermostat' || type === 'light' || type === 'switch' || type === 'multi-light' || type === 'cleaning' || type === 'fan' || type === 'trash' || type === 'postal' || type === 'ev-charger' || type === 'hierarchy' || type === 'water-heater' || type === 'weather' || type === 'keypad' || type === 'vacuum' || type === 'lawn-mower' || type === 'irrigation' || type === 'appliance' || type === 'intercom' || type === 'light-panel' || type === 'outdoor-temp' || type === 'vehicle') {
             setIsExpanded(true);
         }
     };
@@ -257,6 +260,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
             case 'weather': return <WeatherWidget {...props} onContentUpdate={updateSize} />;
             case 'flow': return <FlowTile {...props} />;
             case 'ev-charger': return <EVChargerTile {...props} />;
+            case 'vehicle': return <VehicleTile {...props} />;
             case 'video': return <VideoWidget {...props} settings={tile.settings} />;
             case 'web': return <WebWidget {...props} settings={tile.settings} />;
             case 'header': return <HeaderTile settings={tile.settings} />;
@@ -380,7 +384,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
                             maxWidth: 'none',
                             maxHeight: 'none',
                             borderRadius: '1.5rem',
-                        } : (type === 'thermostat' || type === 'ev-charger' || type === 'vacuum' || type === 'water-heater' || type === 'outdoor-temp') ? {
+                        } : (type === 'thermostat' || type === 'ev-charger' || type === 'vehicle' || type === 'vacuum' || type === 'water-heater' || type === 'outdoor-temp') ? {
                             minWidth: 'min(760px, 95vw)',
                         } : type === 'light-panel' ? {
                             minWidth: 'min(900px, 95vw)',

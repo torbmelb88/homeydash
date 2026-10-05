@@ -20,6 +20,7 @@ export function getDeviceType(device) {
         device.virtualClass === 'evcharger' ||
         device.class === 'evcharger'
     ) return 'ev-charger';
+    if (caps.includes('homey_vehicle') || device.settings?.compositeType === 'vehicle') return 'vehicle';
     if (caps.includes('smart_plug_appliance') || device.settings?.compositeType === 'appliance') return 'appliance';
     if (caps.includes('person_presence') || device.class === 'presence') return 'presence';
     if (caps.includes('laundry') || device.settings?.compositeType === 'washer') return 'cleaning';

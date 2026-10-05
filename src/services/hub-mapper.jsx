@@ -534,7 +534,8 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                 if (obj.endsWith('_usable_battery_level')) {
                     addCap('vehicle_battery_usable', n, '%');
                 } else if (obj.endsWith('_battery_level') || (attr.device_class === 'battery' && !obj.includes('arrival'))) {
-                    addCap('measure_battery', n, '%');
+                    // Rundes: Tesla gir 72.833 og Tile.jsx viser rå verdi i flishodet
+                    addCap('measure_battery', n == null ? null : Math.round(n), '%');
                 } else if (obj.endsWith('_charging') && Array.isArray(attr.options)) {
                     // starting / charging / stopped / complete / disconnected / no_power
                     addCap('vehicle_charging_state', value, null, 'string');
@@ -578,8 +579,32 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                     addCap('vehicle_preconditioning', on, null, 'boolean');
                 }
             } else if (domain === 'switch') {
-                // switch.*_charge: PÅ = bilen lader (start/stopp fra bilens side)
-                if (obj.endsWith('_charge')) addCap('vehicle_charge_switch', value === 'on', null, 'boolean');
+                const on = value === 'on';
+                if (obj.endsWith('_charge')) {
+                    // switch.*_charge: PÅ = bilen lader (start/stopp fra bilens side)
+                    addCap('vehicle_charge_switch', on, null, 'boolean');
+                } else if (obj.endsWith('_defrost')) {
+                    addCap('vehicle_defrost', on, null, 'boolean');
+                } else if (obj.endsWith('_auto_seat_climate_left')) {
+                    addCap('vehicle_auto_seat.left', on, null, 'boolean');
+                } else if (obj.endsWith('_auto_seat_climate_right')) {
+                    addCap('vehicle_auto_seat.right', on, null, 'boolean');
+                } else if (obj.endsWith('_auto_steering_wheel_heater')) {
+                    addCap('vehicle_auto_wheel', on, null, 'boolean');
+                } else if (obj.endsWith('_sentry_mode')) {
+                    addCap('vehicle_sentry', on, null, 'boolean');
+                }
+            } else if (domain === 'select') {
+                // Setevarme: select.*_seat_heater_<front_left|front_right|rear_left|rear_center|rear_right>
+                const seat = /_seat_heater_(front_left|front_right|rear_left|rear_center|rear_right)$/.exec(obj);
+                if (seat) {
+                    const capId = `vehicle_seat_heater.${seat[1]}`;
+                    addCap(capId, value, null, 'string');
+                    if (attr.options) updatedDevice.capabilitiesOptions[capId] = { values: attr.options };
+                } else if (obj.endsWith('_steering_wheel_heater')) {
+                    addCap('vehicle_wheel_heater', value, null, 'string');
+                    if (attr.options) updatedDevice.capabilitiesOptions['vehicle_wheel_heater'] = { values: attr.options };
+                }
             } else if (domain === 'number') {
                 if (obj.endsWith('_charge_limit')) {
                     addCap('vehicle_charge_limit', n, '%');
@@ -603,13 +628,28 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                 if (obj.endsWith('_charge_cable_lock')) addCap('vehicle_cable_locked', value === 'locked', null, 'boolean');
                 else if (obj.endsWith('_lock')) addCap('vehicle_locked', value === 'locked', null, 'boolean');
             } else if (domain === 'cover') {
-                if (obj.endsWith('_charge_port_door')) addCap('vehicle_charge_port_open', value === 'open', null, 'boolean');
+                const open = value === 'open' || value === 'opening';
+                if (obj.endsWith('_charge_port_door')) addCap('vehicle_charge_port_open', open, null, 'boolean');
+                else if (obj.endsWith('_windows')) addCap('vehicle_windows_open', open, null, 'boolean');
+                else if (obj.endsWith('_frunk')) addCap('vehicle_frunk_open', open, null, 'boolean');
+                else if (obj.endsWith('_trunk')) addCap('vehicle_trunk_open', open, null, 'boolean');
             } else if (domain === 'button') {
                 if (obj.endsWith('_wake')) addCap('vehicle_wake', value, null, 'button');
             } else if (domain === 'climate' && !obj.includes('overheat')) {
-                // Kupéklima — bevisst IKKE target_temperature, ellers havner bilen på Klimasiden
-                addCap('vehicle_climate_on', value !== 'off' && value !== 'unavailable', null, 'boolean');
-                if (attr.temperature != null) addCap('vehicle_climate_target', attr.temperature, '°C');
+                // Kupéklima — bevisst IKKE target_temperature, ellers havner bilen på Klimasiden.
+                // `vehicle_climate_*` rutes i HomeyContext til climate.set_hvac_mode/set_temperature/set_preset_mode.
+                const unavailable = value === 'unavailable' || value === 'unknown';
+                addCap('vehicle_climate_on', !unavailable && value !== 'off', null, 'boolean');
+                addCap('vehicle_climate_target', attr.temperature ?? null, '°C');
+                updatedDevice.capabilitiesOptions['vehicle_climate_target'] = {
+                    min: attr.min_temp ?? 15, max: attr.max_temp ?? 28, step: attr.target_temp_step ?? 0.5
+                };
+                if (attr.current_temperature != null) addCap('vehicle_climate_current', attr.current_temperature, '°C');
+                if (attr.preset_modes?.length) {
+                    addCap('vehicle_climate_preset', attr.preset_mode ?? 'off', null, 'string');
+                    updatedDevice.capabilitiesOptions['vehicle_climate_preset'] = { values: attr.preset_modes };
+                }
+                if (unavailable) updatedDevice.capabilitiesObj['vehicle_climate_on'].unavailable = true;
             }
             return updatedDevice;
         }

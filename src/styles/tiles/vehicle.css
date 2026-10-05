@@ -1,0 +1,344 @@
+/* ===== Bilflis (kupéklima, setevarme, status) ===== */
+
+.veh-dim { color: var(--color-text-secondary); font-weight: 400; }
+.veh-warn { color: var(--color-warning, #f59e0b); }
+.veh-hint { font-size: 0.75rem; color: var(--color-text-secondary); flex-basis: 100%; }
+
+/* ── Kompakt ───────────────────────────────────────────────────────── */
+.veh-compact {
+    --veh-accent: var(--color-text-secondary);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    width: 100%;
+    padding: 4px;
+    gap: 6px;
+}
+
+.veh-compact-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.veh-compact-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--veh-accent);
+    background: color-mix(in srgb, var(--veh-accent) 15%, transparent);
+}
+
+.veh-compact-badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+.veh-compact-batt {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.veh-compact-temp {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    margin: auto 0;
+}
+.veh-compact-temp-value {
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1;
+}
+.veh-compact-temp .veh-dim { font-size: 0.78rem; }
+
+.veh-compact-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--veh-accent);
+    text-align: center;
+}
+
+/* ── Utvidet ───────────────────────────────────────────────────────── */
+.veh-expanded {
+    display: flex;
+    gap: 1.5rem;
+    width: 100%;
+    align-items: flex-start;
+    padding: 0;
+}
+
+.veh-side {
+    flex: 0 0 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.veh-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+@media (max-width: 768px) {
+    .veh-side { flex: 0 0 auto; width: 100%; }
+    .veh-main { width: 100%; }
+}
+
+.veh-hero {
+    --veh-accent: var(--color-text-secondary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+}
+.veh-hero-icon {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--veh-accent);
+    background: color-mix(in srgb, var(--veh-accent) 18%, transparent);
+}
+.veh-hero-name { font-size: 1.25rem; font-weight: 600; }
+.veh-hero-sub {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+}
+.veh-asleep { display: inline-flex; align-items: center; gap: 3px; }
+.veh-hero-temp {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    margin-top: 2px;
+}
+
+.veh-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+}
+.veh-fact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+.veh-fact .veh-dim { font-size: 0.8rem; }
+
+.veh-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+}
+.veh-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 999px;
+    color: var(--color-text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+}
+.veh-chip.is-warn { color: var(--color-warning, #f59e0b); background: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent); }
+.veh-chip.is-on { color: var(--color-info); background: color-mix(in srgb, var(--color-info) 15%, transparent); }
+
+/* Kort */
+.veh-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.veh-climate.is-on { border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 40%, transparent); }
+
+.veh-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.veh-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.veh-power {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-primary);
+    font-weight: 600;
+    cursor: pointer;
+}
+.veh-power.is-on {
+    border-color: var(--color-warning, #f59e0b);
+    background: color-mix(in srgb, var(--color-warning, #f59e0b) 20%, transparent);
+    color: var(--color-warning, #f59e0b);
+}
+.veh-power.is-pending { opacity: 0.7; }
+.veh-power:disabled { opacity: 0.4; cursor: default; }
+
+.veh-climate-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.veh-climate-now {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.veh-climate-now-value {
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1;
+}
+.veh-climate-now .veh-dim { font-size: 0.8rem; }
+.veh-climate-target {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.veh-climate-target .veh-dim { font-size: 0.75rem; }
+
+.veh-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* Segmentert velger */
+.veh-seg {
+    display: flex;
+    gap: 4px;
+}
+.veh-seg-btn {
+    flex: 1;
+    min-width: 52px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+.veh-seg-btn.is-active {
+    border-color: var(--color-warning, #f59e0b);
+    background: color-mix(in srgb, var(--color-warning, #f59e0b) 20%, transparent);
+    color: var(--color-warning, #f59e0b);
+    font-weight: 600;
+}
+.veh-seg-btn.is-active.is-off {
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--color-text-primary);
+}
+.veh-seg.is-pending .veh-seg-btn.is-active,
+.veh-seg-btn.is-pending.is-active { opacity: 0.7; }
+
+.veh-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.veh-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.veh-row-label {
+    flex: 0 0 84px;
+    font-size: 0.88rem;
+}
+.veh-row .veh-seg { flex: 1; }
+
+@media (max-width: 480px) {
+    .veh-row { flex-direction: column; align-items: stretch; gap: 6px; }
+    .veh-row-label { flex-basis: auto; }
+}
+
+/* Av/på-knapp med tilstandstekst */
+.veh-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.veh-toggle-state {
+    margin-left: auto;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+}
+.veh-toggle.is-on { border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 60%, transparent); }
+.veh-toggle.is-on .veh-toggle-state {
+    color: var(--color-warning, #f59e0b);
+    background: color-mix(in srgb, var(--color-warning, #f59e0b) 18%, transparent);
+}
+.veh-toggle.is-pending { opacity: 0.7; }
+
+.veh-auto {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.veh-auto .veh-toggle { flex: 1 1 140px; }

@@ -342,6 +342,13 @@ export const HomeyProvider = ({ children }) => {
                     await hassAPI.callService('climate', 'set_fan_mode', targetEntityId, { fan_mode: value });
                 } else if (capabilityId === 'swing_mode') {
                     await hassAPI.callService('climate', 'set_swing_mode', targetEntityId, { swing_mode: value });
+                } else if (capabilityId === 'vehicle_climate_on') {
+                    // Bilens kupéklima (Tesla: heat_cool / off)
+                    await hassAPI.callService('climate', value ? 'turn_on' : 'turn_off', targetEntityId);
+                } else if (capabilityId === 'vehicle_climate_target') {
+                    await hassAPI.callService('climate', 'set_temperature', targetEntityId, { temperature: value });
+                } else if (capabilityId === 'vehicle_climate_preset') {
+                    await hassAPI.callService('climate', 'set_preset_mode', targetEntityId, { preset_mode: value });
                 } else if (capabilityId === 'preset_mode') {
                     await hassAPI.callService('climate', 'set_preset_mode', targetEntityId, { preset_mode: value });
                 } else if (capabilityId === 'windowcoverings_set') {

@@ -160,6 +160,7 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
             if (device.capabilities.includes('person_presence')) return 'presence';
             if (device.capabilities.includes('laundry') || device.settings?.compositeType === 'washer') return 'cleaning';
             if (device.capabilities.includes('homey_ev_charger') || device.settings?.compositeType === 'ev_charger') return 'ev-charger';
+            if (device.capabilities.includes('homey_vehicle') || device.settings?.compositeType === 'vehicle') return 'vehicle';
             if (device.capabilities.includes('posten_sensor') || device.settings?.compositeType === 'postal') return 'postal';
             if (device.capabilities.includes('homey_vacuum') || device.settings?.compositeType === 'vacuum') return 'vacuum';
             if (device.capabilities.includes('homey_lawn_mower') || device.settings?.compositeType === 'lawn_mower') return 'lawn-mower';
@@ -292,6 +293,12 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
             return [
                 ...base,
                 { id: 'config',   label: 'Innstillinger' },
+                { id: 'expanded', label: 'Utvidet (Stor)' },
+            ];
+        }
+        if (type === 'vehicle') {
+            return [
+                ...base,
                 { id: 'expanded', label: 'Utvidet (Stor)' },
             ];
         }
@@ -2513,6 +2520,24 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
                                         { key: 'showVehicle',          label: 'Bilen som lader (batteri, rekkevidde, ferdig-tid)', def: true },
                                         { key: 'showVehicleControls',  label: 'Ladegrense og start/stopp i bilen',               def: true },
                                         { key: 'showVehicleList',      label: 'Alle biler (batteri og hvor de er) når ingen lader', def: true },
+                                    ]}
+                                    values={widgetSettings}
+                                    onChange={(key, checked) => setWidgetSettings(prev => ({ ...prev, [key]: checked }))}
+                                />
+                            )}
+
+                            {/* ── Bil: Utvidet visning ──────────────────── */}
+                            {effectiveType === 'vehicle' && (
+                                <ShowOptionsGroup
+                                    title="Velg hva som vises i stor visning"
+                                    description="Kupéklima (av/på og temperatur) vises alltid."
+                                    options={[
+                                        { key: 'showSeats',    label: 'Setevarme og rattvarme',                          def: true },
+                                        { key: 'showAutoHeat', label: 'Automatisk sete- og rattvarme (brytere)',          def: true },
+                                        { key: 'showDefrost',  label: 'Avising',                                          def: true },
+                                        { key: 'showPresets',  label: 'Klimamodus (Behold / Hund / Camp)',                def: true },
+                                        { key: 'showStatus',   label: 'Status: lås, vinduer, frunk/bagasjerom, vaktmodus', def: true },
+                                        { key: 'showBattery',  label: 'Batteri, rekkevidde og hvor bilen er',             def: true },
                                     ]}
                                     values={widgetSettings}
                                     onChange={(key, checked) => setWidgetSettings(prev => ({ ...prev, [key]: checked }))}

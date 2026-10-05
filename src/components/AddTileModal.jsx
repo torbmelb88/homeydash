@@ -5,7 +5,7 @@ import { storage } from '../services/storage';
 import { getDeviceType } from '../services/utils';
 import { hassAPI } from '../services/hass-api';
 import { DEFAULT_OUTDOOR_TEMP_SETTINGS, detectOutdoorTempSensors } from '../services/outdoor-temp';
-import { X, Search, Zap, Thermometer, ToggleLeft, Activity, Trash2, Mail, Blinds, Clock, CloudSun, Video, Globe, Square, Layers, Lock, WashingMachine, Droplets, Disc2, Scissors, BarChart2, Phone, Utensils, UserRound, Lightbulb, ThermometerSun } from 'lucide-react';
+import { X, Search, Zap, Thermometer, ToggleLeft, Activity, Trash2, Mail, Blinds, Clock, CloudSun, Video, Globe, Square, Layers, Lock, WashingMachine, Droplets, Disc2, Scissors, BarChart2, Phone, Utensils, UserRound, Lightbulb, ThermometerSun, Car } from 'lucide-react';
 
 const AddTileModal = ({ onClose, onAdd }) => {
     const { devices, api } = useHomey();
@@ -29,6 +29,7 @@ const AddTileModal = ({ onClose, onAdd }) => {
             case 'light': return 'Lampe';
             case 'thermostat': return 'Termostat';
             case 'ev-charger': return 'Billader';
+            case 'vehicle': return 'Bil';
             case 'switch': return 'Bryter';
             case 'sensor': return 'Sensor';
             case 'trash': return 'Renovasjon';
@@ -64,6 +65,7 @@ const AddTileModal = ({ onClose, onAdd }) => {
             case 'light': return <Zap size={16} />;
             case 'thermostat': return <Thermometer size={16} />;
             case 'ev-charger': return <Zap size={16} />;
+            case 'vehicle': return <Car size={16} />;
             case 'switch': return <ToggleLeft size={16} />;
             case 'sensor': return <Activity size={16} />;
             case 'trash': return <Trash2 size={16} />;
