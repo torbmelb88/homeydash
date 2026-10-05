@@ -4,7 +4,10 @@
     top: 0;
     left: 0;
     width: 100vw;
+    /* Mobil-Chrome: 100vh inkluderer området bak verktøylinja, så bunnen av modalen
+       (og det som skulle rulles fram) lå utenfor skjermen. dvh = synlig område. */
     height: 100vh;
+    height: 100dvh;
     background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(8px);
     z-index: 9999;
@@ -31,6 +34,7 @@
     max-width: 95vw;
     /* Allow almost full width */
     max-height: 90vh;
+    max-height: 90dvh;
     padding: 2rem;
     position: relative;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -139,7 +143,9 @@
     min-width: 100vw;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     max-height: 100vh;
+    max-height: 100dvh;
     border-radius: 0;
     border: none;
     padding: 1rem;

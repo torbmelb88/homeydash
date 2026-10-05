@@ -10,6 +10,7 @@ import {
     Wind,
     Droplets,
     Zap,
+    Car,
     MousePointer2,
     Lock,
     Unlock,
@@ -217,10 +218,10 @@ export const mapHassToHomey = (entity, areaMapping = {}) => {
         if (domain === 'climate') {
             addCap('target_temperature', attributes.temperature || attributes.target_temp_high || 21);
             addCap('measure_temperature', attributes.current_temperature || 21);
-
             device.capabilitiesOptions['target_temperature'] = {
                 min: attributes.min_temp, max: attributes.max_temp, step: attributes.target_temp_step
             };
+
             const mode = value; // In HA, state represents the current HVAC mode (heat, cool, off, etc.)
             addCap('thermostat_mode', mode, null, 'string');
 
@@ -520,6 +521,99 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
             return updatedDevice;
         }
 
+        // --- Elbil (Tesla via Teslemetry m.fl.) ---
+        // Bilen er ikke en egen flis, men kobles til billader-flisen (services/vehicle.js finner
+        // bilen som faktisk lader). Entitetene har flere prefikser (outdoor_tesla_, model_y_,
+        // utendors_tesla_), så alt matches på suffiks. Tall lagres som null ved unknown/unavailable.
+        if (device.settings.compositeType === 'vehicle' ||
+            device.capabilities.includes('homey_vehicle')) {
+            const num = parseFloat(value);
+            const n = (value === 'unknown' || value === 'unavailable' || isNaN(num)) ? null : num;
+            const unit = attr.unit_of_measurement || null;
+            if (domain === 'sensor') {
+                if (obj.endsWith('_usable_battery_level')) {
+                    addCap('vehicle_battery_usable', n, '%');
+                } else if (obj.endsWith('_battery_level') || (attr.device_class === 'battery' && !obj.includes('arrival'))) {
+                    addCap('measure_battery', n, '%');
+                } else if (obj.endsWith('_charging') && Array.isArray(attr.options)) {
+                    // starting / charging / stopped / complete / disconnected / no_power
+                    addCap('vehicle_charging_state', value, null, 'string');
+                } else if (obj.endsWith('_charge_energy_added')) {
+                    addCap('vehicle_energy_added', n, 'kWh');
+                } else if (obj.endsWith('_charge_rate')) {
+                    addCap('vehicle_charge_rate', n, unit || 'km/h');
+                } else if (obj.endsWith('_charger_current')) {
+                    addCap('vehicle_charger_current', n, 'A');
+                } else if (obj.endsWith('_charger_power')) {
+                    // Tesla rapporterer kW; normaliser til W som laderen
+                    addCap('vehicle_charger_power', n == null ? null : (unit === 'kW' ? n * 1000 : n), 'W');
+                } else if (obj.endsWith('_charger_voltage')) {
+                    addCap('vehicle_charger_voltage', n, 'V');
+                } else if (obj.endsWith('_time_to_full_charge')) {
+                    addCap('vehicle_time_to_full', (value && value !== 'unknown' && value !== 'unavailable') ? value : null, null, 'string');
+                } else if (obj.endsWith('_estimate_battery_range')) {
+                    addCap('vehicle_range_estimate', n, unit || 'km');
+                } else if (obj.endsWith('_ideal_battery_range')) {
+                    addCap('vehicle_range_ideal', n, unit || 'km');
+                } else if (obj.endsWith('_battery_range') || obj.endsWith('_rated_range')) {
+                    addCap('vehicle_range', n, unit || 'km');
+                } else if (obj.endsWith('_inside_temperature')) {
+                    addCap('measure_temperature.inside', n, '°C');
+                } else if (obj.endsWith('_outside_temperature')) {
+                    addCap('measure_temperature.outside', n, '°C');
+                } else if (obj.endsWith('_odometer')) {
+                    addCap('vehicle_odometer', n, unit || 'km');
+                }
+            } else if (domain === 'binary_sensor') {
+                const on = value === 'on';
+                if (obj.endsWith('_charge_cable')) {
+                    addCap('vehicle_cable_connected', on, null, 'boolean');
+                } else if (obj.endsWith('_status') && attr.device_class === 'connectivity') {
+                    addCap('vehicle_awake', on, null, 'boolean');
+                } else if (obj.endsWith('_user_present')) {
+                    addCap('vehicle_user_present', on, null, 'boolean');
+                } else if (obj.endsWith('_scheduled_charging_pending')) {
+                    addCap('vehicle_scheduled_charging', on, null, 'boolean');
+                } else if (obj.endsWith('_preconditioning')) {
+                    addCap('vehicle_preconditioning', on, null, 'boolean');
+                }
+            } else if (domain === 'switch') {
+                // switch.*_charge: PÅ = bilen lader (start/stopp fra bilens side)
+                if (obj.endsWith('_charge')) addCap('vehicle_charge_switch', value === 'on', null, 'boolean');
+            } else if (domain === 'number') {
+                if (obj.endsWith('_charge_limit')) {
+                    addCap('vehicle_charge_limit', n, '%');
+                    updatedDevice.capabilitiesOptions['vehicle_charge_limit'] = {
+                        min: attr.min ?? 50, max: attr.max ?? 100, step: attr.step ?? 1
+                    };
+                } else if (obj.endsWith('_charge_current')) {
+                    addCap('vehicle_charge_current_limit', n, 'A');
+                    updatedDevice.capabilitiesOptions['vehicle_charge_current_limit'] = {
+                        min: attr.min ?? 0, max: attr.max ?? 32, step: attr.step ?? 1
+                    };
+                }
+            } else if (domain === 'device_tracker') {
+                // Posisjon: home / not_home / sonenavn. Rute/origin-trackere hoppes over.
+                if (!obj.endsWith('_route') && !obj.endsWith('_origin') && !obj.endsWith('_destination')) {
+                    addCap('vehicle_location', value, null, 'string');
+                    updatedDevice.capabilitiesObj['vehicle_location'].latitude = attr.latitude ?? null;
+                    updatedDevice.capabilitiesObj['vehicle_location'].longitude = attr.longitude ?? null;
+                }
+            } else if (domain === 'lock') {
+                if (obj.endsWith('_charge_cable_lock')) addCap('vehicle_cable_locked', value === 'locked', null, 'boolean');
+                else if (obj.endsWith('_lock')) addCap('vehicle_locked', value === 'locked', null, 'boolean');
+            } else if (domain === 'cover') {
+                if (obj.endsWith('_charge_port_door')) addCap('vehicle_charge_port_open', value === 'open', null, 'boolean');
+            } else if (domain === 'button') {
+                if (obj.endsWith('_wake')) addCap('vehicle_wake', value, null, 'button');
+            } else if (domain === 'climate' && !obj.includes('overheat')) {
+                // Kupéklima — bevisst IKKE target_temperature, ellers havner bilen på Klimasiden
+                addCap('vehicle_climate_on', value !== 'off' && value !== 'unavailable', null, 'boolean');
+                if (attr.temperature != null) addCap('vehicle_climate_target', attr.temperature, '°C');
+            }
+            return updatedDevice;
+        }
+
         // --- EV charger-specific mapping ---
         if (device.settings.compositeType === 'ev_charger' ||
             device.capabilities.includes('homey_ev_charger')) {
@@ -529,12 +623,14 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                     addCap('charge_mode', value, null, 'string');
                 } else if (obj.endsWith('_power') && !obj.includes('allocated')) {
                     addCap('measure_power', isNaN(val) ? 0 : val, 'W');
+                } else if (obj.endsWith('_completed_session_energy')) {
+                    // Må sjekkes FØR `_session_energy` (endsWith matcher begge) — ellers
+                    // overskrev forrige økt den pågående økta på flisen
+                    addCap('meter_power.last_session', isNaN(val) ? 0 : val, 'kWh');
                 } else if (obj.endsWith('_session_energy')) {
                     addCap('meter_power.current_session', isNaN(val) ? 0 : val, 'kWh');
                 } else if (obj.endsWith('_energy_meter')) {
                     addCap('meter_power', isNaN(val) ? 0 : val, 'kWh');
-                } else if (obj.endsWith('_completed_session_energy')) {
-                    addCap('meter_power.last_session', isNaN(val) ? 0 : val, 'kWh');
                 } else if (obj.endsWith('_current_phase1')) {
                     addCap('measure_current.phase1', isNaN(val) ? 0 : val, 'A');
                 } else if (obj.endsWith('_current_phase2')) {
@@ -549,10 +645,21 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                     addCap('energy_monthly', isNaN(val) ? 0 : val, 'kWh');
                 } else if (obj.endsWith('_cost_current')) {
                     addCap('cost_current', isNaN(val) ? 0 : val, 'kr/h');
+                } else if (obj.endsWith('_energy_prev_month')) {
+                    addCap('energy_prev_month', isNaN(val) ? 0 : val, 'kWh');
+                } else if (obj.endsWith('_energy_ytd')) {
+                    addCap('energy_ytd', isNaN(val) ? 0 : val, 'kWh');
+                } else if (/_(power_cost|capacity_cost|grid_tariff)_/.test(obj)) {
+                    // Energikostnad-integrasjonen deler kostnaden i kraft/nettleie/kapasitet —
+                    // kun total_cost_* skal inn (ellers overskrev de hverandre som cost_monthly)
                 } else if (obj.endsWith('_cost_daily')) {
                     addCap('cost_daily', isNaN(val) ? 0 : val, 'kr');
                 } else if (obj.endsWith('_cost_monthly')) {
                     addCap('cost_monthly', isNaN(val) ? 0 : val, 'kr');
+                } else if (obj.endsWith('_cost_prev_month')) {
+                    addCap('cost_prev_month', isNaN(val) ? 0 : val, 'kr');
+                } else if (obj.endsWith('_cost_ytd')) {
+                    addCap('cost_ytd', isNaN(val) ? 0 : val, 'kr');
                 } else if (obj.endsWith('_allocated_current')) {
                     addCap('allocated_current', isNaN(val) ? 0 : val, 'A');
                 }
@@ -1008,6 +1115,10 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                 if (attr.current_temperature != null)
                     addCap('measure_temperature', attr.current_temperature, '°C');
                 addCap('target_temperature', attr.temperature ?? 21, '°C');
+                // Grenser og trinn for −/+-knappene (klimasiden)
+                updatedDevice.capabilitiesOptions['target_temperature'] = {
+                    min: attr.min_temp, max: attr.max_temp, step: attr.target_temp_step
+                };
                 addCap('thermostat_mode', value, null, 'string');
                 if (attr.hvac_action) addCap('thermostat_state', attr.hvac_action, null, 'string');
                 if (attr.hvac_modes) {
@@ -1052,6 +1163,9 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                     addCap('measure_temperature.outdoor', isNaN(val) ? 0 : val, '°C');
                 } else if (obj.includes('indoor_temp') || obj.endsWith('_indoor_temperature')) {
                     addCap('measure_temperature', isNaN(val) ? 0 : val, '°C');
+                } else if (obj.endsWith('_floor_temperature')) {
+                    // Gulvføler på varmegulv-termostater; 0 = ingen føler tilkoblet
+                    if (val) addCap('measure_temperature.floor', val, '°C');
                 } else if (attr.device_class === 'power' || attr.unit_of_measurement === 'W') {
                     addCap('measure_power', isNaN(val) ? 0 : val, 'W');
                 } else if (obj.endsWith('_energy_daily')) {
@@ -1128,10 +1242,6 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             remainingStandalone.push(entity);
             return;
         }
-                // Grenser og trinn for −/+-knappene (klimasiden)
-                updatedDevice.capabilitiesOptions['target_temperature'] = {
-                    min: attr.min_temp, max: attr.max_temp, step: attr.target_temp_step
-                };
         const obj = entity.entity_id.split('.')[1] || ''; // e.g. 'living_room_vacuum'
         const prefix = obj + '_'; // e.g. 'living_room_vacuum_'
         const matchingDeviceId = Object.keys(deviceGroups).find(deviceId =>
@@ -1163,9 +1273,6 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
         // --- Determine the "primary" entity (highest-priority domain) ---
         const sorted = [...deviceEntities].sort((a, b) => {
             const da = a.entity_id.split('.')[0];
-                } else if (obj.endsWith('_floor_temperature')) {
-                    // Gulvføler på varmegulv-termostater; 0 = ingen føler tilkoblet
-                    if (val) addCap('measure_temperature.floor', val, '°C');
             const db = b.entity_id.split('.')[0];
             return (DOMAIN_PRIORITY[db] ?? 0) - (DOMAIN_PRIORITY[da] ?? 0);
         });
@@ -1236,6 +1343,17 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             (e.entity_id.split('.')[1] || '').includes('irrigation_schedule_status')
         );
 
+        // --- Elbil-deteksjon (Tesla/Teslemetry, generisk for andre bilintegrasjoner) ---
+        // Må kjøres FØR den generiske klima-grenen: Teslaen har to climate-entiteter og ville
+        // ellers blitt en 'climate'-composite (og dukket opp som varmepumpe på Klimasiden).
+        // Generisk kjennetegn: posisjon (device_tracker) + batterisensor + lade-entitet.
+        const isVehicle = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isIrrigation && (
+            (haDevice?.manufacturer || '').toLowerCase() === 'tesla' ||
+            (deviceEntities.some(e => e.entity_id.startsWith('device_tracker.')) &&
+             deviceEntities.some(e => e.entity_id.startsWith('sensor.') && e.attributes?.device_class === 'battery') &&
+             deviceEntities.some(e => /(_charge_limit|_charging|_charge_port_door|_charge_cable)$/.test(e.entity_id.split('.')[1] || '')))
+        );
+
         // --- Build the composite ---
         const compositeId = `composite:${deviceId}`;
         const areaKey = entityToArea[primaryEntity.entity_id];
@@ -1245,9 +1363,9 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
 
         // Also match if any entity in the group has vacuum/lawn_mower domain
         // (handles cases where the main entity wasn't in entityToDevice but was merged by prefix-matching)
-        const isVacuum = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isPostal &&
+        const isVacuum = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isPostal && !isVehicle &&
             (primaryDomain === 'vacuum' || deviceEntities.some(e => e.entity_id.split('.')[0] === 'vacuum'));
-        const isLawnMower = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isPostal && !isVacuum &&
+        const isLawnMower = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isPostal && !isVacuum && !isVehicle &&
             (primaryDomain === 'lawn_mower' || deviceEntities.some(e => e.entity_id.split('.')[0] === 'lawn_mower'));
 
         // Appliance kind (drives default name/icon in the tile)
@@ -1258,13 +1376,13 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
         let composite = {
             id: compositeId,
             name: isPostal ? 'Post' : isAppliance ? (applianceKind === 'dishwasher' ? 'Oppvaskmaskin' : 'Tørketrommel') : deviceName,
-            class: isAppliance ? 'socket' : isWasher ? 'vacuum' : isEVCharger ? 'socket' : isPostal ? 'sensor' : isIrrigation ? 'irrigation' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : (DOMAIN_TO_CLASS[primaryDomain] ?? primaryDomain),
-            capabilities: isAppliance ? ['smart_plug_appliance'] : isWasher ? ['laundry'] : isWaterHeater ? ['homey_water_heater'] : isEVCharger ? ['homey_ev_charger'] : isPostal ? ['posten_sensor'] : isIrrigation ? ['homey_irrigation'] : isVacuum ? ['homey_vacuum'] : isLawnMower ? ['homey_lawn_mower'] : [],
+            class: isAppliance ? 'socket' : isWasher ? 'vacuum' : isEVCharger ? 'socket' : isPostal ? 'sensor' : isIrrigation ? 'irrigation' : isVehicle ? 'car' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : (DOMAIN_TO_CLASS[primaryDomain] ?? primaryDomain),
+            capabilities: isAppliance ? ['smart_plug_appliance'] : isWasher ? ['laundry'] : isWaterHeater ? ['homey_water_heater'] : isEVCharger ? ['homey_ev_charger'] : isPostal ? ['posten_sensor'] : isIrrigation ? ['homey_irrigation'] : isVehicle ? ['homey_vehicle'] : isVacuum ? ['homey_vacuum'] : isLawnMower ? ['homey_lawn_mower'] : [],
             capabilitiesObj: {},
             capabilitiesOptions: {},
             ui: { components: [] },
-            lucideIconName: isAppliance ? 'utensils' : isWasher ? 'washing-machine' : isEVCharger ? 'zap' : isPostal ? 'mail' : isIrrigation ? 'droplets' : isVacuum ? 'disc-2' : isLawnMower ? 'scissors' : primaryDomain,
-            LucideIcon: isAppliance ? Utensils : isWasher ? WashingMachine : isEVCharger ? Zap : isPostal ? Mail : isIrrigation ? Droplets : isVacuum ? Disc2 : isLawnMower ? Scissors : (iconMap[primaryDomain] ?? HelpCircle),
+            lucideIconName: isAppliance ? 'utensils' : isWasher ? 'washing-machine' : isEVCharger ? 'zap' : isPostal ? 'mail' : isIrrigation ? 'droplets' : isVehicle ? 'car' : isVacuum ? 'disc-2' : isLawnMower ? 'scissors' : primaryDomain,
+            LucideIcon: isAppliance ? Utensils : isWasher ? WashingMachine : isEVCharger ? Zap : isPostal ? Mail : isIrrigation ? Droplets : isVehicle ? Car : isVacuum ? Disc2 : isLawnMower ? Scissors : (iconMap[primaryDomain] ?? HelpCircle),
             zoneName: areaKey || '',
             hubType: 'hass',
             isHA: true,
@@ -1275,8 +1393,10 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             settings: {
                 isComposite: true,
                 haDeviceId: deviceId,
-                compositeType: isAppliance ? 'appliance' : isWasher ? 'washer' : isWaterHeater ? 'water_heater' : isEVCharger ? 'ev_charger' : isPostal ? 'postal' : isIrrigation ? 'irrigation' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : primaryDomain,
+                compositeType: isAppliance ? 'appliance' : isWasher ? 'washer' : isWaterHeater ? 'water_heater' : isEVCharger ? 'ev_charger' : isPostal ? 'postal' : isIrrigation ? 'irrigation' : isVehicle ? 'vehicle' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : primaryDomain,
                 ...(isAppliance ? { applianceKind } : {}),
+                // Produsent/modell fra device registry (vises i bil-kortet på billader-flisen)
+                ...(isVehicle ? { vehicleMake: haDevice?.manufacturer || '', vehicleModel: haDevice?.model || '' } : {}),
             }
         };
 

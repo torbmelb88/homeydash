@@ -20,6 +20,8 @@ const isoTomorrowAt = (hour) => {
     return d.toISOString();
 };
 
+const isoInMinutes = (min) => new Date(Date.now() + min * 60000).toISOString();
+
 const E = (entity_id, state, attributes = {}) => ({
     entity_id,
     state: String(state),
@@ -104,6 +106,21 @@ export const buildDemoWorld = () => {
         E('binary_sensor.car_charger_online', 'on', { friendly_name: 'Lader online' }),
         E('switch.car_charger_cable_lock', 'off', { friendly_name: 'Kabellås' }),
 
+        // ── Elbil (composite: demo-car, Tesla-lignende) – kobles til laderen ─
+        E('device_tracker.tesla_location', 'home', { friendly_name: 'Tesla posisjon', source_type: 'gps' }),
+        E('sensor.tesla_battery_level', '61', { friendly_name: 'Tesla batterinivå', device_class: 'battery', unit_of_measurement: '%' }),
+        E('sensor.tesla_charging', 'charging', { friendly_name: 'Tesla ladestatus', device_class: 'enum', options: ['starting', 'charging', 'stopped', 'complete', 'disconnected', 'no_power'] }),
+        E('sensor.tesla_battery_range', '324', { friendly_name: 'Tesla rekkevidde', device_class: 'distance', unit_of_measurement: 'km' }),
+        E('sensor.tesla_charge_rate', '38', { friendly_name: 'Tesla ladehastighet', unit_of_measurement: 'km/h' }),
+        E('sensor.tesla_charger_power', '7.2', { friendly_name: 'Tesla ladeeffekt', device_class: 'power', unit_of_measurement: 'kW' }),
+        E('sensor.tesla_charge_energy_added', '12.1', { friendly_name: 'Tesla ladet energi', device_class: 'energy', unit_of_measurement: 'kWh' }),
+        E('sensor.tesla_time_to_full_charge', isoInMinutes(95), { friendly_name: 'Tesla tid til fulladet', device_class: 'timestamp' }),
+        E('binary_sensor.tesla_charge_cable', 'on', { friendly_name: 'Tesla ladekabel', device_class: 'connectivity' }),
+        E('binary_sensor.tesla_status', 'on', { friendly_name: 'Tesla våken', device_class: 'connectivity' }),
+        E('switch.tesla_charge', 'on', { friendly_name: 'Tesla lading' }),
+        E('number.tesla_charge_limit', '80', { friendly_name: 'Tesla ladegrense', min: 50, max: 100, step: 1, unit_of_measurement: '%' }),
+        E('climate.tesla_climate', 'off', { friendly_name: 'Tesla klima', temperature: 21, hvac_modes: ['off', 'heat_cool'] }),
+
         // ── Robotklipper (composite: demo-mower) ─────────────────────────
         E('lawn_mower.robotklipper', 'mowing', { friendly_name: 'Robotklipper' }),
         E('sensor.robotklipper_status', 'mowing', {
@@ -152,6 +169,7 @@ export const buildDemoWorld = () => {
         { id: 'demo-washer', name: 'Vaskemaskin' },
         { id: 'demo-vvb', name: 'Varmtvannsbereder' },
         { id: 'demo-charger', name: 'Elbillader' },
+        { id: 'demo-car', name: 'Tesla', manufacturer: 'Tesla', model: 'Model Y' },
         { id: 'demo-mower', name: 'Robotklipper' },
     ];
 
@@ -161,6 +179,7 @@ export const buildDemoWorld = () => {
         if (obj.startsWith('washer_')) entityToDevice[eid] = 'demo-washer';
         else if (obj.startsWith('water_heater_')) entityToDevice[eid] = 'demo-vvb';
         else if (obj.startsWith('car_charger_')) entityToDevice[eid] = 'demo-charger';
+        else if (obj.startsWith('tesla_')) entityToDevice[eid] = 'demo-car';
         else if (obj === 'robotklipper' || obj.startsWith('robotklipper_')) entityToDevice[eid] = 'demo-mower';
     });
 
@@ -175,7 +194,7 @@ export const buildDemoWorld = () => {
     const entityToArea = { ...AREA };
     Object.keys(entityToDevice).forEach((eid) => {
         const dev = entityToDevice[eid];
-        entityToArea[eid] = dev === 'demo-charger' || dev === 'demo-mower' ? 'Ute' : 'Vaskerom';
+        entityToArea[eid] = dev === 'demo-charger' || dev === 'demo-mower' || dev === 'demo-car' ? 'Ute' : 'Vaskerom';
     });
 
     return { entities, entityToDevice, deviceRegistry, entityToArea };
@@ -194,6 +213,7 @@ export const DEMO_PAGES = [
     { id: 'demo-hjem', name: 'Hjem', icon: 'Home', pageType: 'tile', tiles: [] },
     { id: 'demo-maskiner', name: 'Maskiner', icon: 'WashingMachine', pageType: 'tile', tiles: [] },
     { id: 'demo-lys', name: 'Lys', icon: 'Lightbulb', pageType: 'lights', tiles: [], lightSettings: { mode: 'areas', tabs: [{ id: 't1', name: '1. etasje', groupIds: ['zone:Stue'] }, { id: 't2', name: 'Kjøkken', groupIds: ['zone:Kjøkken'] }] } },
+    { id: 'demo-klima', name: 'Klima', icon: 'Thermometer', pageType: 'climate', tiles: [] },
 ];
 
 export const DEMO_TILES = [
@@ -213,7 +233,6 @@ export const DEMO_TILES = [
     { id: 'dt-fukt', pageId: 'demo-hjem', type: 'sensor', size: '1x1', deviceId: 'sensor.stue_fuktighet' },
     {
         id: 'dt-hierarki', pageId: 'demo-hjem', type: 'hierarchy', size: '2x2',
-    { id: 'demo-klima', name: 'Klima', icon: 'Thermometer', pageType: 'climate', tiles: [] },
         settings: {
             unit: 'W', theme: 'power', autoPrefix: true, showPercentage: true,
             hierarchy: {

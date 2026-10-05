@@ -16,6 +16,7 @@ import LightPanelSettings from './LightPanelSettings';
 import OutdoorTempSettings from './OutdoorTempSettings';
 import { CheckboxRow, ShowOptionsGroup } from './SettingsControls';
 import { resolveTileDevice } from '../services/utils';
+import { allVehicles, vehicleKey } from '../services/vehicle';
 
 // Norske fallback-titler for capabilities uten egen title (typisk HA-composite).
 // Følger CAP_TITLE_MAP-mønsteret fra HierarchyEditor.
@@ -1742,9 +1743,63 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
                                         checked={!!widgetSettings.showCostCurrent}
                                         onChange={(checked) => setWidgetSettings({ ...widgetSettings, showCostCurrent: checked })}
                                     />
+                                    <CheckboxRow
+                                        label="Vis bilen som lader (batteri og ladegrense)"
+                                        checked={widgetSettings.showVehicleCompact !== false}
+                                        onChange={(checked) => setWidgetSettings({ ...widgetSettings, showVehicleCompact: checked })}
+                                    />
                                 </div>
                             </div>
 
+                            {/* Biler fra HA (Tesla m.fl.) kobles til laderen */}
+                            <div className="form-group">
+                                <label>Bil</label>
+                                <p className="hint">
+                                    Flisen finner selv bilen som henger på laderen (kabel tilkoblet, hjemme, lader samtidig).
+                                    Velg en fast bil hvis det blir feil.
+                                </p>
+                                {allVehicles(devices).length === 0 ? (
+                                    <p className="hint">Ingen biler funnet i Home Assistant.</p>
+                                ) : (
+                                    <>
+                                        <select
+                                            value={widgetSettings.vehicleDeviceId || ''}
+                                            onChange={(e) => setWidgetSettings({ ...widgetSettings, vehicleDeviceId: e.target.value })}
+                                            className="select-input"
+                                            style={{ marginTop: '8px' }}
+                                        >
+                                            <option value="">Automatisk (bilen som lader)</option>
+                                            <option value="none">Ingen – vis bare laderen</option>
+                                            {allVehicles(devices).map(v => (
+                                                <option key={v.id} value={vehicleKey(v)}>
+                                                    {v.name}{v.settings?.vehicleModel ? ` (${v.settings.vehicleModel})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {!widgetSettings.vehicleDeviceId && allVehicles(devices).length > 1 && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                                                <span className="hint">Biler som vurderes i automatisk modus:</span>
+                                                {allVehicles(devices).map(v => {
+                                                    const key = vehicleKey(v);
+                                                    const excluded = (widgetSettings.excludedVehicleIds || []).includes(key);
+                                                    return (
+                                                        <CheckboxRow
+                                                            key={v.id}
+                                                            label={v.name}
+                                                            checked={!excluded}
+                                                            onChange={(checked) => {
+                                                                const cur = new Set(widgetSettings.excludedVehicleIds || []);
+                                                                if (checked) cur.delete(key); else cur.add(key);
+                                                                setWidgetSettings({ ...widgetSettings, excludedVehicleIds: [...cur] });
+                                                            }}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -2448,11 +2503,16 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
                                     title="Velg hva som vises i stor visning"
                                     description="Statistikk og informasjon som vises når flisen åpnes."
                                     options={[
-                                        { key: 'showEnergyDaily',      label: 'Energi i dag (kWh)',         def: true  },
-                                        { key: 'showEnergyMonthly',    label: 'Energi denne måneden (kWh)', def: false },
-                                        { key: 'showCostDaily',        label: 'Kostnad i dag (kr)',         def: true  },
-                                        { key: 'showCostMonthly',      label: 'Kostnad denne måneden (kr)', def: false },
+                                        { key: 'showEnergyDaily',      label: 'Energi i dag (kWh) – krever daglig sensor i HA', def: true  },
+                                        { key: 'showCostDaily',        label: 'Kostnad i dag (kr) – krever daglig sensor i HA', def: true  },
+                                        { key: 'showEnergyMonthly',    label: 'Energi denne måneden (kWh)', def: true  },
+                                        { key: 'showCostMonthly',      label: 'Kostnad denne måneden (kr)', def: true  },
+                                        { key: 'showPrevMonth',        label: 'Forrige måned (kWh og kr)',  def: false },
+                                        { key: 'showYtd',              label: 'Hittil i år (kWh og kr)',    def: false },
                                         { key: 'showAllocatedCurrent', label: 'Tildelt strøm (A)',          def: false },
+                                        { key: 'showVehicle',          label: 'Bilen som lader (batteri, rekkevidde, ferdig-tid)', def: true },
+                                        { key: 'showVehicleControls',  label: 'Ladegrense og start/stopp i bilen',               def: true },
+                                        { key: 'showVehicleList',      label: 'Alle biler (batteri og hvor de er) når ingen lader', def: true },
                                     ]}
                                     values={widgetSettings}
                                     onChange={(key, checked) => setWidgetSettings(prev => ({ ...prev, [key]: checked }))}

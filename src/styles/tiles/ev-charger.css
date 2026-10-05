@@ -1,0 +1,265 @@
+/* ===== Billader-flis – bilen som lader (kompakt og utvidet) ===== */
+
+/* Batterilinje med markør for ladegrense */
+.evc-bar {
+    position: relative;
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: visible;
+}
+.evc-bar-lg { height: 10px; }
+
+.evc-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--color-success);
+    transition: width 0.6s ease;
+}
+.evc-bar.is-charging .evc-bar-fill {
+    background: linear-gradient(90deg, var(--color-success), color-mix(in srgb, var(--color-success) 60%, white));
+}
+
+.evc-bar-mark {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 2px;
+    margin-left: -1px;
+    border-radius: 2px;
+    background: var(--color-text-primary);
+    opacity: 0.8;
+}
+
+/* ── Kompakt ───────────────────────────────────────────────────────── */
+.evc-car-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+    padding: 0 2px 6px;
+}
+
+.evc-car-line {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    min-width: 0;
+}
+.evc-car-line-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text-primary);
+    font-weight: 500;
+}
+.evc-car-line-batt {
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+.evc-car-line-limit { opacity: 0.8; }
+
+/* ── Utvidet: bil-kort ─────────────────────────────────────────────── */
+.evc-car-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.evc-car-card.is-charging {
+    border-color: color-mix(in srgb, var(--color-success) 35%, transparent);
+}
+
+.evc-car-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.evc-car-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+}
+.evc-car-card.is-charging .evc-car-icon {
+    color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 16%, transparent);
+}
+
+.evc-car-titles { flex: 1; min-width: 0; }
+.evc-car-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+.evc-car-sub {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+.evc-car-asleep {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    opacity: 0.8;
+}
+
+.evc-car-batt {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+}
+.evc-car-batt-limit {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.evc-car-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+}
+.evc-car-meta > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Kontroller: ladegrense + start/stopp i bilen */
+.evc-car-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.evc-limit { display: flex; flex-direction: column; gap: 8px; }
+.evc-limit-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.evc-limit-label {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+.evc-limit-stepper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.evc-limit-stepper button {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.evc-limit-stepper button:active { background: rgba(255, 255, 255, 0.14); }
+.evc-limit-value {
+    min-width: 54px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1rem;
+}
+.evc-limit-stepper.is-pending .evc-limit-value { color: var(--color-warning); }
+
+.evc-limit-presets {
+    display: flex;
+    gap: 6px;
+}
+.evc-chip {
+    flex: 1;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+.evc-chip.is-active {
+    border-color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 20%, transparent);
+    color: var(--color-success);
+    font-weight: 600;
+}
+
+.evc-car-btn {
+    height: 42px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.evc-car-btn.is-on {
+    border-color: color-mix(in srgb, var(--color-error) 60%, transparent);
+    color: var(--color-error);
+}
+
+/* ── Utvidet: liste over biler når ingen lader ─────────────────────── */
+.evc-car-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+}
+.evc-car-list-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+.evc-car-list-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text-primary);
+    font-weight: 500;
+}
+.evc-car-list-batt { font-weight: 600; color: var(--color-text-primary); }
+.evc-car-list-dim { opacity: 0.8; }
