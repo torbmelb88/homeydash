@@ -213,6 +213,7 @@ export const DEMO_TILES = [
     { id: 'dt-fukt', pageId: 'demo-hjem', type: 'sensor', size: '1x1', deviceId: 'sensor.stue_fuktighet' },
     {
         id: 'dt-hierarki', pageId: 'demo-hjem', type: 'hierarchy', size: '2x2',
+    { id: 'demo-klima', name: 'Klima', icon: 'Thermometer', pageType: 'climate', tiles: [] },
         settings: {
             unit: 'W', theme: 'power', autoPrefix: true, showPercentage: true,
             hierarchy: {

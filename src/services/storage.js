@@ -77,6 +77,23 @@ class Storage {
         return profile;
     }
 
+    // Kopier hele oppsettet (sider, fliser, innstillinger) fra én profil til en
+    // annen. Id-ene beholdes: samlingene er adskilt per profil, og fliser peker
+    // på sider (og hverandre) via id. Versjonshistorikken kopieres ikke.
+    async copyProfileData(sourceId, targetId) {
+        if (!db) return;
+        for (const col of ['pages', 'tiles', 'settings']) {
+            const snap = await getDocs(collection(db, `${col}__${sourceId}`));
+            // Firestore tillater maks 500 skrivinger per batch
+            for (let i = 0; i < snap.docs.length; i += 400) {
+                const batch = writeBatch(db);
+                snap.docs.slice(i, i + 400).forEach(d =>
+                    batch.set(doc(db, `${col}__${targetId}`, d.id), d.data()));
+                await batch.commit();
+            }
+        }
+    }
+
     async deleteProfile(profileId) {
         if (!db) return;
         // Delete profile metadata

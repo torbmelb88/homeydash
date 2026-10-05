@@ -218,6 +218,9 @@ export const mapHassToHomey = (entity, areaMapping = {}) => {
             addCap('target_temperature', attributes.temperature || attributes.target_temp_high || 21);
             addCap('measure_temperature', attributes.current_temperature || 21);
 
+            device.capabilitiesOptions['target_temperature'] = {
+                min: attributes.min_temp, max: attributes.max_temp, step: attributes.target_temp_step
+            };
             const mode = value; // In HA, state represents the current HVAC mode (heat, cool, off, etc.)
             addCap('thermostat_mode', mode, null, 'string');
 
@@ -1025,7 +1028,20 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                     if (attr.preset_modes) updatedDevice.capabilitiesOptions['preset_mode'] = { values: attr.preset_modes.map(m => ({ id: m, title: m.charAt(0).toUpperCase() + m.slice(1) })) };
                 }
             } else if (domain === 'switch') {
-                addCap('onoff', value === 'on', null, 'boolean');
+                // Kun hovedbryteren (*_on_off) er av/på. Daikin-pumpa har i tillegg sju
+                // funksjonsbrytere (streamer, econo, powerful, ...) som tidligere overskrev
+                // hverandre som `onoff` — de får egne `climate_switch.<navn>`-capabilities.
+                const prefix = (device.primaryEntityId || '').split('.')[1] || '';
+                const suffix = prefix && obj.startsWith(prefix + '_') ? obj.slice(prefix.length + 1) : obj;
+                if (suffix === 'on_off' || suffix === 'power' || obj === prefix) {
+                    addCap('onoff', value === 'on', null, 'boolean');
+                } else {
+                    const capId = `climate_switch.${suffix}`;
+                    addCap(capId, value === 'on', null, 'boolean');
+                    let title = attr.friendly_name || suffix;
+                    if (device.name && title.startsWith(device.name + ' ')) title = title.slice(device.name.length + 1);
+                    updatedDevice.capabilitiesObj[capId].title = title;
+                }
             } else if (domain === 'button' && obj.endsWith('_display_toggle')) {
                 // Puls-knapp (IR-sending) for å slå displayet på pumpa av/på.
                 // HA vet ikke om displayet faktisk er på — verdien er kun sist-trykket-tidspunkt.
@@ -1112,6 +1128,10 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             remainingStandalone.push(entity);
             return;
         }
+                // Grenser og trinn for −/+-knappene (klimasiden)
+                updatedDevice.capabilitiesOptions['target_temperature'] = {
+                    min: attr.min_temp, max: attr.max_temp, step: attr.target_temp_step
+                };
         const obj = entity.entity_id.split('.')[1] || ''; // e.g. 'living_room_vacuum'
         const prefix = obj + '_'; // e.g. 'living_room_vacuum_'
         const matchingDeviceId = Object.keys(deviceGroups).find(deviceId =>
@@ -1143,6 +1163,9 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
         // --- Determine the "primary" entity (highest-priority domain) ---
         const sorted = [...deviceEntities].sort((a, b) => {
             const da = a.entity_id.split('.')[0];
+                } else if (obj.endsWith('_floor_temperature')) {
+                    // Gulvføler på varmegulv-termostater; 0 = ingen føler tilkoblet
+                    if (val) addCap('measure_temperature.floor', val, '°C');
             const db = b.entity_id.split('.')[0];
             return (DOMAIN_PRIORITY[db] ?? 0) - (DOMAIN_PRIORITY[da] ?? 0);
         });

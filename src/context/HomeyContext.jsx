@@ -331,6 +331,9 @@ export const HomeyProvider = ({ children }) => {
                 } else if (capabilityId === 'light_temperature') {
                     const kelvin = 2000 + Math.round(value * 4500);
                     await hassAPI.callService('light', 'turn_on', targetEntityId, { color_temp_kelvin: kelvin });
+                } else if (capabilityId === 'target_temperature' && domain === 'number') {
+                    // Bereder: måltemperaturen er en number-entitet (number.*_setpoint), ikke climate
+                    await hassAPI.callService('number', 'set_value', targetEntityId, { value: String(value) });
                 } else if (capabilityId === 'target_temperature') {
                     await hassAPI.callService('climate', 'set_temperature', targetEntityId, { temperature: value });
                 } else if (capabilityId === 'thermostat_mode') {

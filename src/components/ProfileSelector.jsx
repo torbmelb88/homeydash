@@ -6,6 +6,8 @@ export default function ProfileSelector({ onProfileSelected }) {
     const [loading, setLoading] = useState(true);
     const [newName, setNewName] = useState('');
     const [creating, setCreating] = useState(false);
+    const [copyFrom, setCopyFrom] = useState(''); // '' = tom profil, ellers profil-id å kopiere fra
+    const [error, setError] = useState('');
 
     useEffect(() => {
         const timeout = setTimeout(() => setLoading(false), 6000);
@@ -22,9 +24,21 @@ export default function ProfileSelector({ onProfileSelected }) {
 
     async function createAndSelect() {
         const name = newName.trim();
-        if (!name) return;
+        if (!name || creating) return;
         setCreating(true);
-        const profile = await storage.createProfile(name);
+        setError('');
+        let profile = null;
+        try {
+            profile = await storage.createProfile(name);
+            if (copyFrom) await storage.copyProfileData(copyFrom, profile.id);
+        } catch (e) {
+            console.warn('Failed to create profile:', e);
+            // Ikke la en halvkopiert profil bli liggende i listen
+            if (profile) await storage.deleteProfile(profile.id).catch(() => {});
+            setError('Kunne ikke opprette profilen. Sjekk nettforbindelsen og prøv igjen.');
+            setCreating(false);
+            return;
+        }
         storage.setActiveProfile(profile.id);
         onProfileSelected(profile);
     }
@@ -94,9 +108,42 @@ export default function ProfileSelector({ onProfileSelected }) {
                                         opacity: newName.trim() ? 1 : 0.5,
                                     }}
                                 >
-                                    Opprett
+                                    {creating ? (copyFrom ? 'Kopierer…' : 'Opprettes…') : 'Opprett'}
                                 </button>
                             </div>
+
+                            {profiles.length > 0 && (
+                                <>
+                                    <label style={{ display: 'block', margin: '0.9rem 0 0.4rem', fontSize: '0.85rem', color: '#aaa' }}>
+                                        Start med:
+                                    </label>
+                                    <select
+                                        value={copyFrom}
+                                        onChange={e => setCopyFrom(e.target.value)}
+                                        disabled={creating}
+                                        style={{
+                                            width: '100%', background: '#2a2d3a', border: '1px solid #3a3d4a',
+                                            borderRadius: 8, padding: '0.6rem 0.75rem',
+                                            color: '#fff', fontSize: '0.95rem', outline: 'none',
+                                        }}
+                                    >
+                                        <option value=''>Tom profil</option>
+                                        {[...profiles].sort((a, b) => a.name.localeCompare(b.name)).map(p => (
+                                            <option key={p.id} value={p.id}>Kopi av «{p.name}»</option>
+                                        ))}
+                                    </select>
+                                    {copyFrom && (
+                                        <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: '#888' }}>
+                                            Sider, fliser og innstillinger kopieres. Kopien er uavhengig –
+                                            endringer påvirker ikke originalen.
+                                        </p>
+                                    )}
+                                </>
+                            )}
+
+                            {error && (
+                                <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#f87171' }}>{error}</p>
+                            )}
                         </div>
                     </>
                 )}

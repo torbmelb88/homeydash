@@ -32,7 +32,9 @@ const CustomTooltip = ({ active, payload, label }) => {
     return null;
 };
 
-const MiniPowerGraph = ({ deviceId, capabilityId = 'measure_power', currentValue, unit = 'W', title = 'Strømforbruk', color = '#f59e0b' }) => {
+// stacked = tittel/verdi på egen linje og grafen i full bredde under (smale flater som
+// klimasidens sidepanel/bunnark, der den innfelte grafen ellers havner oppå teksten)
+const MiniPowerGraph = ({ deviceId, capabilityId = 'measure_power', currentValue, unit = 'W', title = 'Strømforbruk', color = '#f59e0b', stacked = false }) => {
     const { api } = useHomey();
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -142,6 +144,41 @@ const MiniPowerGraph = ({ deviceId, capabilityId = 'measure_power', currentValue
     // Guarantee some padding even if max == min
     const padding = Math.max((maxVal - minVal) * 0.2, 10);
     const yDomain = [Math.max(0, minVal - padding), maxVal + padding];
+
+    if (stacked) {
+        return (
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        {title}
+                    </span>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                        {typeof currentValue === 'number' ? Math.round(currentValue) : '--'} {unit}
+                    </span>
+                </div>
+                <div style={{ width: '100%', height: 72, background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '6px 4px 2px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data} margin={{ top: 4, right: 6, bottom: 2, left: 6 }}>
+                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.15)', strokeWidth: 1 }} />
+                            <XAxis dataKey="time" type="number" scale="time" domain={['dataMin', 'dataMax']} hide />
+                            <YAxis hide domain={yDomain} />
+                            {/* stepAfter: historikken er tilstandsendringer — verdien gjelder til neste punkt */}
+                            <Line type="stepAfter" dataKey="value" stroke={color} strokeWidth={2} strokeOpacity={0.85} dot={false}
+                                activeDot={{ r: 4, fill: color, stroke: 'var(--color-bg-primary)', strokeWidth: 2 }} isAnimationActive={false} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--color-text-tertiary)' }}>
+                    <span>6 t siden</span>
+                    <span>{validData.length > 0 ? `Topp ${Math.round(maxVal)} ${unit}` : ''}</span>
+                    <span>nå</span>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={{
