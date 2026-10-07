@@ -17,6 +17,7 @@ import OutdoorTempSettings from './OutdoorTempSettings';
 import { CheckboxRow, ShowOptionsGroup } from './SettingsControls';
 import { resolveTileDevice } from '../services/utils';
 import { allVehicles, vehicleKey } from '../services/vehicle';
+import { allOverrideSelects } from '../services/load-manager';
 
 // Norske fallback-titler for capabilities uten egen title (typisk HA-composite).
 // Følger CAP_TITLE_MAP-mønsteret fra HierarchyEditor.
@@ -1757,6 +1758,36 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
                                     />
                                 </div>
                             </div>
+
+                            {/* Strømstyring-integrasjonen (tariffplan + overstyring) */}
+                            {tile.deviceId?.startsWith('composite:') && (
+                                <div className="form-group">
+                                    <label>Strømstyring</label>
+                                    <p className="hint">
+                                        «Lad nå»-knappen overstyrer tariffplanen (override unless critical) og setter full strøm.
+                                        Enheten finnes automatisk via laderens strømgrense-entitet.
+                                    </p>
+                                    <CheckboxRow
+                                        label="Vis Strømstyring og «Lad nå» i utvidet visning"
+                                        checked={widgetSettings.showLoadManager !== false}
+                                        onChange={(checked) => setWidgetSettings({ ...widgetSettings, showLoadManager: checked })}
+                                    />
+                                    {allOverrideSelects(devices).length > 0 && (
+                                        <select
+                                            value={widgetSettings.loadManagerOverrideEntityId || ''}
+                                            onChange={(e) => setWidgetSettings({ ...widgetSettings, loadManagerOverrideEntityId: e.target.value })}
+                                            className="select-input"
+                                            style={{ marginTop: '8px' }}
+                                        >
+                                            <option value="">Automatisk (finn via laderen)</option>
+                                            <option value="none">Ingen</option>
+                                            {allOverrideSelects(devices).map(d => (
+                                                <option key={d.id} value={d.id}>{d.name} ({d.id})</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Biler fra HA (Tesla m.fl.) kobles til laderen */}
                             <div className="form-group">

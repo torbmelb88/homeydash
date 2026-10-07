@@ -263,3 +263,76 @@
 }
 .evc-car-list-batt { font-weight: 600; color: var(--color-text-primary); }
 .evc-car-list-dim { opacity: 0.8; }
+
+/* ── Strømstyring (tariffplan / overstyring) ───────────────────────── */
+.evc-lm {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.evc-lm.is-override { border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 45%, transparent); }
+.evc-lm.is-critical { border-color: color-mix(in srgb, var(--color-error) 55%, transparent); }
+
+.evc-lm-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.evc-lm-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    flex-wrap: wrap;
+}
+.evc-lm-badge {
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 999px;
+    color: var(--color-text-secondary);
+    background: rgba(255, 255, 255, 0.08);
+}
+.evc-lm.is-override .evc-lm-badge {
+    color: var(--color-warning, #f59e0b);
+    background: color-mix(in srgb, var(--color-warning, #f59e0b) 18%, transparent);
+}
+.evc-lm-sub { font-size: 0.8rem; color: var(--color-text-secondary); }
+
+.evc-lm-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 20%, transparent);
+    color: var(--color-success);
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+.evc-lm-btn.is-override {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-primary);
+}
+.evc-lm-btn:disabled { opacity: 0.6; cursor: default; }
+
+@media (max-width: 480px) {
+    .evc-lm { flex-direction: column; align-items: stretch; }
+    .evc-lm-btn { justify-content: center; }
+}
+
+/* Kompakt: lite merke når overstyring er aktiv */
+.evc-lm-chip {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--color-warning, #f59e0b);
+    background: color-mix(in srgb, var(--color-warning, #f59e0b) 18%, transparent);
+}

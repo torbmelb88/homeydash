@@ -106,6 +106,12 @@ export const buildDemoWorld = () => {
         E('binary_sensor.car_charger_online', 'on', { friendly_name: 'Lader online' }),
         E('switch.car_charger_cable_lock', 'off', { friendly_name: 'Kabellås' }),
 
+        // ── Strømstyring (standalone) – tariffplan og overstyring for laderen ─
+        E('sensor.global_load_manager_tariff', 'dag', { friendly_name: 'Strømstyring Tariff' }),
+        E('sensor.global_load_manager_mode', 'normal', { friendly_name: 'Strømstyring Modus' }),
+        E('sensor.global_load_manager_billader_state', 'normal', { friendly_name: 'Strømstyring Billader', prioritet: 2, steg_redusert: 0, entity_id: 'number.car_charger_circuit_available_current' }),
+        E('select.global_load_manager_billader_override', 'auto', { friendly_name: 'Strømstyring Billader overstyring', options: ['auto', 'override', 'override_unless_critical', 'override_til_tariffendring'] }),
+
         // ── Elbil (composite: demo-car, Tesla-lignende) – kobles til laderen ─
         E('device_tracker.tesla_location', 'home', { friendly_name: 'Tesla posisjon', source_type: 'gps' }),
         E('sensor.tesla_battery_level', '61', { friendly_name: 'Tesla batterinivå', device_class: 'battery', unit_of_measurement: '%' }),

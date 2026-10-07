@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Zap, Plug, Lock, Unlock, BatteryCharging, Thermometer, WifiOff, Car, Minus, Plus, Moon, Clock, Gauge, Route } from 'lucide-react';
+import { Zap, Plug, Lock, Unlock, BatteryCharging, Thermometer, WifiOff, Car, Minus, Plus, Moon, Clock, Gauge, Route, SlidersHorizontal } from 'lucide-react';
 import { useHomey } from '../../context/HomeyContext';
 import useIsMobile from '../../hooks/useIsMobile';
 import { findChargingVehicle, vehicleSummary, allVehicles, formatClock, formatUntil, locationText } from '../../services/vehicle';
 import { meterReadings } from '../../services/climate';
+import { findLoadManager, OVERRIDE_UNLESS_CRITICAL, OVERRIDE_LABEL } from '../../services/load-manager';
 
 // Zaptec mode values → norsk statustekst + stil
 const CHARGE_MODE_MAP = {
@@ -192,6 +193,32 @@ const EVChargerTile = ({ tile, device, expanded }) => {
     ].filter(s => s.show && capNum(s.key) != null && !isNaN(capNum(s.key)))
      .map(s => ({ ...s, text: `${capNum(s.key).toFixed(s.unit === 'kr' ? 0 : 1)} ${s.unit}` }));
 
+    // ── Strømstyring (HA-integrasjonen som styrer laderen etter tariff) ────
+    const lm = isHA && settings.showLoadManager !== false ? findLoadManager(devices, device, settings) : null;
+    const [lmBusy, setLmBusy] = useState(false);
+    const [lmOptimistic, setLmOptimistic] = useState(null); // 'auto' | override-verdi, til HA bekrefter (maks 15 s)
+    const lmOverride = (lmOptimistic != null && lm?.override !== lmOptimistic) ? lmOptimistic : lm?.override;
+    const lmOverrideActive = !!lmOverride && lmOverride !== 'auto';
+
+    // «Lad nå»: overstyr Strømstyring OG sett full strøm (overstyringen alene endrer ikke strømmen).
+    // «Tilbake til automatikk»: integrasjonen re-appliserer tariff-grunnivået selv (0 A på dagtid).
+    const setLoadManagerOverride = async (mode, e) => {
+        e?.stopPropagation();
+        if (!lm || lmBusy) return;
+        setLmBusy(true);
+        setLmOptimistic(mode);
+        try {
+            await api.setCapability(lm.overrideEntityId, 'select', mode);
+            if (mode !== 'auto') await api.setCapability(device.id, 'available_current_limit', CURRENT_PRESETS[CURRENT_PRESETS.length - 1]);
+        } catch (err) {
+            console.error('Failed to set load manager override', err);
+            setLmOptimistic(null);
+        } finally {
+            setLmBusy(false);
+            setTimeout(() => setLmOptimistic(null), 15000);
+        }
+    };
+
     // Bilens egen status (brukes i kortet); laderens status er hovedstatus
     const carStateText = car?.stateInfo?.text || (car?.cableConnected ? 'Tilkoblet' : '');
     const carFinishText = car?.timeToFull && car.isCharging ? formatClock(car.timeToFull) : '';
@@ -288,6 +315,35 @@ const EVChargerTile = ({ tile, device, expanded }) => {
                                     );
                                 })}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Strømstyring: overstyr tariffplanen («lad nå») */}
+                    {lm && (
+                        <div className={`evc-lm${lmOverrideActive ? ' is-override' : ''}${lm.critical ? ' is-critical' : ''}`} onClick={e => e.stopPropagation()}>
+                            <div className="evc-lm-text">
+                                <div className="evc-lm-title">
+                                    <SlidersHorizontal size={15} />
+                                    Strømstyring
+                                    <span className="evc-lm-badge">{OVERRIDE_LABEL[lmOverride] || lmOverride}</span>
+                                </div>
+                                <div className="evc-lm-sub">
+                                    {lmOverrideActive
+                                        ? (lm.critical
+                                            ? 'Kritisk kapasitet – Strømstyring reduserer laderen likevel.'
+                                            : 'Laderen er fredet fra tariffplanen og vanlige reduksjoner.')
+                                        : [lm.stateText, lm.tariff ? `tariff ${lm.tariff}` : ''].filter(Boolean).join(' · ') || 'Lader etter tariffplanen'}
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className={`evc-lm-btn${lmOverrideActive ? ' is-override' : ''}`}
+                                disabled={lmBusy}
+                                onClick={(e) => setLoadManagerOverride(lmOverrideActive ? 'auto' : OVERRIDE_UNLESS_CRITICAL, e)}
+                            >
+                                <Zap size={16} />
+                                {lmOverrideActive ? 'Tilbake til automatikk' : 'Lad nå'}
+                            </button>
                         </div>
                     )}
 
@@ -456,6 +512,9 @@ const EVChargerTile = ({ tile, device, expanded }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                     {cableLocked && <Lock size={16} color="var(--color-text-secondary)" />}
                     {!isOnline && <WifiOff size={16} color="var(--color-error)" />}
+                    {lmOverrideActive && (
+                        <span className="evc-lm-chip" title={OVERRIDE_LABEL[lmOverride] || lmOverride}>Overstyrt</span>
+                    )}
                     {/* Vis strømgrense for HA når lading pågår */}
                     {isHA && isCharging && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
