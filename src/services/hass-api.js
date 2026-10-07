@@ -23,6 +23,98 @@ class HassAPI {
         this.reconnectTimer = null;
         this.reconnectAttempts = 0;
         this.manuallyDisconnected = false;
+        this.heartbeatTimer = null;
+        this.wakeHandlersBound = false;
+    }
+
+    // --- Liveness ---------------------------------------------------------
+    // Chrome on Android freezes background tabs and drops the radio when the
+    // screen locks. The WebSocket then often ends up half-open: readyState is
+    // still OPEN but nothing gets through and onclose never fires. We detect
+    // that with (a) a ping when the page becomes visible again and (b) a
+    // periodic heartbeat while visible, and reconnect immediately on failure.
+
+    static HEARTBEAT_MS = 30000;
+    static PING_TIMEOUT_MS = 3000;
+    static COMMAND_TIMEOUT_MS = 20000;
+
+    bindWakeHandlers() {
+        if (this.wakeHandlersBound || typeof window === 'undefined') return;
+        this.wakeHandlersBound = true;
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') this.checkConnection('visible');
+        });
+        window.addEventListener('pageshow', () => this.checkConnection('pageshow'));
+        window.addEventListener('online', () => this.checkConnection('online'));
+        window.addEventListener('focus', () => this.checkConnection('focus'));
+    }
+
+    /**
+     * Verify that the connection is alive and usable; reconnect right away if
+     * not. Safe to call often – it is a no-op while a connect is in progress.
+     */
+    async checkConnection(reason = '') {
+        if (this.manuallyDisconnected || !this.url || !this.token) return;
+        if (this.isConnecting) return;
+        if (!this.isAuthenticated || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.log(`🔄 HA: Socket not open on ${reason} – reconnecting now`);
+            this.forceReconnect();
+            return;
+        }
+        const ws = this.ws;
+        try {
+            await this.sendCommand({ type: 'ping' }, HassAPI.PING_TIMEOUT_MS);
+        } catch (err) {
+            // Another check may already have replaced the socket meanwhile.
+            if (this.ws !== ws || this.isConnecting) return;
+            console.warn(`🔄 HA: Ping failed on ${reason} (${err.message}) – reconnecting now`);
+            this.forceReconnect();
+        }
+    }
+
+    /** Drop the current socket (dead or not) and reconnect without backoff. */
+    forceReconnect() {
+        if (this.manuallyDisconnected || !this.url || !this.token) return;
+        this.stopHeartbeat();
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        this.reconnectAttempts = 0;
+        this.isConnected = false;
+        this.isConnecting = false;
+        this.isAuthenticated = false;
+        this.connectionPromise = null;
+        this.rejectPending(new Error('Tilkoblingen til Home Assistant ble startet på nytt'));
+        // connect() closes the old socket with its handlers detached.
+        this.connect(this.url, this.token).catch(err => {
+            console.warn('HA forced reconnect failed:', err.message);
+            if (!this.manuallyDisconnected) this.scheduleReconnect();
+        });
+    }
+
+    startHeartbeat() {
+        this.stopHeartbeat();
+        this.heartbeatTimer = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+            this.checkConnection('heartbeat');
+        }, HassAPI.HEARTBEAT_MS);
+    }
+
+    stopHeartbeat() {
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
+        }
+    }
+
+    /** Fail every command still waiting for a result (the socket is gone). */
+    rejectPending(error) {
+        for (const [id, p] of this.promises) {
+            clearTimeout(p.timer);
+            p.reject(error);
+            this.promises.delete(id);
+        }
     }
 
     async connect(url, token) {
@@ -31,6 +123,7 @@ class HassAPI {
 
         this.url = url;
         this.token = token;
+        this.bindWakeHandlers();
         // When the dashboard is served over HTTPS, browsers block insecure
         // ws:// and http:// requests to HA (mixed content). Route everything
         // through the same-origin reverse proxy (/ha → HA) instead. Over plain
@@ -60,15 +153,19 @@ class HassAPI {
             wsUrl = this.httpBase.replace('http', 'ws') + '/api/websocket';
 
             // Connection timeout
+            let ws = null;
             const timeout = setTimeout(() => {
-                if (!this.isConnected) {
-                    if (this.ws) this.ws.close();
+                // Only act on the socket this attempt created – a forced
+                // reconnect may already have replaced it.
+                if (!this.isConnected && this.ws === ws) {
+                    if (ws) ws.close();
                     reject(new Error('Tilkobling til Home Assistant tidsavbrutt (10s). Sjekk IP-adresse og at HA er oppe.'));
                 }
             }, 10000);
 
             try {
-                this.ws = new WebSocket(wsUrl);
+                ws = new WebSocket(wsUrl);
+                this.ws = ws;
             } catch (e) {
                 clearTimeout(timeout);
                 return reject(new Error(`Kunne ikke opprette WebSocket: ${e.message}`));
@@ -96,6 +193,7 @@ class HassAPI {
                         this.initialDataLoaded = true;
                         this.reconnectAttempts = 0;
                         clearTimeout(timeout);
+                        this.startHeartbeat();
                         console.log(`🏁 HA: Full state loaded (${Object.keys(this.entities).length} entities).`);
                         if (this.onReady) this.onReady(this.entities);
                         resolve(true);
@@ -123,6 +221,8 @@ class HassAPI {
                 this.isConnecting = false;
                 this.isAuthenticated = false;
                 this.connectionPromise = null;
+                this.stopHeartbeat();
+                this.rejectPending(new Error('Tilkoblingen til Home Assistant ble brutt'));
                 console.log('❌ HA Connection closed', {
                     code: event.code,
                     reason: event.reason,
@@ -154,14 +254,25 @@ class HassAPI {
 
     handleMessage(message) {
         switch (message.type) {
-            case 'result':
+            case 'result': {
                 const promise = this.promises.get(message.id);
                 if (promise) {
+                    clearTimeout(promise.timer);
                     if (message.success) promise.resolve(message.result);
                     else promise.reject(message.error);
                     this.promises.delete(message.id);
                 }
                 break;
+            }
+            case 'pong': {
+                const promise = this.promises.get(message.id);
+                if (promise) {
+                    clearTimeout(promise.timer);
+                    promise.resolve(true);
+                    this.promises.delete(message.id);
+                }
+                break;
+            }
             case 'event':
                 // Streaming subscriptions (intercom audio, custom event types) are keyed by id.
                 if (this.subscriptions.has(message.id)) {
@@ -250,7 +361,12 @@ class HassAPI {
         }
     }
 
-    sendCommand(data) {
+    /**
+     * Send a command and await its result. A command that gets no answer
+     * within timeoutMs rejects instead of hanging forever (half-open socket),
+     * and triggers a liveness check so the socket is replaced if it is dead.
+     */
+    sendCommand(data, timeoutMs = HassAPI.COMMAND_TIMEOUT_MS) {
         return new Promise((resolve, reject) => {
             if (!this.isAuthenticated) {
                 reject(new Error('Ikke autentisert – kommando avvist'));
@@ -261,7 +377,13 @@ class HassAPI {
                 return;
             }
             const id = this.idCounter++;
-            this.promises.set(id, { resolve, reject });
+            const timer = setTimeout(() => {
+                if (!this.promises.has(id)) return;
+                this.promises.delete(id);
+                reject(new Error('Home Assistant svarte ikke i tide'));
+                if (data.type !== 'ping') this.checkConnection('command-timeout');
+            }, timeoutMs);
+            this.promises.set(id, { resolve, reject, timer });
             this.send({ ...data, id });
         });
     }
@@ -376,6 +498,7 @@ class HassAPI {
 
     disconnect() {
         this.manuallyDisconnected = true;
+        this.stopHeartbeat();
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
