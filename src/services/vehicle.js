@@ -42,8 +42,10 @@ export function vehicleSummary(v) {
         batteryUsable: capVal(v, 'vehicle_battery_usable'),
         limit: limit == null ? null : Number(limit),
         limitOptions: v.capabilitiesOptions?.vehicle_charge_limit || { min: 50, max: 100, step: 1 },
-        range: capVal(v, 'vehicle_range') ?? capVal(v, 'vehicle_range_estimate') ?? capVal(v, 'vehicle_range_ideal') ?? null,
-        rangeUnit: v.capabilitiesObj?.vehicle_range?.units || 'km',
+        // Ideell rekkevidde = tallet Tesla-appen og bilens skjerm viser. «Battery range»
+        // (model_y_battery_range) oppdateres sjelden og virker statisk; estimert er ofte unknown.
+        range: capVal(v, 'vehicle_range_ideal') ?? capVal(v, 'vehicle_range') ?? capVal(v, 'vehicle_range_estimate') ?? null,
+        rangeUnit: (v.capabilitiesObj?.vehicle_range_ideal || v.capabilitiesObj?.vehicle_range || v.capabilitiesObj?.vehicle_range_estimate)?.units || 'km',
         state,
         stateInfo: VEHICLE_STATE_MAP[state] || null,
         isCharging: VEHICLE_STATE_MAP[state]?.charging ?? false,
