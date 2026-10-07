@@ -64,7 +64,17 @@ const EVChargerTile = ({ tile, device, expanded }) => {
     const phase3              = device?.capabilitiesObj?.['measure_current.phase3']?.value ?? 0;
     const costCurrent         = device?.capabilitiesObj?.cost_current?.value ?? 0;
     const allocatedCurrent    = device?.capabilitiesObj?.allocated_current?.value ?? 0;
-    const availableCurrentLimit = device?.capabilitiesObj?.available_current_limit?.value ?? 0;
+    // Strømgrensen (number.*_circuit_available_current) ligger hos Zaptec på KRETSEN, en egen
+    // HA-enhet — den havner ikke i laderens composite. Les den som frittstående enhet via
+    // prefikset til effektsensoren når composite-en mangler den. `allocated_current` er Zaptecs
+    // egen tildeling (25 A også når grensen er 0) og skal IKKE vises som gjeldende grense.
+    const availableCurrentEid = device?.settings?.availableCurrentEntityId
+        || (device?.capabilitiesObj?.measure_power?.entity_id || '').replace(/^sensor\./, 'number.').replace(/_power$/, '_circuit_available_current');
+    const availableStandalone = devices.find(d => d.id === availableCurrentEid);
+    const availableRaw = device?.capabilitiesObj?.available_current_limit?.value
+        ?? (availableStandalone ? parseFloat(availableStandalone.state) : NaN);
+    const hasAvailableLimit = availableRaw != null && !isNaN(availableRaw);
+    const availableCurrentLimit = hasAvailableLimit ? Number(availableRaw) : 0;
 
     const chargingButton = device?.capabilitiesObj?.charging_button?.value ?? false;
     const modeCharging = CHARGE_MODE_MAP[chargeMode]?.charging ?? false;
@@ -281,11 +291,13 @@ const EVChargerTile = ({ tile, device, expanded }) => {
                     {isHA && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                                Ladestrøm — tildelt: {Number(allocatedCurrent).toFixed(0)} A
+                                {hasAvailableLimit
+                                    ? `Ladestrøm — grense: ${Math.round(availableCurrentLimit)} A`
+                                    : `Ladestrøm — tildelt: ${Number(allocatedCurrent).toFixed(0)} A`}
                             </span>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 {CURRENT_PRESETS.map(amps => {
-                                    const displayLimitA = availableCurrentLimit > 0
+                                    const displayLimitA = hasAvailableLimit
                                         ? Math.round(availableCurrentLimit)
                                         : (isCharging ? Math.round(allocatedCurrent) : 0);
                                     const isActive = displayLimitA === amps;
@@ -518,7 +530,7 @@ const EVChargerTile = ({ tile, device, expanded }) => {
                     {/* Vis strømgrense for HA når lading pågår */}
                     {isHA && isCharging && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
-                            {Math.round(availableCurrentLimit > 0 ? availableCurrentLimit : allocatedCurrent)} A
+                            {Math.round(hasAvailableLimit ? availableCurrentLimit : allocatedCurrent)} A
                         </span>
                     )}
                 </div>
