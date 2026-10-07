@@ -350,7 +350,7 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
                     overrideOptions: overrideEnt?.attributes?.options || ['auto', 'override', 'override_unless_critical', 'override_til_tariffendring'],
                 };
             })
-            .sort((a, b) => b.priority - a.priority);
+            .sort((a, b) => a.priority - b.priority);
 
         return (
             <div ref={rootRef} style={s.root}>
