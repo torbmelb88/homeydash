@@ -65,6 +65,11 @@
     font-weight: 700;
     line-height: 1.2;
     color: var(--color-text-primary);
+    /* Én linje (fase/tittel kan være lang) – konstant flishøyde */
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Pille: hovedbudskapet (klar til tømming / X min igjen / klar til lasting) */
@@ -80,6 +85,9 @@
     color: var(--appl-color);
     background: color-mix(in srgb, var(--appl-color) 14%, transparent);
     white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .appliance-compact.is-empty .appliance-pill,

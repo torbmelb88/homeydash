@@ -67,11 +67,18 @@ const IntercomTile = ({ tile, expanded }) => {
     );
 
     const stateText = (
-        <div style={{ fontSize: expanded ? '1.3rem' : '0.95rem', fontWeight: 600, lineHeight: 1.2 }}>
+        <div style={{
+            fontSize: expanded ? '1.3rem' : '0.95rem', fontWeight: 600, lineHeight: 1.2,
+            // Kompakt: alltid én linje (lange navn kuttes) så flisen ikke vokser
+            ...(expanded ? {} : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', fontVariantNumeric: 'tabular-nums' }),
+        }}>
             {callState === 'idle' && (expanded ? 'Intercom' : defaultLabel)}
             {callState === 'outgoing' && `Ringer ${peerName || defaultLabel}…`}
             {callState === 'incoming' && `Innkommende: ${peerName || 'ukjent'}`}
-            {callState === 'in_call' && `I samtale${peerName ? ` · ${peerName}` : ''}`}
+            {/* Kompakt: samtaletiden står i samme linje i stedet for en egen rad */}
+            {callState === 'in_call' && (expanded
+                ? `I samtale${peerName ? ` · ${peerName}` : ''}`
+                : `${peerName || 'I samtale'} · ${fmtTime(elapsed)}`)}
         </div>
     );
 
@@ -79,8 +86,12 @@ const IntercomTile = ({ tile, expanded }) => {
         <div style={{ fontSize: expanded ? '1rem' : '0.85rem', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(elapsed)}</div>
     );
 
-    const micWarning = noMic && callState === 'idle' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: '#f59e0b', maxWidth: '90%' }}>
+    // Kompakt: raden er reservert (skjult) i andre tilstander enn idle så høyden er konstant
+    const micWarning = noMic && (expanded ? callState === 'idle' : true) && (
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: '#f59e0b', maxWidth: '90%',
+            visibility: callState === 'idle' ? 'visible' : 'hidden',
+        }}>
             <MicOff size={14} /> Mikrofon krever HTTPS
         </div>
     );
@@ -189,7 +200,6 @@ const IntercomTile = ({ tile, expanded }) => {
             {animCss}
             {stateIcon}
             {stateText}
-            {callTimer}
             {micWarning}
 
             <div style={{ display: 'flex', gap: '0.6rem', width: '100%', maxWidth: '260px' }}>

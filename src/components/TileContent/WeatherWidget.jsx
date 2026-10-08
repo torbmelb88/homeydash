@@ -285,7 +285,7 @@ const WeatherWidget = ({ tile, expanded = false, onContentUpdate }) => {
                         {Math.round(weather.current.temp)}°
                     </span>
                 </div>
-                <div style={{ fontSize: '1rem', fontWeight: 500, marginTop: '4px', opacity: 0.9 }}>
+                <div style={{ fontSize: '1rem', fontWeight: 500, marginTop: '4px', opacity: 0.9, maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {weather.name}
                 </div>
                 <div style={{ fontSize: '0.8rem', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>

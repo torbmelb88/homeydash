@@ -164,9 +164,10 @@ const MediaTile = ({ tile, device }) => {
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             maxWidth: '100%',
-                            textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+                            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                            minHeight: '1.3em' // reserverer linjen også når artist mangler
                         }}>
-                            {artist || (hasTrackInfo ? '' : 'Ingen avspilling')}
+                            {artist || (hasTrackInfo ? ' ' : 'Ingen avspilling')}
                         </div>
                     </div>
                 </div>

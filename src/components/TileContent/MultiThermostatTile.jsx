@@ -159,16 +159,17 @@ const MultiThermostatTile = ({ tile }) => {
                                     <div style={{ fontWeight: 500, fontSize: '0.85rem', textShadow: '0 1px 2px rgba(0,0,0,0.8)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                                         {displayName}
                                     </div>
-                                    {mode && (
-                                        <div style={{ fontSize: '0.7rem', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '4px', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                                    {/* Modus-rad finnes alltid når enheten har thermostat_mode (også uten verdi) */}
+                                    {hasMode && (
+                                        <div style={{ fontSize: '0.7rem', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '4px', minHeight: '1.2em', maxWidth: '100%', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
                                             {getModeIcon(mode)}
-                                            <span style={{ textTransform: 'capitalize' }}>{mode}</span>
+                                            <span style={{ textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mode || '–'}</span>
                                         </div>
                                     )}
                                 </div>
 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', textShadow: '0 1px 2px rgba(0,0,0,0.8)', flexShrink: 0 }}>
-                                    {currentTemp !== undefined && (
+                                    {typeof currentTemp === 'number' && (
                                         <div style={{ fontSize: '0.75rem', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '2px' }}>
                                             <Thermometer size={12} />
                                             {currentTemp.toFixed(1)}°

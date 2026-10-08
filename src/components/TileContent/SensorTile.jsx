@@ -96,19 +96,18 @@ const SensorTile = ({ tile, device }) => {
                         CapIcon || null
                     )}
                 </div>
-                {primaryVal !== undefined && (
-                    <div style={{ fontSize: '1.8rem', fontWeight: 700, lineHeight: 1 }}>
-                        {primaryVal}
-                        {units && <span style={{ fontSize: '0.9rem', fontWeight: 400, marginLeft: '4px', color: 'var(--color-text-secondary)' }}>{units}</span>}
-                    </div>
-                )}
+                {/* Verdi-raden er alltid rendret (– ved manglende verdi) så høyden ikke hopper */}
+                <div style={{ fontSize: '1.8rem', fontWeight: 700, lineHeight: 1, maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {primaryVal === undefined || primaryVal === null ? '–' : String(primaryVal)}
+                    {units && primaryVal !== undefined && primaryVal !== null && <span style={{ fontSize: '0.9rem', fontWeight: 400, marginLeft: '4px', color: 'var(--color-text-secondary)' }}>{units}</span>}
+                </div>
                 {/* Show title of capability if it's not the device name? 
                      Often useful to know WHAT the value is (e.g. "Effekt", "Temperatur").
                      If the user named the tile "Stue", seeing "22" is ambiguous. "22 °C" is better.
                      "1132 W" is clear.
                  */}
                 {primaryCapObj?.title && (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {primaryCapObj.title}
                     </div>
                 )}

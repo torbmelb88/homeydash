@@ -149,13 +149,14 @@ const MiniPowerGraph = ({ deviceId, capabilityId = 'measure_power', currentValue
         return (
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 500, color: 'var(--color-text-primary)', minWidth: 0 }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                         </svg>
-                        {title}
+                        {/* Én linje: lang tittel kuttes i stedet for å bryte */}
+                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
                     </span>
-                    <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                         {typeof currentValue === 'number' ? Math.round(currentValue) : '--'} {unit}
                     </span>
                 </div>

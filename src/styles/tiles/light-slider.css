@@ -154,6 +154,8 @@
 }
 
 .light-panel-count {
+    white-space: nowrap;
+    flex-shrink: 0;
     color: var(--color-text-secondary);
     font-weight: 500;
     font-size: 0.8rem;

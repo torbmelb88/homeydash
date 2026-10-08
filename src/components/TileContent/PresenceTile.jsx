@@ -50,10 +50,11 @@ const PersonBadge = ({ device, size = 64 }) => {
                 )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.2 }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                {/* Én linje hver: lange navn/sonenavn kuttes i stedet for å brekke til to linjer */}
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary)', maxWidth: `${size + 28}px`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {device.name}
                 </span>
-                <span style={{ fontSize: '0.72rem', fontWeight: 500, color }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 500, color, maxWidth: `${size + 28}px`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {label}
                 </span>
             </div>

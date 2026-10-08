@@ -96,15 +96,17 @@ const FanTile = ({ tile, device, expanded = false }) => {
                     />
                 </div>
 
-                {/* Speed Indicator (Small View) */}
-                {isOn && !expanded && (
+                {/* Speed Indicator (Small View) – alltid rendret så flisen har samme høyde av/på */}
+                {!expanded && (
                     <div style={{
                         fontSize: '0.8rem',
                         fontWeight: 'bold',
+                        lineHeight: 1.2,
                         marginTop: '4px',
-                        color: 'var(--color-info)'
+                        whiteSpace: 'nowrap',
+                        color: isOn ? 'var(--color-info)' : 'var(--color-text-secondary)'
                     }}>
-                        Nivå {speed}
+                        {isOn ? `Nivå ${speed}` : 'Av'}
                     </div>
                 )}
             </div>

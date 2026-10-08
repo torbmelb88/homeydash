@@ -117,7 +117,7 @@ const VehicleTile = ({ tile, device, expanded }) => {
     const asleep = car?.awake === false;
 
     const statusText = climateUnavailable ? 'Klima utilgjengelig'
-        : climateOn ? `Varmer til ${formatTemp(target, tStep)}°`
+        : climateOn ? 'Klima på'
         : asleep ? 'Sover' : 'Klima av';
     const accent = climateOn ? 'var(--color-warning, #f59e0b)' : 'var(--color-text-secondary)';
 

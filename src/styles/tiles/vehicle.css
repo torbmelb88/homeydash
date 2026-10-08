@@ -74,6 +74,10 @@
     font-weight: 500;
     color: var(--veh-accent);
     text-align: center;
+    /* Alltid én linje – flishøyden må ikke endres av tilstanden (stretch-til-flis) */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ── Utvidet ───────────────────────────────────────────────────────── */

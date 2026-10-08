@@ -148,7 +148,8 @@ const WashingMachineTile = ({ tile, device, expanded = false }) => {
                 overflow: 'hidden', // Ensure it doesn't spill out
                 whiteSpace: 'nowrap' // Keep single line
             }}>
-                <div style={{ display: 'flex', gap: '4px', overflow: 'hidden' }}>
+                {/* minHeight: topplinjen skal ikke krympe når W/temp/sentrifuge mangler */}
+                <div style={{ display: 'flex', gap: '4px', overflow: 'hidden', minHeight: '14px', alignItems: 'center' }}>
                     {/* External Power Display */}
                     {liveExternalPower !== null && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1px', color: 'var(--color-accent)' }}>

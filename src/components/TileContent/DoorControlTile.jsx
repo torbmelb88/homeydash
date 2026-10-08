@@ -85,11 +85,11 @@ const DoorControlTile = ({ tile }) => {
 
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {tile.name || lockDevice.name}
                 </div>
                 {batteryLevel !== undefined && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: batteryLevel < 20 ? 'var(--color-error)' : 'var(--color-text-secondary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, fontSize: '0.75rem', color: batteryLevel < 20 ? 'var(--color-error)' : 'var(--color-text-secondary)' }}>
                         <Battery size={14} />
                         <span>{batteryLevel}%</span>
                     </div>

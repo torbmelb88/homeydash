@@ -265,31 +265,14 @@ const LawnMowerTile = ({ tile, device, expanded = false }) => {
                     fontWeight: 600,
                     color: stateColor,
                     textAlign: 'center',
+                    // Én linje uansett statustekst (konstant flishøyde)
+                    maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                     {isUnavailable ? 'Frakoblet' : stateLabel}
                 </span>
 
-                {/* Fremdrift i dag (mini-bar) */}
-                {!expanded && progressPct != null && (isActive || isPaused) && (
-                    <div style={{
-                        width: '70%',
-                        height: '4px',
-                        borderRadius: '2px',
-                        background: 'var(--color-surface-raised)',
-                        overflow: 'hidden',
-                    }}>
-                        <div style={{
-                            width: `${progressPct}%`,
-                            height: '100%',
-                            borderRadius: '2px',
-                            background: 'var(--color-success)',
-                            transition: 'width 0.5s',
-                        }} />
-                    </div>
-                )}
-
-                {/* Batteri + neste start */}
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+                {/* Batteri + neste start / fremdrift i dag (mini-bar i samme rad, ellers vokser flisen når klippingen starter) */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', flexWrap: 'nowrap', minHeight: '16px', maxWidth: '100%', overflow: 'hidden' }}>
                     {battery !== undefined && battery !== null && !isNaN(battery) && (
                         <span style={{
                             display: 'flex', alignItems: 'center', gap: '3px',
@@ -301,13 +284,32 @@ const LawnMowerTile = ({ tile, device, expanded = false }) => {
                             {Math.round(battery)}%
                         </span>
                     )}
+                    {!expanded && progressPct != null && (isActive || isPaused) && (
+                        <div style={{
+                            width: '48px',
+                            height: '4px',
+                            borderRadius: '2px',
+                            background: 'var(--color-surface-raised)',
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                        }}>
+                            <div style={{
+                                width: `${progressPct}%`,
+                                height: '100%',
+                                borderRadius: '2px',
+                                background: 'var(--color-success)',
+                                transition: 'width 0.5s',
+                            }} />
+                        </div>
+                    )}
                     {!expanded && nextStartLabel && !isActive && (
                         <span style={{
                             display: 'flex', alignItems: 'center', gap: '3px',
                             fontSize: '0.72rem',
                             color: 'var(--color-text-secondary)',
+                            minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
-                            <Clock size={11} />
+                            <Clock size={11} style={{ flexShrink: 0 }} />
                             {nextStartLabel}
                         </span>
                     )}

@@ -226,16 +226,16 @@ const PostalTile = ({ tile, device, expanded }) => {
                 }}>
                     {countdownLabel}
                 </span>
-                {nextDate && !isToday && (
-                    <span style={{
-                        fontSize: '0.72rem',
-                        color: 'var(--color-text-secondary)',
-                        textAlign: 'center',
-                        whiteSpace: 'nowrap',
-                    }}>
-                        {formatDate(nextDate)}
-                    </span>
-                )}
+                {/* Alltid rendret (skjult når dato mangler / i dag) så høyden er konstant */}
+                <span style={{
+                    fontSize: '0.72rem',
+                    color: 'var(--color-text-secondary)',
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    visibility: nextDate && !isToday ? 'visible' : 'hidden',
+                }}>
+                    {nextDate ? formatDate(nextDate) : ' '}
+                </span>
             </div>
         );
     }
@@ -300,6 +300,8 @@ const PostalTile = ({ tile, device, expanded }) => {
                 paddingLeft: '12px',
                 minWidth: 0,
                 overflow: 'hidden',
+                // Reserver plass til 4 rader (4 x 18 px + 3 x 5 px gap) uansett antall datoer
+                minHeight: '87px',
             }}>
                 {futureDates.length > 0 ? (
                     futureDates.slice(0, 4).map((iso, i) => (
@@ -308,6 +310,7 @@ const PostalTile = ({ tile, device, expanded }) => {
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             gap: '8px',
+                            height: '18px',
                         }}>
                             <span style={{
                                 fontSize: '0.8rem',

@@ -521,7 +521,8 @@ const EVChargerTile = ({ tile, device, expanded }) => {
                 }}>
                     <StatusIcon size={24} />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                {/* Rad (ikke kolonne): lås/offline/Overstyrt/A-chip skal ikke gjøre toppen høyere enn ikonet */}
+                <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', minWidth: 0, overflow: 'hidden', minHeight: '40px' }}>
                     {cableLocked && <Lock size={16} color="var(--color-text-secondary)" />}
                     {!isOnline && <WifiOff size={16} color="var(--color-error)" />}
                     {lmOverrideActive && (
@@ -557,10 +558,21 @@ const EVChargerTile = ({ tile, device, expanded }) => {
                 </div>
             )}
 
-            {/* Bunn: økt-energi eller statustekst */}
+            {/* Ingen bil på laderen: samme høyde som bil-raden (linje + usynlig batterilinje), så flisen ikke krymper når bilen kobles fra */}
+            {!showCarCompact && settings.showVehicleCompact !== false && vehicles.length > 0 && (
+                <div className="evc-car-compact is-placeholder">
+                    <div className="evc-car-line">
+                        <Car size={13} />
+                        <span className="evc-car-line-name">Ingen bil tilkoblet</span>
+                    </div>
+                    <div className="evc-bar" />
+                </div>
+            )}
+
+            {/* Bunn: økt-energi eller statustekst (én linje – lang tekst kuttes) */}
             <div style={{ width: '100%', textAlign: 'center' }}>
                 {isCharging ? (
-                    <div style={{ fontSize: '0.85rem', color: 'var(--color-success)', fontWeight: 500 }}>
+                    <div style={{ fontSize: '0.85rem', lineHeight: '1.25rem', color: 'var(--color-success)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         +{sessionEnergy.toFixed(2)} kWh
                         {showCarCompact && carFinishText && (
                             <span style={{ marginLeft: '6px', opacity: 0.8 }}>· ferdig {carFinishText}</span>
@@ -570,7 +582,7 @@ const EVChargerTile = ({ tile, device, expanded }) => {
                         )}
                     </div>
                 ) : (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                    <div style={{ fontSize: '0.8rem', lineHeight: '1.25rem', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {statusText}
                         {showCarCompact && car.range != null && (
                             <span style={{ marginLeft: '6px', opacity: 0.8 }}>· {Math.round(car.range)} {car.rangeUnit}</span>

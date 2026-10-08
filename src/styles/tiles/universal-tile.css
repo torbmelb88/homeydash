@@ -164,6 +164,10 @@
 }
 
 .universal-row-value {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-weight: 600;
     color: var(--color-text-primary);
     font-size: 0.9rem;

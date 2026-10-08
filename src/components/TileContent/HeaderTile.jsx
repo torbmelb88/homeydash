@@ -83,7 +83,7 @@ const HeaderTile = ({ settings }) => {
                 <Icon size={120} strokeWidth={1.5} />
             </div>
 
-            <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0, paddingRight: '3rem' }}>
                 <div style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '50%',
@@ -96,9 +96,11 @@ const HeaderTile = ({ settings }) => {
                     <Icon size={32} strokeWidth={2} />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <h2 style={{
                         margin: 0,
+                        // Én linje: lange titler kuttes i stedet for å brytes og gjøre flisen høyere
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         fontSize: '1.4rem',
                         fontWeight: 700,
                         letterSpacing: '0.5px',
@@ -110,7 +112,8 @@ const HeaderTile = ({ settings }) => {
                         <span style={{
                             fontSize: '0.9rem',
                             opacity: 0.9,
-                            fontWeight: 500
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                         }}>
                             {subtitle}
                         </span>

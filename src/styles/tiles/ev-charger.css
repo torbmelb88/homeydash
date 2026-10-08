@@ -41,6 +41,10 @@
     padding: 0 2px 6px;
 }
 
+/* Ingen bil koblet til: «Ingen bil tilkoblet» + skjult batterilinje (holder flishøyden konstant) */
+.evc-car-compact.is-placeholder .evc-bar { visibility: hidden; }
+.evc-car-compact.is-placeholder .evc-car-line { opacity: 0.6; }
+
 .evc-car-line {
     display: flex;
     align-items: center;

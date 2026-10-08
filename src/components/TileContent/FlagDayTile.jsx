@@ -66,9 +66,11 @@ const FlagDayTile = ({ tile, device, expanded = false }) => {
                     fontSize: expanded ? '1rem' : '0.8rem',
                     color: 'var(--color-text-secondary)',
                     fontWeight: '500',
-                    opacity: 0.9
+                    opacity: 0.9,
+                    // Kompakt: alltid én linje høy, også uten data
+                    ...(expanded ? {} : { minHeight: '1.2em', lineHeight: 1.2 })
                 }}>
-                    {timeText}
+                    {timeText || ' '}
                 </span>
 
                 <span style={{
@@ -77,10 +79,12 @@ const FlagDayTile = ({ tile, device, expanded = false }) => {
                     color: 'var(--color-text-primary)',
                     marginTop: '4px',
                     display: '-webkit-box',
-                    WebkitLineClamp: 3,
+                    WebkitLineClamp: expanded ? 3 : 2,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
-                    lineHeight: 1.2
+                    lineHeight: 1.2,
+                    // Kompakt: fast høyde på to linjer, så korte og lange navn gir lik flis
+                    ...(expanded ? {} : { height: '2.4em' })
                 }}>
                     {eventName}
                 </span>

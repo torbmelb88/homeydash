@@ -274,11 +274,14 @@ const VacuumTile = ({ tile, device, expanded = false }) => {
                     color: stateColor,
                     textAlign: 'center',
                     lineHeight: 1.1,
+                    // Én linje uansett statustekst (konstant flishøyde)
+                    maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                     {stateLabel}
                 </span>
 
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                {/* Fast høyde og én linje, også uten batteri/rom/areal */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap', justifyContent: 'center', minHeight: '16px', maxWidth: '100%', overflow: 'hidden' }}>
                     {battery !== undefined && (
                         <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem',
                             color: battery < 20 ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
@@ -287,14 +290,14 @@ const VacuumTile = ({ tile, device, expanded = false }) => {
                         </span>
                     )}
                     {currentRoom && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem',
-                            color: 'var(--color-text-secondary)' }}>
-                            <MapPin size={10} />
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', minWidth: 0,
+                            color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <MapPin size={10} style={{ flexShrink: 0 }} />
                             {currentRoom}
                         </span>
                     )}
                     {isCleaning && cleaningArea > 0 && (
-                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                             {cleaningArea} m²
                         </span>
                     )}

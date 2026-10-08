@@ -117,12 +117,13 @@ function PeriodSelector({ period, onChange }) {
 function StatCard({ label, value, sub, accent, alert }) {
     return (
         <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: '9px 10px', borderLeft: `3px solid ${accent}`, minWidth: 0 }}>
-            <div style={{ fontSize: '0.58rem', opacity: 0.45, marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1.3, wordBreak: 'break-word' }}>
+            <div style={{ fontSize: '0.58rem', opacity: 0.45, marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {alert && <AlertTriangle size={8} style={{ color: '#ef4444', marginRight: 3, verticalAlign: 'middle' }} />}
                 {label}
             </div>
-            <div style={{ fontSize: '0.88rem', fontWeight: 700, lineHeight: 1.2, wordBreak: 'break-word' }}>{value}</div>
-            {sub && <div style={{ fontSize: '0.62rem', opacity: 0.5, marginTop: 2, lineHeight: 1.3 }}>{sub}</div>}
+            <div style={{ fontSize: '0.88rem', fontWeight: 700, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+            {/* sub = '' beholder linjen (tom) så kortene ikke skifter høyde når teksten mangler */}
+            {sub !== undefined && <div style={{ fontSize: '0.62rem', opacity: 0.5, marginTop: 2, lineHeight: 1.3, minHeight: '1.3em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub || ' '}</div>}
         </div>
     );
 }
@@ -209,6 +210,9 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
     const [tick,            setTick]            = useState(0);
     const [view,            setView]            = useState('main');
     const [period,          setPeriod]          = useState('monthly');
+    // Periodevalget finnes bare i detaljvisningen; hovedvisningen er alltid «denne måneden»
+    // (ellers endret flishøyden seg ved periodebytte)
+    useEffect(() => { if (view === 'main') setPeriod('monthly'); }, [view]);
     const [capacityTarget,  setCapacityTarget]  = useState(null);
     const rootRef = useRef(null);
 
@@ -541,18 +545,15 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
         <div ref={rootRef} style={s.root}>
             {/* Tittelrad */}
             <div style={s.titleRow}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <Activity size={14} style={{ opacity: 0.5 }} />
-                    <span style={s.title}>Strøm &amp; kostnad – {monthName} {now.getFullYear()}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                    <Activity size={14} style={{ opacity: 0.5, flexShrink: 0 }} />
+                    <span style={{ ...s.title, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Strøm &amp; kostnad – {monthName} {now.getFullYear()}</span>
                 </div>
                 <span style={s.timestamp}>{now.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
 
-            {/* Periodevalg */}
-            <PeriodSelector period={period} onChange={setPeriod} />
-
-            {/* Infokort – monthly */}
-            {visibleCardCount > 0 && period === 'monthly' && (
+            {/* Infokort */}
+            {visibleCardCount > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
                     {showPriceCard    && <StatCard label="Effektiv pris"   value={effectivePrice !== null ? `${effectivePrice.toFixed(3)} kr/kWh` : '–'} sub={tariffLabel} accent="#f59e0b" />}
                     {showCapacityCard && <StatCard label={`Trinn ${capacityAttrs.trinn ?? '?'}`} value={capacityCostVal !== null ? `${capacityCostVal} kr/mnd` : '–'} sub={capacityAttrs.intervall || ''} accent={capacityAlert ? '#ef4444' : '#22c55e'} alert={capacityAlert} />}
@@ -561,16 +562,8 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
                 </div>
             )}
 
-            {/* Infokort – andre perioder */}
-            {visibleCardCount > 0 && period !== 'monthly' && (
-                <div style={{ display: 'grid', gridTemplateColumns: houseTotal !== null ? 'repeat(2, 1fr)' : '1fr', gap: 8 }}>
-                    {houseTotal !== null && <StatCard label="Totalkostnad"    value={`${fmt(houseTotal)} kr`} sub={houseEnergy !== null ? `${fmt(houseEnergy, 2)} kWh` : ''} accent="#f59e0b" />}
-                    {devices.length > 0  && <StatCard label="Sporede enheter" value={`${fmt(sumTotal)} kr`}  sub={sumEnergy > 0 ? `${fmt(sumEnergy, 2)} kWh` : ''} accent="#8b5cf6" />}
-                </div>
-            )}
-
             {/* Toppforbruk-rad */}
-            {showPeaksRow && period === 'monthly' && (
+            {showPeaksRow && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {[
                         { label: 'Topp 1', val: peak1, attrs: peak1Attrs },
@@ -658,7 +651,7 @@ const s = {
     root:      { padding: 14, display: 'flex', flexDirection: 'column', gap: 9, fontFamily: 'inherit', color: 'var(--text-primary, #fff)', boxSizing: 'border-box', fontSize: '0.8rem' },
     titleRow:  { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     title:     { fontSize: '0.88rem', fontWeight: 600, opacity: 0.9 },
-    timestamp: { fontSize: '0.6rem', opacity: 0.3 },
+    timestamp: { fontSize: '0.6rem', opacity: 0.3, flexShrink: 0, marginLeft: 8 },
     peakChip:  { display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: '3px 8px', fontSize: '0.68rem', border: '1px solid rgba(255,255,255,0.08)' },
     sectionLabel: { fontSize: '0.6rem', opacity: 0.4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' },
     navBtn:    { display: 'flex', alignItems: 'center', gap: 7, padding: '8px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'var(--text-primary, #fff)', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'inherit' },

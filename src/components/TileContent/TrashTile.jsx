@@ -198,66 +198,43 @@ const TrashTile = ({ tile, device, expanded }) => {
         );
     }
 
-    // En fraksjon neste – vis ikon + navn + dager
-    if (displayItems.length === 1) {
-        const item = displayItems[0];
-        return (
-            <div className="tile-content" style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                justifyContent: 'center', height: '100%', padding: '10px', textAlign: 'center', gap: '6px'
-            }}>
-                <WasteIcon item={item} size={40} style={{ marginBottom: '4px' }} />
-                <div style={{ fontSize: '1rem', fontWeight: 700, lineHeight: 1.2 }}>
-                    {item.title}
-                </div>
-                {item.daysUntil !== undefined ? (
-                    <div style={{
-                        fontSize: '0.9rem', fontWeight: 600,
-                        color: item.daysUntil <= 1 ? '#ef4444'
-                            : item.daysUntil <= 3 ? '#f97316'
-                            : 'var(--color-accent-primary)',
-                        background: 'rgba(255,255,255,0.1)',
-                        padding: '3px 10px', borderRadius: '10px'
-                    }}>
-                        {formatDays(item.daysUntil)}
-                    </div>
-                ) : (
-                    <div style={{
-                        fontSize: '0.85rem', color: 'var(--color-text-secondary)',
-                        background: 'rgba(255,255,255,0.1)',
-                        padding: '3px 10px', borderRadius: '10px'
-                    }}>
-                        {item.value}
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    // Flere fraksjoner på samme dato – vis ikoner side om side
+    // Én eller flere fraksjoner samme dag deler samme oppsett med faste høyder
+    // (ikonrad, én tittellinje, pille) slik at flisen ikke endrer høyde.
+    const multi = displayItems.length > 1;
+    const first = displayItems[0];
+    const dayColor = (d) => d <= 1 ? '#ef4444' : d <= 3 ? '#f97316' : 'var(--color-accent-primary)';
+    const hasDays = multi ? minDays !== Infinity : first.daysUntil !== undefined;
+    const days = multi ? minDays : first.daysUntil;
+    const pillText = hasDays ? formatDays(days) : (multi ? '' : first.value);
+    const titleText = displayItems.map(i => i.title).join(' + ');
     return (
         <div className="tile-content" style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             justifyContent: 'center', height: '100%', padding: '10px', textAlign: 'center', gap: '6px'
         }}>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', gap: '10px', height: '44px', alignItems: 'center' }}>
                 {displayItems.map(item => (
-                    <WasteIcon key={item.id} item={item} size={34} />
+                    <WasteIcon key={item.id} item={item} size={multi ? 34 : 40} />
                 ))}
             </div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600, lineHeight: 1.3 }}>
-                {displayItems.map(i => i.title).join(' + ')}
+            <div title={titleText} style={{
+                fontSize: multi ? '0.85rem' : '1rem', fontWeight: multi ? 600 : 700,
+                lineHeight: '1.3rem', height: '1.3rem', maxWidth: '100%',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+            }}>
+                {titleText}
             </div>
-            {minDays !== Infinity && (
-                <div style={{
-                    fontSize: '0.9rem', fontWeight: 600,
-                    color: minDays <= 1 ? '#ef4444' : minDays <= 3 ? '#f97316' : 'var(--color-accent-primary)',
-                    background: 'rgba(255,255,255,0.1)',
-                    padding: '3px 10px', borderRadius: '10px'
-                }}>
-                    {formatDays(minDays)}
-                </div>
-            )}
+            <div style={{
+                fontSize: '0.9rem', fontWeight: 600, lineHeight: '1.2rem', height: '1.2rem',
+                maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                color: hasDays ? dayColor(days) : 'var(--color-text-secondary)',
+                background: 'rgba(255,255,255,0.1)',
+                padding: '3px 10px', borderRadius: '10px',
+                // Tom pille beholder høyden, men skjules
+                visibility: pillText ? 'visible' : 'hidden'
+            }}>
+                {pillText || ' '}
+            </div>
         </div>
     );
 };

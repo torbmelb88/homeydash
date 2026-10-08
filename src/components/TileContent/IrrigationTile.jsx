@@ -136,7 +136,7 @@ const IrrigationTile = ({ tile, device, expanded = false }) => {
                 <span style={{ fontSize: '0.7rem', fontWeight: 600, color: on ? 'var(--color-text-primary)' : 'inherit', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                     {zoneName[n]}
                 </span>
-                <span style={{ fontSize: '0.62rem', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.62rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                     {on ? (rem != null ? `${rem} min igjen` : 'Vanner') : 'Av'}
                 </span>
             </button>
