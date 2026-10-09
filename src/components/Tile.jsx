@@ -266,7 +266,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
             case 'vehicle': return <VehicleTile {...props} />;
             case 'video': return <VideoWidget {...props} settings={tile.settings} />;
             case 'web': return <WebWidget {...props} settings={tile.settings} />;
-            case 'header': return <HeaderTile settings={tile.settings} />;
+            case 'header': return <HeaderTile settings={tile.settings} size={tile.size} />;
             case 'app-launcher': return <AppLauncherTile {...props} />;
             case 'graph': return <GraphWidget {...props} />;
             case 'energy-dashboard': return <EnergyDashboardWidget tile={tile} onContentUpdate={updateSize} />;

@@ -1,8 +1,11 @@
 import React from 'react';
 import * as Icons from 'lucide-react';
 
-const HeaderTile = ({ settings }) => {
+const HeaderTile = ({ settings, size }) => {
     const { title, subtitle, theme, icon: iconName, customColor } = settings || {};
+    // 1 kolonne bred: stablet oppsett (ikon over tekst) så tittelen får hele flisbredden
+    const cols = parseInt((size || '1x1').split('x')[0], 10) || 1;
+    const compact = cols === 1;
 
     // Theme Presets (Gradients & Colors)
     const themes = {
@@ -76,6 +79,30 @@ const HeaderTile = ({ settings }) => {
         pointerEvents: 'none'
     };
 
+    const contentStyle = compact
+        ? { position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.4rem', minWidth: 0, padding: '0.65rem 0.9rem', maxHeight: '100%', overflow: 'hidden' }
+        : { position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0, paddingRight: '3rem' };
+
+    const titleStyle = {
+        margin: 0,
+        fontSize: compact ? '1.1rem' : '1.4rem',
+        fontWeight: 700,
+        letterSpacing: '0.5px',
+        lineHeight: 1.15,
+        textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        // Kompakt: inntil to linjer (flisen har fast høyde, så den vokser ikke).
+        // Bred: én linje – lange titler kuttes i stedet for å gjøre flisen høyere.
+        ...(compact
+            ? { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflowWrap: 'anywhere' }
+            : { whiteSpace: 'nowrap' })
+    };
+
+    const chevronStyle = compact
+        ? { position: 'absolute', top: '0.7rem', right: '0.7rem', opacity: 0.6, display: 'flex' }
+        : { position: 'absolute', top: '50%', right: '1.5rem', transform: 'translateY(-50%)', opacity: 0.6 };
+
     return (
         <div style={containerStyle}>
             {/* Decorative Background Icon */}
@@ -83,36 +110,30 @@ const HeaderTile = ({ settings }) => {
                 <Icon size={120} strokeWidth={1.5} />
             </div>
 
-            <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0, paddingRight: '3rem' }}>
+            <div style={contentStyle}>
                 <div style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '50%',
-                    padding: '12px',
+                    padding: compact ? '8px' : '12px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     backdropFilter: 'blur(5px)'
                 }}>
-                    <Icon size={32} strokeWidth={2} />
+                    <Icon size={compact ? 20 : 32} strokeWidth={2} />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <h2 style={{
-                        margin: 0,
-                        // Én linje: lange titler kuttes i stedet for å brytes og gjøre flisen høyere
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        fontSize: '1.4rem',
-                        fontWeight: 700,
-                        letterSpacing: '0.5px',
-                        textShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, width: compact ? '100%' : undefined }}>
+                    <h2 style={titleStyle}>
                         {title || 'Overskrift'}
                     </h2>
                     {subtitle && (
                         <span style={{
-                            fontSize: '0.9rem',
+                            fontSize: compact ? '0.78rem' : '0.9rem',
+                            lineHeight: compact ? 1.25 : undefined,
                             opacity: 0.9,
                             fontWeight: 500,
+                            marginTop: compact ? '2px' : 0,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                         }}>
                             {subtitle}
@@ -122,14 +143,8 @@ const HeaderTile = ({ settings }) => {
             </div>
 
             {/* Subtle "Go" indicator */}
-            <div style={{
-                position: 'absolute',
-                top: '50%',
-                right: '1.5rem',
-                transform: 'translateY(-50%)',
-                opacity: 0.6
-            }}>
-                <Icons.ChevronRight size={24} />
+            <div style={chevronStyle}>
+                <Icons.ChevronRight size={compact ? 18 : 24} />
             </div>
         </div>
     );
