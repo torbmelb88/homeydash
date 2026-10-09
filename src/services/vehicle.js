@@ -72,6 +72,9 @@ export function vehicleSummary(v) {
 // Er laderen i bruk (bil tilkoblet)?
 export function chargerConnected(charger) {
     const mode = capVal(charger, 'charge_mode');
+    // Zaptec: modusen er fasiten. `binary_sensor.*_status` (→ alarm_generic.car_connected) er
+    // laderens egen connectivity og står på «on» også uten bil – brukes kun uten modus (Homey).
+    if (charger?.capabilitiesObj && 'charge_mode' in charger.capabilitiesObj) return !!mode && mode !== 'disconnected' && mode !== 'unknown' && mode !== 'unavailable';
     if (mode) return mode !== 'disconnected' && mode !== 'unknown';
     if (capVal(charger, 'alarm_generic.car_connected') != null) return !!capVal(charger, 'alarm_generic.car_connected');
     return (capVal(charger, 'measure_power') ?? 0) > 10;
@@ -160,3 +163,114 @@ export const locationText = (loc) => {
     if (loc === 'not_home') return 'Borte';
     return loc;
 };
+
+// ── Bilsiden (pageType 'vehicles') ──────────────────────────────────────────
+// Siden finner selv laderen(e) og bilene. Innstillinger nøkles på vehicleKey /
+// chargerKey (entity-id), ikke composite-uuid, slik at de overlever ny device-id i HA.
+
+export const isCharger = (d) =>
+    !!d && !d._inComposite &&
+    (d.capabilities?.includes('homey_ev_charger') || d.settings?.compositeType === 'ev_charger');
+
+// Zaptec gir TRE composites som alle matcher isEVCharger (installasjon, krets, lader – alle
+// entitetene heter outdoor_car_charger_*). Bare selve laderen har modus/effekt; kretsen har
+// strømgrensen og en «circuit_status»-connectivity som ikke betyr «bil tilkoblet». Sortér derfor
+// den ekte laderen først.
+const chargerScore = (d) =>
+    (d.capabilities?.includes('charge_mode') ? 4 : 0) +
+    (d.capabilities?.includes('measure_power') ? 2 : 0) +
+    (d.capabilities?.includes('meter_power') ? 1 : 0);
+
+export const allChargers = (devices) =>
+    devices.filter(isCharger).sort((a, b) => chargerScore(b) - chargerScore(a) || (a.name || '').localeCompare(b.name || '', 'nb'));
+
+export const chargerKey = (c) => c.primaryEntityId || c.entityId || c.id;
+
+// Laderen bilsiden viser: settings.chargerDeviceId (chargerKey) eller den best scorede
+export function findPageCharger(devices, settings = {}) {
+    const all = allChargers(devices);
+    if (settings.chargerDeviceId) {
+        const chosen = all.find(c => chargerKey(c) === settings.chargerDeviceId || c.id === settings.chargerDeviceId);
+        if (chosen) return chosen;
+    }
+    return all.find(c => chargerScore(c) > 0) || all[0] || null;
+}
+
+// Biler i visningsrekkefølge, uten de skjulte (includeExcluded: true gir alle, til innstillingene)
+export function buildVehicleList(devices, settings = {}, { includeExcluded = false } = {}) {
+    const excluded = new Set(settings.excludedVehicleIds || []);
+    const order = settings.order || [];
+    const idx = (v) => { const i = order.indexOf(vehicleKey(v)); return i < 0 ? 999 : i; };
+    return allVehicles(devices)
+        .filter(v => includeExcluded || !excluded.has(vehicleKey(v)))
+        .sort((a, b) => idx(a) - idx(b) || (a.name || '').localeCompare(b.name || '', 'nb'));
+}
+
+export const vehicleName = (v, settings = {}) =>
+    settings.customNames?.[vehicleKey(v)] || v.name || v.settings?.vehicleMake || 'Bil';
+
+// Hvordan bilen styrer kupéklima: 'entity' = HA climate-entitet (Tesla), ellers null.
+// Hyundai/Kia Connect har ingen climate-entitet (forvarming er én kommando) og får en egen
+// variant ('command') når bil nr. 2 er i HA.
+export const climateKindOf = (v) => (v?.capabilitiesObj && 'vehicle_climate_on' in v.capabilitiesObj) ? 'entity' : null;
+
+// Laderens status (Zaptec-modus, ellers effekt/tilkobling)
+export const CHARGER_MODE_TEXT = {
+    disconnected: { text: 'Frakoblet', tone: 'idle', charging: false },
+    connected_requesting: { text: 'Tilkoblet', tone: 'connected', charging: false },
+    connected_charging: { text: 'Lader', tone: 'charging', charging: true },
+    connected_finished: { text: 'Ferdigladet', tone: 'done', charging: false },
+    waiting: { text: 'Venter', tone: 'connected', charging: false },
+    charging: { text: 'Lader', tone: 'charging', charging: true },
+    charge_done: { text: 'Ferdigladet', tone: 'done', charging: false },
+    completed: { text: 'Ferdigladet', tone: 'done', charging: false },
+};
+
+export const CHARGER_PRESETS = [0, 6, 10, 16, 25];
+
+// Flat oppsummering av laderen. Strømgrensen (number.*_circuit_available_current) ligger hos
+// Zaptec på kretsen (egen HA-enhet) og leses som frittstående enhet via effektsensorens prefiks.
+export function chargerSummary(charger, devices) {
+    if (!charger) return null;
+    const caps = charger.capabilitiesObj || {};
+    const power = Number(caps.measure_power?.value ?? 0) || 0;
+    const mode = caps.charge_mode?.value || '';
+    const modeInfo = CHARGER_MODE_TEXT[mode] || null;
+    const charging = modeInfo?.charging || power > 10;
+    const connected = chargerConnected(charger);
+    const limitEid = charger.settings?.availableCurrentEntityId
+        || (caps.measure_power?.entity_id || '').replace(/^sensor\./, 'number.').replace(/_power$/, '_circuit_available_current');
+    const standalone = limitEid ? devices.find(d => d.id === limitEid) : null;
+    const rawLimit = caps.available_current_limit?.value ?? (standalone ? parseFloat(standalone.state) : NaN);
+    const hasLimit = rawLimit != null && !isNaN(rawLimit);
+    const status = modeInfo || (charging
+        ? { text: 'Lader', tone: 'charging', charging: true }
+        : connected ? { text: 'Tilkoblet', tone: 'connected', charging: false }
+        : { text: 'Frakoblet', tone: 'idle', charging: false });
+    return {
+        id: charger.id,
+        key: chargerKey(charger),
+        name: charger.name || 'Lader',
+        zoneName: charger.zoneName || '',
+        isHA: !!(charger.isHA || charger.hubType === 'hass'),
+        power,
+        mode,
+        charging,
+        connected,
+        statusText: status.text,
+        tone: status.tone,
+        hasLimit,
+        limit: hasLimit ? Number(rawLimit) : null,
+        allocated: caps.allocated_current?.value ?? null,
+        sessionEnergy: caps['meter_power.current_session']?.value ?? null,
+        lastSession: caps['meter_power.last_session']?.value ?? null,
+        totalEnergy: caps.meter_power?.value ?? null,
+        phases: ['phase1', 'phase2', 'phase3'].map(p => caps[`measure_current.${p}`]?.value ?? null),
+        temperature: caps.measure_temperature?.value ?? null,
+        online: caps.online?.value ?? true,
+        cableLocked: !!caps.cable_permanent_lock?.value,
+        hasCableLock: 'cable_permanent_lock' in caps,
+        costCurrent: caps.cost_current?.value ?? null,
+        powerEntityId: caps.measure_power?.entity_id || null,
+    };
+}

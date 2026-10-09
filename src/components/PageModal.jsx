@@ -48,6 +48,7 @@ const PAGE_TYPES = [
     { key: 'keypad', label: 'Kodepanel',       Icon: Lock },
     { key: 'lights', label: 'Lys',             Icon: Lightbulb },
     { key: 'climate', label: 'Klima',          Icon: Thermometer },
+    { key: 'vehicles', label: 'Biler',         Icon: Car },
 ];
 
 const PageModal = ({ isOpen, onClose, onSave, onDelete, initialName = '', initialIcon = 'FileText', initialIframeUrl = '', initialPageType = 'tile', title = 'Ny side', pageIndex = -1, pageCount = 0, onMove }) => {

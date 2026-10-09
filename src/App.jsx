@@ -15,6 +15,7 @@ import SmokeDetectorPage from './components/SmokeDetectorPage';
 import KeypadPage from './components/KeypadPage';
 import LightPage from './components/LightPage';
 import ClimatePage from './components/ClimatePage';
+import VehiclePage from './components/VehiclePage';
 import ProfileSelector from './components/ProfileSelector';
 import { useHomey } from './context/HomeyContext';
 import { useFullyKiosk } from './hooks/useFullyKiosk';
@@ -37,7 +38,8 @@ function App() {
   const isKeypadPage = activePage?.pageType === 'keypad';
   const isLightsPage = activePage?.pageType === 'lights';
   const isClimatePage = activePage?.pageType === 'climate';
-  const isIframePage = !isFamilyPage && !isEnergyPage && !isMusicPage && !isMediaPage && !isSmokePage && !isKeypadPage && !isLightsPage && !isClimatePage && !!activePage?.iframeUrl;
+  const isVehiclesPage = activePage?.pageType === 'vehicles';
+  const isIframePage = !isFamilyPage && !isEnergyPage && !isMusicPage && !isMediaPage && !isSmokePage && !isKeypadPage && !isLightsPage && !isClimatePage && !isVehiclesPage && !!activePage?.iframeUrl;
 
   // Fullskjerm kodepanel: siden kan be om at topbar + bunnmeny skjules (page.hideChrome).
   // En diskret hjørneknapp viser menyene igjen midlertidig; de skjules på nytt etter
@@ -124,10 +126,10 @@ function App() {
       <IncomingCallOverlay />
       <main className="dashboard" style={{
         overflow: isLoading || isInteracting ? 'hidden' : 'auto',
-        padding: (isIframePage || isFamilyPage || isEnergyPage || isMusicPage || isMediaPage || isSmokePage || isKeypadPage || isLightsPage || isClimatePage) ? 0 : undefined
+        padding: (isIframePage || isFamilyPage || isEnergyPage || isMusicPage || isMediaPage || isSmokePage || isKeypadPage || isLightsPage || isClimatePage || isVehiclesPage) ? 0 : undefined
       }}>
         {/* Main Grid - Keep mounted but hide if showing an iframe, family, energy or music page */}
-        <div style={{ display: (isIframePage || isFamilyPage || isEnergyPage || isMusicPage || isMediaPage || isSmokePage || isKeypadPage || isLightsPage || isClimatePage) ? 'none' : 'block', height: '100%' }}>
+        <div style={{ display: (isIframePage || isFamilyPage || isEnergyPage || isMusicPage || isMediaPage || isSmokePage || isKeypadPage || isLightsPage || isClimatePage || isVehiclesPage) ? 'none' : 'block', height: '100%' }}>
           <TileGrid />
         </div>
 
@@ -208,6 +210,16 @@ function App() {
             style={{ display: currentPage === page.id ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}
           >
             <ClimatePage page={page} />
+          </div>
+        ))}
+
+        {/* Vehicle pages */}
+        {pages.filter(p => p.pageType === 'vehicles').map(page => (
+          <div
+            key={page.id}
+            style={{ display: currentPage === page.id ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}
+          >
+            <VehiclePage page={page} />
           </div>
         ))}
 

@@ -228,6 +228,10 @@ export function bootstrapDemo() {
             if (service === 'set_temperature') setState(entityId, null, { temperature: data.temperature });
             else if (service === 'set_hvac_mode') setState(entityId, data.hvac_mode);
             else if (service === 'set_fan_mode') setState(entityId, null, { fan_mode: data.fan_mode });
+            else if (service === 'set_preset_mode') setState(entityId, null, { preset_mode: data.preset_mode });
+            // Bilens kupéklima (Tesla): turn_on/turn_off – gjenoppta første modus som ikke er 'off'
+            else if (service === 'turn_on') setState(entityId, (e.attributes.hvac_modes || []).find(m => m !== 'off') || 'heat');
+            else if (service === 'turn_off') setState(entityId, 'off');
         } else if (domain === 'cover') {
             if (service === 'set_cover_position') {
                 setState(entityId, data.position > 0 ? 'open' : 'closed', { current_position: data.position });

@@ -1,0 +1,536 @@
+/* ===== Bilside (VehiclePage, pageType 'vehicles') =====
+   Skallet (header, rullefelt, seksjoner, utvidet visning som panel/bunnark) gjenbruker
+   .climate-*-klassene fra climate-page.css – siden skal se ut som Klimasiden. Her ligger bare
+   det som er eget for biler og lader (.vp-*). Portalerte lag får også .vehicle-page. */
+
+.vehicle-page {
+    --vp-charging: var(--color-success, #34c37a);
+    --vp-climate: var(--climate-heat, #fb923c);
+}
+
+/* ── Statusmerke (lader + bil) ───────────────────────── */
+.vp-badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    background: var(--color-surface-glass);
+    color: var(--color-text-tertiary);
+    transition: background 0.2s, box-shadow 0.2s;
+}
+
+.vp-badge.is-large { width: 46px; height: 46px; }
+
+.vp-badge.tone-charging {
+    background: color-mix(in srgb, var(--vp-charging) 20%, transparent);
+    color: var(--vp-charging);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--vp-charging) 35%, transparent);
+}
+
+.vp-badge.tone-connected,
+.vp-badge.tone-done {
+    color: var(--color-info, #38bdf8);
+    background: color-mix(in srgb, var(--color-info, #38bdf8) 16%, transparent);
+}
+
+.vp-badge.tone-climate {
+    background: color-mix(in srgb, var(--vp-climate) 20%, transparent);
+    color: var(--vp-climate);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--vp-climate) 35%, transparent);
+}
+
+.vp-dim { color: var(--color-text-secondary); }
+.vp-err { color: var(--color-error); }
+
+/* ── Lader-kortet ────────────────────────────────────── */
+.vp-charger,
+.vp-car {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 12px 12px 14px;
+    background: var(--color-surface);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.vp-charger:focus-visible,
+.vp-car:focus-visible {
+    outline: 2px solid var(--color-accent-primary);
+    outline-offset: 2px;
+}
+
+.vp-charger.is-selected,
+.vp-car.is-selected { border-color: var(--color-accent-primary); }
+
+.vp-ch-status,
+.vp-car-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.vp-ch-text,
+.vp-car-name {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.vp-ch-text strong,
+.vp-car-name strong {
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vp-ch-text span,
+.vp-car-name span {
+    font-size: 0.8rem;
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vp-ch-icons {
+    display: flex;
+    gap: 6px;
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+}
+
+.vp-chevron {
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+}
+
+.climate-page--mobile .vp-chevron { display: none; }
+
+/* Ladestrøm-velger */
+.vp-amps {
+    display: flex;
+    gap: 6px;
+    cursor: default;
+}
+
+.vp-amps button {
+    flex: 1;
+    height: 42px;
+    border-radius: 11px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.vp-amps button:disabled { opacity: 0.4; cursor: default; }
+
+.vp-amps button.is-on {
+    border-color: var(--vp-charging);
+    color: var(--vp-charging);
+    background: color-mix(in srgb, var(--vp-charging) 16%, transparent);
+    font-weight: 600;
+}
+
+.vp-amps button.is-on.is-stop {
+    border-color: var(--color-error);
+    color: var(--color-error);
+    background: color-mix(in srgb, var(--color-error) 16%, transparent);
+}
+
+.vp-amps.is-pending button.is-on { opacity: 0.7; }
+
+/* Strømstyring-rad */
+.vp-lm {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    cursor: default;
+}
+
+.vp-lm.is-override { background: color-mix(in srgb, var(--vp-charging) 10%, transparent); }
+.vp-lm.is-critical { background: color-mix(in srgb, var(--color-error) 12%, transparent); }
+
+.vp-lm-icon { color: var(--color-text-tertiary); flex-shrink: 0; }
+
+.vp-lm-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.vp-lm-text strong {
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.vp-lm-text span {
+    font-size: 0.76rem;
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vp-lm-badge {
+    font-size: 0.68rem;
+    font-weight: 500;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text-secondary);
+}
+
+.vp-lm.is-override .vp-lm-badge { background: color-mix(in srgb, var(--vp-charging) 25%, transparent); color: var(--vp-charging); }
+
+.vp-lm-btn {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.vp-lm-btn.is-override {
+    background: transparent;
+    color: var(--color-text-secondary);
+}
+
+.vp-lm-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Bilkort ─────────────────────────────────────────── */
+.vp-cars {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-auto-rows: max-content;
+    gap: 8px;
+}
+
+.climate-page--compact .vp-cars,
+.climate-page--wide .vp-cars {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+}
+
+.vp-chips {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.vp-chips--wrap { flex-wrap: wrap; }
+
+.vp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+.vp-chip.is-warn { color: var(--color-warning, #f59e0b); background: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent); }
+.vp-chip.is-on { color: var(--color-info, #38bdf8); background: color-mix(in srgb, var(--color-info, #38bdf8) 15%, transparent); }
+
+/* På mobil er det ikke plass til chips i hodet – posisjon/lås ligger i utvidet visning */
+.climate-page--mobile .vp-car-head .vp-chips { display: none; }
+
+.vp-batt {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.vp-batt-big {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.01em;
+}
+
+.vp-batt-lim { color: var(--color-text-secondary); font-size: 0.95rem; }
+.vp-batt-range { margin-left: auto; color: var(--color-text-secondary); font-size: 0.85rem; }
+
+.vp-bar {
+    position: relative;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.vp-bar.is-large { height: 10px; }
+
+.vp-bar i {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--color-text-secondary);
+    transition: width 0.5s;
+}
+
+.vp-bar.is-charging i { background: var(--vp-charging); }
+
+.vp-bar b {
+    position: absolute;
+    top: -3px;
+    width: 2px;
+    height: calc(100% + 6px);
+    margin-left: -1px;
+    background: var(--color-text-primary);
+    border-radius: 1px;
+}
+
+.vp-line {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    min-width: 0;
+    min-height: 1.25em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vp-line.is-ok { color: var(--vp-charging); }
+
+/* Klimaraden på kortet */
+.vp-cl {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: default;
+}
+
+.vp-cl-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.vp-cl-text strong { font-size: 0.95rem; font-weight: 600; }
+.vp-cl.is-on .vp-cl-text strong { color: var(--vp-climate); }
+
+.vp-cl-text span {
+    font-size: 0.78rem;
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vp-cl-ctl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.vp-cl .temp-stepper button { width: 40px; height: 40px; border-radius: 12px; }
+.vp-cl .temp-stepper-value { min-width: 56px; font-size: 1.1rem; }
+
+.vp-pw {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--color-surface-raised);
+    color: var(--color-text-secondary);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: background 0.15s, color 0.15s;
+}
+
+.vp-pw.is-on {
+    background: color-mix(in srgb, var(--vp-climate) 22%, transparent);
+    border-color: color-mix(in srgb, var(--vp-climate) 60%, transparent);
+    color: var(--vp-climate);
+}
+
+.vp-pw.is-pending { opacity: 0.7; }
+.vp-pw:disabled { opacity: 0.4; cursor: default; }
+
+/* Smal mobil: stepper og knapp på egen rad under teksten */
+@media (max-width: 400px) {
+    .vp-cl { flex-wrap: wrap; }
+    .vp-cl-ctl { width: 100%; justify-content: flex-end; }
+}
+
+/* ── Utvidet visning ─────────────────────────────────── */
+.vp-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 0 2px;
+}
+
+.vp-hero-value {
+    font-size: 2.6rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.vp-hero-value small { font-size: 0.45em; font-weight: 600; opacity: 0.7; }
+
+.vp-hero-sub {
+    font-size: 0.92rem;
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.vp-hero-sub.tone-charging { color: var(--vp-charging); }
+.vp-hero-sub.tone-connected,
+.vp-hero-sub.tone-done { color: var(--color-info, #38bdf8); }
+
+.vp-climate-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.climate-wide-btn.is-warm {
+    background: color-mix(in srgb, var(--vp-climate) 18%, transparent);
+    border-color: var(--vp-climate);
+}
+
+.climate-wide-btn.is-pending { opacity: 0.7; }
+.climate-wide-btn:disabled { opacity: 0.4; cursor: default; }
+
+.vp-row-icon { display: flex; align-items: center; gap: 8px; }
+
+/* Ladegrense −/+ */
+.vp-limit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: default;
+}
+
+.vp-limit-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.88rem;
+}
+
+.vp-limit-stepper {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 13px;
+    padding: 3px;
+}
+
+.vp-limit-stepper button {
+    width: 44px;
+    height: 40px;
+    border: 0;
+    border-radius: 11px;
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.vp-limit-stepper button:active { transform: scale(0.93); }
+
+.vp-limit-value {
+    min-width: 64px;
+    text-align: center;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.vp-limit-stepper.is-pending .vp-limit-value { color: var(--color-accent-primary); }
+
+/* Bilen på laderen (i laderens utvidede visning) */
+.vp-car-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--color-surface-glass);
+    color: var(--color-text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vp-car-mini-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vp-car-mini-head strong { flex: 1; min-width: 0; font-weight: 600; }
+.vp-car-mini-head span { color: var(--color-text-secondary); font-size: 0.9rem; }
+.vp-car-mini-sub { font-size: 0.8rem; color: var(--color-text-tertiary); }
+
+/* Tariff-pille */
+.vp-tariff.is-natt { color: var(--color-info, #38bdf8); }
+.vp-tariff.is-dag { color: var(--color-warning, #f59e0b); }
+
+/* Gruppe uten etikett (statistikk rett under batteriet) */
+.climate-group > label:empty { display: none; }

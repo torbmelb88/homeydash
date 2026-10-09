@@ -282,6 +282,7 @@ export const DEMO_PAGES = [
     { id: 'demo-maskiner', name: 'Maskiner', icon: 'WashingMachine', pageType: 'tile', tiles: [] },
     { id: 'demo-lys', name: 'Lys', icon: 'Lightbulb', pageType: 'lights', tiles: [], lightSettings: { mode: 'areas', tabs: [{ id: 't1', name: '1. etasje', groupIds: ['zone:Stue'] }, { id: 't2', name: 'Kjøkken', groupIds: ['zone:Kjøkken'] }] } },
     { id: 'demo-klima', name: 'Klima', icon: 'Thermometer', pageType: 'climate', tiles: [] },
+    { id: 'demo-biler', name: 'Biler', icon: 'Car', pageType: 'vehicles', tiles: [] },
 ];
 
 export const DEMO_TILES = [
