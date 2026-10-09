@@ -39,6 +39,7 @@ import KeypadTile from './TileContent/KeypadTile';
 import VacuumTile from './TileContent/VacuumTile';
 import LawnMowerTile from './TileContent/LawnMowerTile';
 import IrrigationTile from './TileContent/IrrigationTile';
+import DiffuserTile from './TileContent/DiffuserTile';
 
 import HeaderTile from './TileContent/HeaderTile';
 import EnergyDashboardWidget from './TileContent/EnergyDashboardWidget';
@@ -100,6 +101,8 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
         type = 'lawn-mower';
     } else if (device && (device.capabilities.includes('homey_irrigation') || device.settings?.compositeType === 'irrigation')) {
         type = 'irrigation';
+    } else if (device && (device.capabilities.includes('homey_diffuser') || device.settings?.compositeType === 'diffuser')) {
+        type = 'diffuser';
     } else if (device && device.capabilities.includes('fan_speed')) {
         type = 'fan';
     } else if (device && device.capabilities.includes('sensor_flagg')) {
@@ -276,6 +279,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
             case 'vacuum': return <VacuumTile {...props} />;
             case 'lawn-mower': return <LawnMowerTile {...props} />;
             case 'irrigation': return <IrrigationTile {...props} />;
+            case 'diffuser': return <DiffuserTile {...props} />;
             case 'intercom': return <IntercomTile {...props} />;
             case 'appliance': return <ApplianceTile {...props} />;
             case 'presence': return <PresenceTile {...props} />;

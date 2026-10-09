@@ -38,6 +38,7 @@ import {
     UserRound,
     Printer
 } from 'lucide-react';
+import DiffuserIcon from '../components/icons/DiffuserIcon';
 
 // 3D-printer (Bambu Lab-integrasjonen): kjennetegnes av fremdrifts- og status-sensorene
 const isPrinterGroup = (entities) => {
@@ -1254,6 +1255,42 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
             return updatedDevice;
         }
 
+        // --- Duftspreder (Rituals Perfume Genie) ---
+        // Bryter + duftstyrke (number 1–3) + duftnavn. Fyllingsgrad lagres som null når
+        // sensoren er unavailable (den rapporterer i praksis ikke) — flisen skjuler den da.
+        if (device.settings.compositeType === 'diffuser' ||
+            device.capabilities.includes('homey_diffuser')) {
+            const numOrNull = (v) => {
+                if (v === 'unknown' || v === 'unavailable' || v == null || v === '') return null;
+                const n = parseFloat(v);
+                return isNaN(n) ? null : n;
+            };
+            if (domain === 'switch') {
+                addCap('onoff', value === 'on', null, 'boolean');
+            } else if (domain === 'number' && obj.endsWith('_perfume_amount')) {
+                addCap('perfume_amount', numOrNull(value), null);
+                updatedDevice.capabilitiesOptions['perfume_amount'] = {
+                    min: attr.min ?? 1, max: attr.max ?? 3, step: attr.step ?? 1
+                };
+            } else if (domain === 'select' && obj.endsWith('_room_size')) {
+                addCap('room_size', value, null, 'string');
+                if (attr.options) {
+                    updatedDevice.capabilitiesOptions['room_size'] = {
+                        values: attr.options.map(o => ({ id: o, title: o }))
+                    };
+                }
+            } else if (domain === 'sensor') {
+                if (obj.endsWith('_perfume')) {
+                    addCap('perfume_name', value, null, 'string');
+                } else if (obj.endsWith('_fill')) {
+                    addCap('fill_level', numOrNull(value), '%');
+                } else if (obj.endsWith('_rssi')) {
+                    addCap('wifi_signal', numOrNull(value), attr.unit_of_measurement || null);
+                }
+            }
+            return updatedDevice;
+        }
+
         // --- Irrigation valve mapping (SONOFF SWV-ZF2, Zigbee2MQTT) ---
         // To kanaler: switch.*_1 / switch.*_2 → valve_1 / valve_2. Objekt-sensorene
         // (manual_default_settings, irrigation_schedule_status_N) lagres av HA som
@@ -1558,6 +1595,13 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             (e.entity_id.split('.')[1] || '').includes('irrigation_schedule_status')
         );
 
+        // --- Duftspreder (Rituals Perfume Genie via rituals_perfume_genie) ---
+        // Kjennetegn: number.*_perfume_amount (duftstyrke). Primærdomenet er switch, så uten
+        // egen type ble den en vanlig bryterflis uten duftnavn og styrke.
+        const isDiffuser = !isWasher && !isWaterHeater && !isEVCharger && !isIrrigation && deviceEntities.some(e =>
+            e.entity_id.startsWith('number.') && (e.entity_id.split('.')[1] || '').endsWith('_perfume_amount')
+        );
+
         // --- Elbil-deteksjon (Tesla/Teslemetry, generisk for andre bilintegrasjoner) ---
         // Må kjøres FØR den generiske klima-grenen: Teslaen har to climate-entiteter og ville
         // ellers blitt en 'climate'-composite (og dukket opp som varmepumpe på Klimasiden).
@@ -1597,13 +1641,13 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
         let composite = {
             id: compositeId,
             name: isPostal ? 'Post' : isAppliance ? (applianceKind === 'dishwasher' ? 'Oppvaskmaskin' : 'Tørketrommel') : deviceName,
-            class: isPrinter3d ? 'printer' : isAppliance ? 'socket' : isWasher ? 'vacuum' : isEVCharger ? 'socket' : isPostal ? 'sensor' : isIrrigation ? 'irrigation' : isVehicle ? 'car' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : (DOMAIN_TO_CLASS[primaryDomain] ?? primaryDomain),
-            capabilities: isPrinter3d ? ['homey_3d_printer'] : isAppliance ? ['smart_plug_appliance'] : isWasher ? ['laundry'] : isWaterHeater ? ['homey_water_heater'] : isEVCharger ? ['homey_ev_charger'] : isPostal ? ['posten_sensor'] : isIrrigation ? ['homey_irrigation'] : isVehicle ? ['homey_vehicle'] : isVacuum ? ['homey_vacuum'] : isLawnMower ? ['homey_lawn_mower'] : [],
+            class: isPrinter3d ? 'printer' : isAppliance ? 'socket' : isWasher ? 'vacuum' : isEVCharger ? 'socket' : isPostal ? 'sensor' : isIrrigation ? 'irrigation' : isDiffuser ? 'diffuser' : isVehicle ? 'car' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : (DOMAIN_TO_CLASS[primaryDomain] ?? primaryDomain),
+            capabilities: isPrinter3d ? ['homey_3d_printer'] : isAppliance ? ['smart_plug_appliance'] : isWasher ? ['laundry'] : isWaterHeater ? ['homey_water_heater'] : isEVCharger ? ['homey_ev_charger'] : isPostal ? ['posten_sensor'] : isIrrigation ? ['homey_irrigation'] : isDiffuser ? ['homey_diffuser'] : isVehicle ? ['homey_vehicle'] : isVacuum ? ['homey_vacuum'] : isLawnMower ? ['homey_lawn_mower'] : [],
             capabilitiesObj: {},
             capabilitiesOptions: {},
             ui: { components: [] },
-            lucideIconName: isPrinter3d ? 'printer' : isAppliance ? 'utensils' : isWasher ? 'washing-machine' : isEVCharger ? 'zap' : isPostal ? 'mail' : isIrrigation ? 'droplets' : isVehicle ? 'car' : isVacuum ? 'disc-2' : isLawnMower ? 'scissors' : primaryDomain,
-            LucideIcon: isPrinter3d ? Printer : isAppliance ? Utensils : isWasher ? WashingMachine : isEVCharger ? Zap : isPostal ? Mail : isIrrigation ? Droplets : isVehicle ? Car : isVacuum ? Disc2 : isLawnMower ? Scissors : (iconMap[primaryDomain] ?? HelpCircle),
+            lucideIconName: isPrinter3d ? 'printer' : isAppliance ? 'utensils' : isWasher ? 'washing-machine' : isEVCharger ? 'zap' : isPostal ? 'mail' : isIrrigation ? 'droplets' : isDiffuser ? 'diffuser' : isVehicle ? 'car' : isVacuum ? 'disc-2' : isLawnMower ? 'scissors' : primaryDomain,
+            LucideIcon: isPrinter3d ? Printer : isAppliance ? Utensils : isWasher ? WashingMachine : isEVCharger ? Zap : isPostal ? Mail : isIrrigation ? Droplets : isDiffuser ? DiffuserIcon : isVehicle ? Car : isVacuum ? Disc2 : isLawnMower ? Scissors : (iconMap[primaryDomain] ?? HelpCircle),
             zoneName: areaKey || '',
             hubType: 'hass',
             isHA: true,
@@ -1614,7 +1658,7 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             settings: {
                 isComposite: true,
                 haDeviceId: deviceId,
-                compositeType: isPrinter3d ? 'printer_3d' : isAppliance ? 'appliance' : isWasher ? 'washer' : isWaterHeater ? 'water_heater' : isEVCharger ? 'ev_charger' : isPostal ? 'postal' : isIrrigation ? 'irrigation' : isVehicle ? 'vehicle' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : primaryDomain,
+                compositeType: isPrinter3d ? 'printer_3d' : isAppliance ? 'appliance' : isWasher ? 'washer' : isWaterHeater ? 'water_heater' : isEVCharger ? 'ev_charger' : isPostal ? 'postal' : isIrrigation ? 'irrigation' : isDiffuser ? 'diffuser' : isVehicle ? 'vehicle' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : primaryDomain,
                 ...(isAppliance ? { applianceKind } : {}),
                 // 3D-printer: AMS/ekstern spole er innfoldede barn — HomeyContext ruter deres
                 // state_changed hit via haDeviceIds (haDeviceId alene matcher bare printeren)

@@ -167,6 +167,7 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
             if (device.capabilities.includes('homey_vacuum') || device.settings?.compositeType === 'vacuum') return 'vacuum';
             if (device.capabilities.includes('homey_lawn_mower') || device.settings?.compositeType === 'lawn_mower') return 'lawn-mower';
             if (device.capabilities.includes('homey_irrigation') || device.settings?.compositeType === 'irrigation') return 'irrigation';
+            if (device.capabilities.includes('homey_diffuser') || device.settings?.compositeType === 'diffuser') return 'diffuser';
             if (device.capabilities.includes('fan_speed')) return 'fan';
         }
         if (tile.type && tile.type !== 'auto') return tile.type;

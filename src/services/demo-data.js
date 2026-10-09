@@ -209,6 +209,14 @@ export const buildDemoWorld = () => {
         E('sensor.printer_ams_tray_4', 'Empty', { friendly_name: 'Spole 4', slot: 4, active: false, empty: true }),
         E('binary_sensor.printer_ams_active', 'on', { friendly_name: 'Aktiv' }),
 
+        // ── Duftspreder (composite: demo-diffuser, Rituals Perfume Genie-lignende) ──
+        E('switch.diffuser_on_off', 'on', { friendly_name: 'Bryter' }),
+        E('number.diffuser_perfume_amount', '2', { friendly_name: 'Duftstyrke', min: 1, max: 3, step: 1 }),
+        E('sensor.diffuser_perfume', 'The Ritual of Sakura', { friendly_name: 'Duft' }),
+        E('sensor.diffuser_fill', 'unavailable', { friendly_name: 'Fyllingsgrad' }),
+        E('sensor.diffuser_rssi', '100', { friendly_name: 'WiFi-signal', unit_of_measurement: '%' }),
+        E('select.diffuser_room_size', 'Medium', { friendly_name: 'Romstørrelse', options: ['Small', 'Medium', 'Large', 'Extra large'] }),
+
         // ── Renovasjon (standalone, virtuell composite via prefix) ───────
         E('sensor.demo_min_renovasjon_food', isoDate(2), { friendly_name: 'Matavfall', fraction_name: 'Matavfall', days_until: 2, next_collection: isoDate(2) }),
         E('sensor.demo_min_renovasjon_paper', isoDate(2), { friendly_name: 'Papir', fraction_name: 'Papir', days_until: 2, next_collection: isoDate(2) }),
@@ -236,6 +244,7 @@ export const buildDemoWorld = () => {
         { id: 'demo-mower', name: 'Robotklipper' },
         { id: 'demo-printer', name: '3D-printer', manufacturer: 'Bambu Lab', model: 'P2S' },
         { id: 'demo-printer-ams', name: '3D-printer AMS', manufacturer: 'Bambu Lab', model: 'AMS 2 Pro', via_device_id: 'demo-printer' },
+        { id: 'demo-diffuser', name: 'Diffuser', manufacturer: 'Rituals Cosmetics', model: 'The Perfume Genie 2.0' },
     ];
 
     const entityToDevice = {};
@@ -248,6 +257,7 @@ export const buildDemoWorld = () => {
         else if (obj === 'robotklipper' || obj.startsWith('robotklipper_')) entityToDevice[eid] = 'demo-mower';
         else if (obj.startsWith('printer_ams_')) entityToDevice[eid] = 'demo-printer-ams';
         else if (obj.startsWith('printer_')) entityToDevice[eid] = 'demo-printer';
+        else if (obj.startsWith('diffuser_')) entityToDevice[eid] = 'demo-diffuser';
     });
 
     const AREA = {
@@ -262,7 +272,8 @@ export const buildDemoWorld = () => {
     Object.keys(entityToDevice).forEach((eid) => {
         const dev = entityToDevice[eid];
         entityToArea[eid] = dev === 'demo-charger' || dev === 'demo-mower' || dev === 'demo-car' ? 'Ute'
-            : dev === 'demo-printer' || dev === 'demo-printer-ams' ? 'Kontor' : 'Vaskerom';
+            : dev === 'demo-printer' || dev === 'demo-printer-ams' ? 'Kontor'
+            : dev === 'demo-diffuser' ? 'Stue' : 'Vaskerom';
     });
 
     return { entities, entityToDevice, deviceRegistry, entityToArea };
@@ -300,6 +311,7 @@ export const DEMO_TILES = [
     { id: 'dt-panelovn', pageId: 'demo-hjem', type: 'thermostat', size: '1x1', deviceId: 'climate.soverom_panelovn' },
     { id: 'dt-utetemp', pageId: 'demo-hjem', type: 'sensor', size: '1x1', deviceId: 'sensor.ute_temperatur' },
     { id: 'dt-fukt', pageId: 'demo-hjem', type: 'sensor', size: '1x1', deviceId: 'sensor.stue_fuktighet' },
+    { id: 'dt-diffuser', pageId: 'demo-hjem', type: 'diffuser', size: '1x1', deviceId: 'composite:demo-diffuser', settings: {} },
     {
         id: 'dt-hierarki', pageId: 'demo-hjem', type: 'hierarchy', size: '2x2',
         settings: {

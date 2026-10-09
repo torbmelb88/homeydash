@@ -5,6 +5,7 @@ import { storage } from '../services/storage';
 import { getDeviceType } from '../services/utils';
 import { hassAPI } from '../services/hass-api';
 import { DEFAULT_OUTDOOR_TEMP_SETTINGS, detectOutdoorTempSensors } from '../services/outdoor-temp';
+import DiffuserIcon from './icons/DiffuserIcon';
 import { X, Search, Zap, Thermometer, ToggleLeft, Activity, Trash2, Mail, Blinds, Clock, CloudSun, Video, Globe, Square, Layers, Lock, WashingMachine, Droplets, Disc2, Scissors, BarChart2, Phone, Utensils, UserRound, Lightbulb, ThermometerSun, Car, Printer } from 'lucide-react';
 
 const AddTileModal = ({ onClose, onAdd }) => {
@@ -41,6 +42,7 @@ const AddTileModal = ({ onClose, onAdd }) => {
             case 'vacuum': return 'Støvsuger';
             case 'lawn-mower': return 'Robotklipper';
             case 'irrigation': return 'Vanning';
+            case 'diffuser': return 'Diffuser';
             case 'appliance': return 'Apparat (smartplugg)';
             case 'presence': return 'Tilstedeværelse';
             default: return 'Ukjent enhet';
@@ -78,6 +80,7 @@ const AddTileModal = ({ onClose, onAdd }) => {
             case 'vacuum': return <Disc2 size={16} />;
             case 'lawn-mower': return <Scissors size={16} />;
             case 'irrigation': return <Droplets size={16} />;
+            case 'diffuser': return <DiffuserIcon size={16} />;
             case 'appliance': return <Utensils size={16} />;
             case 'presence': return <UserRound size={16} />;
             default: return <Zap size={16} />;
