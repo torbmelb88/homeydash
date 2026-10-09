@@ -6,6 +6,7 @@ export function getDeviceType(device) {
     if (!device) return 'unknown';
     const caps = device.capabilities || Object.keys(device.capabilitiesObj || {});
 
+    if (caps.includes('homey_3d_printer') || device.settings?.compositeType === 'printer_3d') return 'printer';
     if (caps.includes('homey_vacuum') || device.settings?.compositeType === 'vacuum') return 'vacuum';
     if (caps.includes('homey_lawn_mower') || device.settings?.compositeType === 'lawn_mower') return 'lawn-mower';
     if (caps.includes('homey_irrigation') || device.settings?.compositeType === 'irrigation') return 'irrigation';

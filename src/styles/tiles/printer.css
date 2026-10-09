@@ -1,0 +1,424 @@
+/* ===== 3D-printer-flis (Bambu Lab) ===== */
+
+.p3d-dim { color: var(--color-text-secondary); font-weight: 400; }
+.p3d-small { font-size: 0.72rem; display: flex; align-items: center; gap: 4px; }
+.p3d-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.p3d-hint { font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.p3d-link { background: none; border: none; color: var(--color-info, #38bdf8); cursor: pointer; padding: 0; font-size: inherit; text-decoration: underline; }
+
+/* Statusfarger per tone */
+.p3d-compact, .p3d-expanded, .p3d-badge {
+    --p3d-tone: var(--color-text-secondary);
+}
+.tone-active { --p3d-tone: var(--color-success, #22c55e); }
+.tone-paused { --p3d-tone: var(--color-warning, #f59e0b); }
+.tone-error  { --p3d-tone: var(--color-danger, #ef4444); }
+.tone-done   { --p3d-tone: var(--color-info, #38bdf8); }
+
+/* ── Kompakt ───────────────────────────────────────────────────────── */
+.p3d-compact {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    padding: 2px 4px;
+    overflow: hidden;
+    border-radius: 10px;
+}
+.p3d-compact-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.55;
+    pointer-events: none;
+}
+.p3d-compact.has-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.35) 60%, rgba(0, 0, 0, 0.1) 100%);
+    pointer-events: none;
+}
+.p3d-compact-body {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+.p3d-compact-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--p3d-tone);
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tone-active .p3d-compact-status { text-shadow: 0 0 10px color-mix(in srgb, var(--p3d-tone) 45%, transparent); }
+.p3d-compact-sub {
+    font-size: 0.72rem;
+    color: var(--color-text-secondary);
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 1em;
+}
+.p3d-compact-foot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--color-text-secondary);
+    min-height: 16px;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.p3d-compact-foot > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.has-bg .p3d-compact-sub, .has-bg .p3d-compact-foot { color: rgba(255, 255, 255, 0.85); }
+
+/* Fremdriftslinje (deles av kompakt og utvidet) */
+.p3d-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    max-width: 150px;
+}
+.p3d-progress {
+    flex: 1;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+.p3d-progress-lg { height: 7px; flex: none; width: 100%; }
+.p3d-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--p3d-tone);
+    transition: width 0.6s;
+}
+.p3d-progress-pct { font-size: 0.72rem; font-weight: 600; color: var(--color-text-primary); flex-shrink: 0; }
+
+/* ── Utvidet ───────────────────────────────────────────────────────── */
+.p3d-expanded {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;   /* .tile-content sentrerer barna — kolonnene skal fylle bredden */
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 0;
+    cursor: default;
+}
+
+.p3d-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-right: 40px; /* plass til lukkeknappen i modalen */
+}
+.p3d-cover {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+}
+.p3d-head-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.p3d-head-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.p3d-job {
+    font-size: 1.15rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+.p3d-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--p3d-tone);
+    background: color-mix(in srgb, var(--p3d-tone) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--p3d-tone) 35%, transparent);
+    white-space: nowrap;
+}
+.p3d-head-sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.p3d-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+.p3d-banner.is-error { background: color-mix(in srgb, var(--color-danger, #ef4444) 18%, transparent); color: var(--color-danger, #ef4444); }
+.p3d-banner.is-warn  { background: color-mix(in srgb, var(--color-warning, #f59e0b) 18%, transparent); color: var(--color-warning, #f59e0b); }
+.p3d-banner.is-muted { background: rgba(255, 255, 255, 0.05); color: var(--color-text-secondary); }
+
+.p3d-main {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    width: 100%;
+    min-height: 0;
+}
+.p3d-main.is-stacked { flex-direction: column; }
+.p3d-side {
+    flex: 0 0 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+.p3d-main.is-stacked .p3d-side { flex: none; width: 100%; }
+
+.p3d-section-label {
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.p3d-card {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.p3d-rows { display: flex; flex-direction: column; gap: 6px; }
+.p3d-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+}
+.p3d-row-label { display: flex; align-items: center; gap: 6px; color: var(--color-text-secondary); flex-shrink: 0; }
+.p3d-row-value { font-weight: 600; text-align: right; }
+
+/* Spoler */
+.p3d-spool {
+    display: inline-block;
+    border-radius: 50%;
+    background: var(--spool-color);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.35);
+    flex-shrink: 0;
+}
+.p3d-spool.is-empty { background: transparent; border: 2px dashed rgba(255, 255, 255, 0.25); box-shadow: none; }
+.p3d-spool.is-active { box-shadow: 0 0 0 2px var(--color-surface, #111), 0 0 0 4px var(--color-success, #22c55e); }
+.p3d-trays {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.p3d-tray {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 2px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 0.65rem;
+    color: var(--color-text-secondary);
+}
+.p3d-tray.is-active { background: color-mix(in srgb, var(--color-success, #22c55e) 12%, transparent); color: var(--color-text-primary); }
+.p3d-tray-slot { font-weight: 600; }
+.p3d-tray-material { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p3d-active-tray {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.p3d-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.p3d-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-secondary);
+}
+.p3d-chip.is-on { color: var(--color-text-primary); background: rgba(255, 255, 255, 0.09); }
+
+.p3d-toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+.p3d-toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--color-text-primary);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    min-width: 0;
+}
+.p3d-toggle.is-on { border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 55%, transparent); background: color-mix(in srgb, var(--color-warning, #f59e0b) 14%, transparent); }
+.p3d-toggle-state { margin-left: auto; color: var(--color-text-secondary); font-size: 0.72rem; }
+.p3d-toggle.is-on .p3d-toggle-state { color: var(--color-warning, #f59e0b); }
+.p3d-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: var(--color-surface-raised, rgba(255, 255, 255, 0.08));
+    color: var(--color-text-primary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Kamera */
+.p3d-cam { flex: 1; display: flex; flex-direction: column; min-width: 0; width: 100%; }
+.p3d-cam-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0a0a0f;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-in;
+}
+.p3d-cam-frame.is-live { border-color: color-mix(in srgb, var(--color-danger, #ef4444) 40%, transparent); }
+.p3d-cam-frame img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.p3d-cam-loading { color: var(--color-text-secondary); font-size: 0.8rem; }
+.p3d-cam-off {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    cursor: default;
+}
+.p3d-cam-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+}
+.p3d-cam-badge:empty { display: none; }
+.p3d-live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-danger, #ef4444);
+    animation: p3d-pulse 1.4s ease-in-out infinite;
+}
+@keyframes p3d-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.p3d-cam-zoom {
+    position: absolute;
+    bottom: 6px;   /* nederst: go2rtc sin stream.html viser modus-etiketten («RTC»/«MSE») øverst til høyre */
+    right: 6px;
+    background: rgba(0, 0, 0, 0.55);
+    border: none;
+    border-radius: 6px;
+    padding: 5px 7px;
+    display: flex;
+    align-items: center;
+    color: white;
+    cursor: zoom-in;
+}
+.p3d-cam-frame iframe { width: 100%; height: 100%; border: none; background: #000; display: block; }
+
+.p3d-cam-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(0, 0, 0, 0.94);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+.p3d-cam-fullscreen-media { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; cursor: default; }
+.p3d-cam-fullscreen-media img { max-width: 100vw; max-height: 100vh; object-fit: contain; display: block; }
+.p3d-cam-fullscreen-media iframe { width: 100vw; height: 100vh; border: none; background: #000; }
+.p3d-cam-fullscreen-caption {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: white;
+    font-size: 0.85rem;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+}
+.p3d-cam-fullscreen-caption span:first-child { font-weight: 600; }
+.p3d-cam-close {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: white;
+    font-size: 1.1rem;
+}

@@ -162,6 +162,7 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
             if (device.capabilities.includes('laundry') || device.settings?.compositeType === 'washer') return 'cleaning';
             if (device.capabilities.includes('homey_ev_charger') || device.settings?.compositeType === 'ev_charger') return 'ev-charger';
             if (device.capabilities.includes('homey_vehicle') || device.settings?.compositeType === 'vehicle') return 'vehicle';
+            if (device.capabilities.includes('homey_3d_printer') || device.settings?.compositeType === 'printer_3d') return 'printer';
             if (device.capabilities.includes('posten_sensor') || device.settings?.compositeType === 'postal') return 'postal';
             if (device.capabilities.includes('homey_vacuum') || device.settings?.compositeType === 'vacuum') return 'vacuum';
             if (device.capabilities.includes('homey_lawn_mower') || device.settings?.compositeType === 'lawn_mower') return 'lawn-mower';
@@ -300,6 +301,13 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
         if (type === 'vehicle') {
             return [
                 ...base,
+                { id: 'expanded', label: 'Utvidet (Stor)' },
+            ];
+        }
+        if (type === 'printer') {
+            return [
+                ...base,
+                { id: 'config',   label: 'Innstillinger' },
                 { id: 'expanded', label: 'Utvidet (Stor)' },
             ];
         }
@@ -1868,6 +1876,42 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
                         </div>
                     )}
 
+                    {/* ── 3D-printer: Innstillinger ─────────────────── */}
+                    {activeTab === 'config' && effectiveType === 'printer' && (
+                        <div>
+                            <div className="form-group">
+                                <label>Kompakt visning</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                                    <CheckboxRow
+                                        label="Vis stillbilde fra kameraet som bakgrunn mens den printer"
+                                        checked={!!widgetSettings.showSnapshotCompact}
+                                        onChange={(checked) => setWidgetSettings({ ...widgetSettings, showSnapshotCompact: checked })}
+                                    />
+                                </div>
+                                <p className="hint">
+                                    Stillbildet hentes hvert 30. sekund. I stor visning oppdateres det hvert
+                                    2. sekund («nær live»).
+                                </p>
+                            </div>
+                            <div className="form-group">
+                                <label>Live-strøm (valgfritt)</label>
+                                <input
+                                    type="text"
+                                    value={widgetSettings.liveStreamUrl || ''}
+                                    onChange={(e) => setWidgetSettings({ ...widgetSettings, liveStreamUrl: e.target.value })}
+                                    placeholder="http://192.168.50.68:1984/stream.html?src=printer&mode=mse,webrtc"
+                                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'white' }}
+                                />
+                                <p className="hint">
+                                    Home Assistant klarer ikke å videresende printerens eget kamerasignal (RTSPS),
+                                    så ekte video kommer fra go2rtc (Frigate). Printeren ligger der som «printer»:
+                                    lim inn adressen over (stream.html åpnes i en ramme, MJPEG-adresser vises
+                                    direkte). Tomt felt = stillbilder hvert 2. sekund.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* ── Solskjerm: Innstillinger ─────────────────── */}
                     {activeTab === 'config' && effectiveType === 'sunshade' && (
                         <div>
@@ -2569,6 +2613,24 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
                                         { key: 'showPresets',  label: 'Klimamodus (Behold / Hund / Camp)',                def: true },
                                         { key: 'showStatus',   label: 'Status: lås, vinduer, frunk/bagasjerom, vaktmodus', def: true },
                                         { key: 'showBattery',  label: 'Batteri, rekkevidde og hvor bilen er',             def: true },
+                                    ]}
+                                    values={widgetSettings}
+                                    onChange={(key, checked) => setWidgetSettings(prev => ({ ...prev, [key]: checked }))}
+                                />
+                            )}
+
+                            {/* ── 3D-printer: Utvidet visning ───────────── */}
+                            {effectiveType === 'printer' && (
+                                <ShowOptionsGroup
+                                    title="Velg hva som vises i stor visning"
+                                    description="Jobbnavn, fremdrift, ferdig-tid og varsler vises alltid."
+                                    options={[
+                                        { key: 'showCamera',   label: 'Kamera (live-bilde, klikk for fullskjerm)',   def: true },
+                                        { key: 'showTemps',    label: 'Temperaturer (dyse, plate, kammer)',          def: true },
+                                        { key: 'showFilament', label: 'Filament (AMS-spoler og aktiv spole)',        def: true },
+                                        { key: 'showFans',     label: 'Vifter',                                      def: true },
+                                        { key: 'showDetails',  label: 'Detaljer (lag, hastighet, dyse, AMS-klima)',  def: true },
+                                        { key: 'showControls', label: 'Brytere for kammerlys og kamera',             def: true },
                                     ]}
                                     values={widgetSettings}
                                     onChange={(key, checked) => setWidgetSettings(prev => ({ ...prev, [key]: checked }))}

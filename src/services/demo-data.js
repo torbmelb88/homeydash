@@ -164,6 +164,51 @@ export const buildDemoWorld = () => {
         E('button.robotklipper_start_edge_cutting', 'unknown', { friendly_name: 'Kantklipping' }),
         E('camera.robotklipper_map', 'idle', { friendly_name: 'Robotklipper kart', entity_picture: `${baseUrl}demo/mower-map.svg` }),
 
+        // ── 3D-printer (composite: demo-printer + AMS-barn demo-printer-ams, Bambu-lignende) ─
+        E('sensor.printer_print_status', 'running', { friendly_name: 'Utskriftsstatus', device_class: 'enum', options: ['failed', 'finish', 'idle', 'init', 'offline', 'pause', 'prepare', 'running', 'slicing', 'unknown'] }),
+        E('sensor.printer_current_stage', 'printing', { friendly_name: 'Nåværende steg', device_class: 'enum' }),
+        E('sensor.printer_print_progress', '74', { friendly_name: 'Fremdrift', unit_of_measurement: '%' }),
+        E('sensor.printer_remaining_time', '0.3', { friendly_name: 'Gjenstående tid', unit_of_measurement: 'h', device_class: 'duration' }),
+        E('sensor.printer_end_time', isoInMinutes(18), { friendly_name: 'Ferdig', device_class: 'timestamp' }),
+        E('sensor.printer_start_time', isoInMinutes(-52), { friendly_name: 'Starttid', device_class: 'timestamp' }),
+        E('sensor.printer_current_layer', '45', { friendly_name: 'Nåværende lag' }),
+        E('sensor.printer_total_layer_count', '71', { friendly_name: 'Antall lag' }),
+        E('sensor.printer_task_name', 'spiderman_ramme.stl', { friendly_name: 'Jobbnavn' }),
+        E('sensor.printer_gcode_filename', '/data/Metadata/plate_1.gcode', { friendly_name: 'G-kode-fil' }),
+        E('sensor.printer_nozzle_temperature', '220', { friendly_name: 'Dysetemperatur', unit_of_measurement: '°C' }),
+        E('sensor.printer_nozzle_target_temperature', '220', { friendly_name: 'Måltemperatur dyse', unit_of_measurement: '°C' }),
+        E('sensor.printer_bed_temperature', '55', { friendly_name: 'Platetemperatur', unit_of_measurement: '°C' }),
+        E('sensor.printer_bed_target_temperature', '55', { friendly_name: 'Måltemperatur plate', unit_of_measurement: '°C' }),
+        E('sensor.printer_chamber_temperature', '34', { friendly_name: 'Kammertemperatur', unit_of_measurement: '°C' }),
+        E('sensor.printer_cooling_fan_speed', '100', { friendly_name: 'Kjølevifte', unit_of_measurement: '%' }),
+        E('sensor.printer_aux_fan_speed', '80', { friendly_name: 'Hjelpevifte', unit_of_measurement: '%' }),
+        E('sensor.printer_chamber_fan_speed', '80', { friendly_name: 'Kammervifte', unit_of_measurement: '%' }),
+        E('sensor.printer_heatbreak_fan_speed', '100', { friendly_name: 'Heatbreak-vifte', unit_of_measurement: '%' }),
+        E('sensor.printer_speed_profile', 'standard', { friendly_name: 'Hastighetsprofil', modifier: 100, options: ['silent', 'standard', 'sport', 'ludicrous'] }),
+        E('sensor.printer_nozzle_size', '0.4', { friendly_name: 'Dysestørrelse', unit_of_measurement: 'mm' }),
+        E('sensor.printer_nozzle_type', 'hardened_steel', { friendly_name: 'Dysetype' }),
+        E('sensor.printer_total_usage', '37.5', { friendly_name: 'Total brukstid', unit_of_measurement: 'h' }),
+        E('sensor.printer_active_tray', 'Bambu PLA Basic', { friendly_name: 'Aktiv spole', type: 'PLA', color: '#C12E1FFF', remain: 62, remain_enabled: true, tray_index: 2 }),
+        E('sensor.printer_external_spool', '?', { friendly_name: 'Ekstern spole', empty: true }),
+        E('binary_sensor.printer_online', 'on', { friendly_name: 'Tilkoblet' }),
+        E('binary_sensor.printer_door', 'off', { friendly_name: 'Dør' }),
+        E('binary_sensor.printer_hms_errors', 'off', { friendly_name: 'HMS-feil', Count: 0 }),
+        E('binary_sensor.printer_print_error', 'off', { friendly_name: 'Utskriftsfeil' }),
+        E('binary_sensor.printer_extruder_filament', 'on', { friendly_name: 'Filament i ekstruder' }),
+        E('light.printer_chamber_light', 'on', { friendly_name: 'Kammerlys', supported_color_modes: ['onoff'] }),
+        E('switch.printer_camera', 'on', { friendly_name: 'Kamera' }),
+        // Ingen access_token i demo → ingen MJPEG-strøm, bare stillbildet
+        E('camera.printer_camera', 'streaming', { friendly_name: 'Kamera', entity_picture: `${baseUrl}demo/printer-cam.svg` }),
+        E('image.printer_cover_image', 'unavailable', { friendly_name: 'Forsidebilde' }),
+        // AMS (eget registry-device med via_device_id = printeren)
+        E('sensor.printer_ams_humidity', '43', { friendly_name: 'Fuktighet', unit_of_measurement: '%' }),
+        E('sensor.printer_ams_temperature', '30.1', { friendly_name: 'Temperatur', unit_of_measurement: '°C' }),
+        E('sensor.printer_ams_tray_1', 'Bambu PLA Basic', { friendly_name: 'Spole 1', slot: 1, active: false, empty: false, type: 'PLA', color: '#000000FF', remain: 100, remain_enabled: true }),
+        E('sensor.printer_ams_tray_2', 'Bambu PLA Basic', { friendly_name: 'Spole 2', slot: 2, active: true, empty: false, type: 'PLA', color: '#C12E1FFF', remain: 62, remain_enabled: true }),
+        E('sensor.printer_ams_tray_3', 'Bambu PETG HF', { friendly_name: 'Spole 3', slot: 3, active: false, empty: false, type: 'PETG', color: '#FFFFFFFF', remain: 35, remain_enabled: true }),
+        E('sensor.printer_ams_tray_4', 'Empty', { friendly_name: 'Spole 4', slot: 4, active: false, empty: true }),
+        E('binary_sensor.printer_ams_active', 'on', { friendly_name: 'Aktiv' }),
+
         // ── Renovasjon (standalone, virtuell composite via prefix) ───────
         E('sensor.demo_min_renovasjon_food', isoDate(2), { friendly_name: 'Matavfall', fraction_name: 'Matavfall', days_until: 2, next_collection: isoDate(2) }),
         E('sensor.demo_min_renovasjon_paper', isoDate(2), { friendly_name: 'Papir', fraction_name: 'Papir', days_until: 2, next_collection: isoDate(2) }),
@@ -189,6 +234,8 @@ export const buildDemoWorld = () => {
         { id: 'demo-charger', name: 'Elbillader' },
         { id: 'demo-car', name: 'Tesla', manufacturer: 'Tesla', model: 'Model Y' },
         { id: 'demo-mower', name: 'Robotklipper' },
+        { id: 'demo-printer', name: '3D-printer', manufacturer: 'Bambu Lab', model: 'P2S' },
+        { id: 'demo-printer-ams', name: '3D-printer AMS', manufacturer: 'Bambu Lab', model: 'AMS 2 Pro', via_device_id: 'demo-printer' },
     ];
 
     const entityToDevice = {};
@@ -199,6 +246,8 @@ export const buildDemoWorld = () => {
         else if (obj.startsWith('car_charger_')) entityToDevice[eid] = 'demo-charger';
         else if (obj.startsWith('tesla_')) entityToDevice[eid] = 'demo-car';
         else if (obj === 'robotklipper' || obj.startsWith('robotklipper_')) entityToDevice[eid] = 'demo-mower';
+        else if (obj.startsWith('printer_ams_')) entityToDevice[eid] = 'demo-printer-ams';
+        else if (obj.startsWith('printer_')) entityToDevice[eid] = 'demo-printer';
     });
 
     const AREA = {
@@ -212,7 +261,8 @@ export const buildDemoWorld = () => {
     const entityToArea = { ...AREA };
     Object.keys(entityToDevice).forEach((eid) => {
         const dev = entityToDevice[eid];
-        entityToArea[eid] = dev === 'demo-charger' || dev === 'demo-mower' || dev === 'demo-car' ? 'Ute' : 'Vaskerom';
+        entityToArea[eid] = dev === 'demo-charger' || dev === 'demo-mower' || dev === 'demo-car' ? 'Ute'
+            : dev === 'demo-printer' || dev === 'demo-printer-ams' ? 'Kontor' : 'Vaskerom';
     });
 
     return { entities, entityToDevice, deviceRegistry, entityToArea };
@@ -273,6 +323,7 @@ export const DEMO_TILES = [
     { id: 'dt-lader', pageId: 'demo-maskiner', type: 'ev-charger', size: '2x2', settings: { deviceId: 'composite:demo-charger' } },
     { id: 'dt-bil', pageId: 'demo-maskiner', type: 'vehicle', size: '1x1', deviceId: 'composite:demo-car', settings: {} },
     { id: 'dt-klipper', pageId: 'demo-maskiner', type: 'lawn-mower', size: '2x2', deviceId: 'composite:demo-mower', settings: {} },
+    { id: 'dt-printer', pageId: 'demo-maskiner', type: 'printer', size: '1x1', deviceId: 'composite:demo-printer', settings: {} },
     { id: 'dt-renovasjon', pageId: 'demo-maskiner', type: 'trash', size: '2x1', deviceId: 'composite:waste:demo_min_renovasjon' },
     { id: 'dt-post', pageId: 'demo-maskiner', type: 'postal', size: '1x1', deviceId: 'composite:postal:demo_posten' },
 ];

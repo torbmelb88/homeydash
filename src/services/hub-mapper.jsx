@@ -35,8 +35,15 @@ import {
     Trash2,
     Mail,
     Utensils,
-    UserRound
+    UserRound,
+    Printer
 } from 'lucide-react';
+
+// 3D-printer (Bambu Lab-integrasjonen): kjennetegnes av fremdrifts- og status-sensorene
+const isPrinterGroup = (entities) => {
+    const objs = entities.map(e => e.entity_id.split('.')[1] || '');
+    return objs.some(o => o.endsWith('_print_progress')) && objs.some(o => o.endsWith('_print_status'));
+};
 
 // Keywords identifying a "smart plug appliance" (dishwasher, dryer, ...) —
 // devices that are just a power-measuring plug in HA but deserve their own tile.
@@ -997,6 +1004,158 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
             return updatedDevice;
         }
 
+        // --- 3D-printer (Bambu Lab P2S + AMS 2 Pro, bambu_lab-integrasjonen) ---
+        // Suffiks-match på object_id (prefikset er brukerens navn på printeren). Tall lagres
+        // som null ved unknown/unavailable så flisen kan skjule dem. Spole-sensorene bærer
+        // farge/materiale/restmengde som attributter — lagres som ekstra felt på capObj.
+        if (device.settings.compositeType === 'printer_3d' ||
+            device.capabilities.includes('homey_3d_printer')) {
+            const numOrNull = (v) => {
+                if (v === 'unknown' || v === 'unavailable' || v == null || v === '') return null;
+                const n = parseFloat(v);
+                return isNaN(n) ? null : n;
+            };
+            const strOrNull = (v) => (v === 'unknown' || v === 'unavailable' || v == null) ? null : v;
+            const addCapExtra = (id, val, extra, type = 'string') => {
+                addCap(id, val, null, type);
+                Object.assign(updatedDevice.capabilitiesObj[id], extra);
+            };
+            // Bambu-farger er #RRGGBBAA — nettleseren vil ha #RRGGBB
+            const hexColor = (c) => (typeof c === 'string' && /^#[0-9a-f]{8}$/i.test(c)) ? c.slice(0, 7) : (c || null);
+            const trayInfo = () => ({
+                material: strOrNull(attr.type) || null,
+                color: hexColor(attr.color),
+                remain: (attr.remain_enabled === false) ? null : numOrNull(attr.remain),
+                empty: attr.empty === true || value === '?' || value === 'Empty',
+                active: attr.active === true,
+            });
+            let m;
+            if (domain === 'sensor') {
+                if (obj.endsWith('_print_status')) {
+                    addCap('print_status', strOrNull(value) || 'unknown', null, 'string');
+                } else if (obj.endsWith('_current_stage')) {
+                    addCap('print_stage', strOrNull(value) || 'unknown', null, 'string');
+                } else if (obj.endsWith('_print_progress')) {
+                    addCap('print_progress', numOrNull(value), '%');
+                } else if (obj.endsWith('_remaining_time')) {
+                    // HA gir timer som desimaltall (0.3 h) — flisen regner i minutter
+                    const n = numOrNull(value);
+                    const unit = attr.unit_of_measurement || 'h';
+                    addCap('print_remaining', n == null ? null : Math.round(unit === 'h' ? n * 60 : n), 'min');
+                } else if (obj.endsWith('_end_time')) {
+                    addCap('print_end_time', strOrNull(value), null, 'string');
+                } else if (obj.endsWith('_start_time')) {
+                    addCap('print_start_time', strOrNull(value), null, 'string');
+                } else if (obj.endsWith('_current_layer')) {
+                    addCap('print_layer', numOrNull(value), null);
+                } else if (obj.endsWith('_total_layer_count')) {
+                    addCap('print_layers', numOrNull(value), null);
+                } else if (obj.endsWith('_task_name')) {
+                    addCap('print_task', strOrNull(value), null, 'string');
+                } else if (obj.endsWith('_gcode_filename')) {
+                    addCap('print_file', strOrNull(value), null, 'string');
+                } else if (obj.endsWith('_print_type')) {
+                    addCap('print_type', strOrNull(value), null, 'string');
+                } else if (obj.endsWith('_nozzle_target_temperature')) {
+                    addCap('target_temperature.nozzle', numOrNull(value), '°C');
+                } else if (obj.endsWith('_nozzle_temperature')) {
+                    addCap('measure_temperature.nozzle', numOrNull(value), '°C');
+                } else if (obj.endsWith('_bed_target_temperature')) {
+                    addCap('target_temperature.bed', numOrNull(value), '°C');
+                } else if (obj.endsWith('_bed_temperature')) {
+                    addCap('measure_temperature.bed', numOrNull(value), '°C');
+                } else if (obj.endsWith('_chamber_temperature')) {
+                    addCap('measure_temperature.chamber', numOrNull(value), '°C');
+                } else if (obj.endsWith('_ams_temperature')) {
+                    addCap('ams_temperature', numOrNull(value), '°C');
+                } else if (obj.endsWith('_ams_humidity_index')) {
+                    addCap('ams_humidity_index', numOrNull(value), null);
+                } else if (obj.endsWith('_ams_humidity')) {
+                    addCap('ams_humidity', numOrNull(value), '%');
+                } else if (obj.endsWith('_secondary_aux_fan_speed')) {
+                    // NB: sjekkes FØR _aux_fan_speed (endsWith matcher begge)
+                    addCap('fan_speed.aux2', numOrNull(value), '%');
+                } else if (obj.endsWith('_aux_fan_speed')) {
+                    addCap('fan_speed.aux', numOrNull(value), '%');
+                } else if (obj.endsWith('_cooling_fan_speed')) {
+                    addCap('fan_speed.cooling', numOrNull(value), '%');
+                } else if (obj.endsWith('_chamber_fan_speed')) {
+                    addCap('fan_speed.chamber', numOrNull(value), '%');
+                } else if (obj.endsWith('_heatbreak_fan_speed')) {
+                    addCap('fan_speed.heatbreak', numOrNull(value), '%');
+                } else if (obj.endsWith('_speed_profile')) {
+                    addCap('print_speed_profile', strOrNull(value), null, 'string');
+                    if (attr.modifier != null) addCap('print_speed_modifier', numOrNull(attr.modifier), '%');
+                } else if (obj.endsWith('_active_tray')) {
+                    addCapExtra('filament_active', strOrNull(value), {
+                        ...trayInfo(),
+                        tray: numOrNull(attr.tray_index),
+                    });
+                } else if ((m = obj.match(/_ams_tray_(\d+)$/))) {
+                    addCapExtra(`filament_tray_${m[1]}`, strOrNull(value), { ...trayInfo(), slot: Number(m[1]) });
+                } else if (obj.endsWith('_external_spool')) {
+                    addCapExtra('filament_external', value === '?' ? null : strOrNull(value), trayInfo());
+                } else if (obj.endsWith('_nozzle_size')) {
+                    addCap('nozzle_size', numOrNull(value), 'mm');
+                } else if (obj.endsWith('_nozzle_type')) {
+                    addCap('nozzle_type', strOrNull(value), null, 'string');
+                } else if (obj.endsWith('_print_bed_type')) {
+                    addCap('print_bed_type', strOrNull(value), null, 'string');
+                } else if (obj.endsWith('_total_usage')) {
+                    addCap('print_total_usage', numOrNull(value), attr.unit_of_measurement || 'h');
+                } else if (obj.endsWith('_print_weight')) {
+                    addCap('print_weight', numOrNull(value), 'g');
+                } else if (obj.endsWith('_print_length')) {
+                    addCap('print_length', numOrNull(value), 'm');
+                } else if (obj.endsWith('_wifi_signal')) {
+                    addCap('wifi_signal', numOrNull(value), 'dBm');
+                }
+            } else if (domain === 'binary_sensor') {
+                const on = value === 'on';
+                if (obj.endsWith('_hms_errors')) {
+                    addCap('alarm_hms', on, null, 'boolean');
+                    addCap('hms_error_count', numOrNull(attr.Count ?? attr.count) ?? (on ? 1 : 0), null);
+                } else if (obj.endsWith('_print_error')) {
+                    addCap('alarm_print', on, null, 'boolean');
+                } else if (obj.endsWith('_door')) {
+                    addCap('door_open', on, null, 'boolean');
+                } else if (obj.endsWith('_online')) {
+                    addCap('online', on, null, 'boolean');
+                } else if (obj.endsWith('_extruder_filament')) {
+                    addCap('filament_loaded', on, null, 'boolean');
+                } else if (obj.endsWith('_firmware_update')) {
+                    addCap('firmware_update', on, null, 'boolean');
+                } else if (obj.endsWith('_timelapse')) {
+                    addCap('timelapse_on', on, null, 'boolean');
+                } else if (obj.endsWith('_ams_drying')) {
+                    addCap('ams_drying', on, null, 'boolean');
+                } else if (obj.endsWith('_external_spool_active')) {
+                    addCap('external_spool_active', on, null, 'boolean');
+                } else if (obj.endsWith('_ams_active')) {
+                    addCap('ams_active', on, null, 'boolean');
+                }
+            } else if (domain === 'light') {
+                if (obj.endsWith('_chamber_light')) {
+                    addCap('chamber_light', value === 'on', null, 'boolean');
+                    updatedDevice.capabilitiesObj.chamber_light.unavailable = value === 'unavailable';
+                }
+            } else if (domain === 'switch') {
+                if (obj.endsWith('_camera')) addCap('camera_enabled', value === 'on', null, 'boolean');
+            } else if (domain === 'camera') {
+                // Stillbilde via camera_proxy (entity_picture har token som roterer — ny verdi
+                // kommer inn via vanlig state_changed). HA sin HLS/MJPEG-proxy virker IKKE for
+                // Bambu-RTSPS-kilden (stream worker feiler), så ingen strøm-URL mappes her.
+                addCap('camera_state', strOrNull(value) || 'unavailable', null, 'string');
+                addCap('camera_snapshot_url', attr.entity_picture || null, null, 'string');
+            } else if (domain === 'image') {
+                if (obj.endsWith('_cover_image')) {
+                    // Modellbilde fra sliceren — unavailable når printeren står stille
+                    addCap('print_cover_url', (value === 'unavailable' || !attr.entity_picture) ? null : attr.entity_picture, null, 'string');
+                }
+            }
+            return updatedDevice;
+        }
+
         // --- Lawn mower-specific mapping ---
         if (device.settings.compositeType === 'lawn_mower' ||
             device.capabilities.includes('homey_lawn_mower')) {
@@ -1296,6 +1455,22 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
     standaloneEntities.length = 0;
     remainingStandalone.forEach(e => standaloneEntities.push(e));
 
+    // 1c. 3D-printer: AMS og ekstern spole er egne registry-enheter med via_device_id = printeren.
+    // Foldes inn i printerens gruppe så filamentdata havner i samme composite. Bevisst
+    // begrenset til printere — Zigbee-enheter har også via_device (koordinatoren), og en
+    // generell sammenslåing ville slått sammen hele Zigbee-nettet.
+    const childDeviceIds = {}; // printer-deviceId → [barn-deviceId, ...]
+    const printerGroupIds = Object.keys(deviceGroups).filter(id => isPrinterGroup(deviceGroups[id]));
+    if (printerGroupIds.length > 0) {
+        Object.keys(deviceGroups).forEach(childId => {
+            const parentId = deviceRegistry.find(d => d.id === childId)?.via_device_id;
+            if (!parentId || parentId === childId || !printerGroupIds.includes(parentId)) return;
+            deviceGroups[parentId].push(...deviceGroups[childId]);
+            delete deviceGroups[childId];
+            childDeviceIds[parentId] = [...(childDeviceIds[parentId] || []), childId];
+        });
+    }
+
     const resultDevices = [];
 
     // 2. Process each physical device group
@@ -1387,7 +1562,13 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
         // Må kjøres FØR den generiske klima-grenen: Teslaen har to climate-entiteter og ville
         // ellers blitt en 'climate'-composite (og dukket opp som varmepumpe på Klimasiden).
         // Generisk kjennetegn: posisjon (device_tracker) + batterisensor + lade-entitet.
-        const isVehicle = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isIrrigation && (
+        // --- 3D-printer (Bambu Lab) ---
+        // Må kjøres FØR den generiske grenen: primærdomenet er `light` (kammerlyset), så
+        // printeren ville ellers blitt en lampe kalt «3D-printer» i lyspanelet.
+        const isPrinter3d = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isIrrigation &&
+            isPrinterGroup(deviceEntities);
+
+        const isVehicle = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isIrrigation && !isPrinter3d && (
             (haDevice?.manufacturer || '').toLowerCase() === 'tesla' ||
             (deviceEntities.some(e => e.entity_id.startsWith('device_tracker.')) &&
              deviceEntities.some(e => e.entity_id.startsWith('sensor.') && e.attributes?.device_class === 'battery') &&
@@ -1416,13 +1597,13 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
         let composite = {
             id: compositeId,
             name: isPostal ? 'Post' : isAppliance ? (applianceKind === 'dishwasher' ? 'Oppvaskmaskin' : 'Tørketrommel') : deviceName,
-            class: isAppliance ? 'socket' : isWasher ? 'vacuum' : isEVCharger ? 'socket' : isPostal ? 'sensor' : isIrrigation ? 'irrigation' : isVehicle ? 'car' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : (DOMAIN_TO_CLASS[primaryDomain] ?? primaryDomain),
-            capabilities: isAppliance ? ['smart_plug_appliance'] : isWasher ? ['laundry'] : isWaterHeater ? ['homey_water_heater'] : isEVCharger ? ['homey_ev_charger'] : isPostal ? ['posten_sensor'] : isIrrigation ? ['homey_irrigation'] : isVehicle ? ['homey_vehicle'] : isVacuum ? ['homey_vacuum'] : isLawnMower ? ['homey_lawn_mower'] : [],
+            class: isPrinter3d ? 'printer' : isAppliance ? 'socket' : isWasher ? 'vacuum' : isEVCharger ? 'socket' : isPostal ? 'sensor' : isIrrigation ? 'irrigation' : isVehicle ? 'car' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : (DOMAIN_TO_CLASS[primaryDomain] ?? primaryDomain),
+            capabilities: isPrinter3d ? ['homey_3d_printer'] : isAppliance ? ['smart_plug_appliance'] : isWasher ? ['laundry'] : isWaterHeater ? ['homey_water_heater'] : isEVCharger ? ['homey_ev_charger'] : isPostal ? ['posten_sensor'] : isIrrigation ? ['homey_irrigation'] : isVehicle ? ['homey_vehicle'] : isVacuum ? ['homey_vacuum'] : isLawnMower ? ['homey_lawn_mower'] : [],
             capabilitiesObj: {},
             capabilitiesOptions: {},
             ui: { components: [] },
-            lucideIconName: isAppliance ? 'utensils' : isWasher ? 'washing-machine' : isEVCharger ? 'zap' : isPostal ? 'mail' : isIrrigation ? 'droplets' : isVehicle ? 'car' : isVacuum ? 'disc-2' : isLawnMower ? 'scissors' : primaryDomain,
-            LucideIcon: isAppliance ? Utensils : isWasher ? WashingMachine : isEVCharger ? Zap : isPostal ? Mail : isIrrigation ? Droplets : isVehicle ? Car : isVacuum ? Disc2 : isLawnMower ? Scissors : (iconMap[primaryDomain] ?? HelpCircle),
+            lucideIconName: isPrinter3d ? 'printer' : isAppliance ? 'utensils' : isWasher ? 'washing-machine' : isEVCharger ? 'zap' : isPostal ? 'mail' : isIrrigation ? 'droplets' : isVehicle ? 'car' : isVacuum ? 'disc-2' : isLawnMower ? 'scissors' : primaryDomain,
+            LucideIcon: isPrinter3d ? Printer : isAppliance ? Utensils : isWasher ? WashingMachine : isEVCharger ? Zap : isPostal ? Mail : isIrrigation ? Droplets : isVehicle ? Car : isVacuum ? Disc2 : isLawnMower ? Scissors : (iconMap[primaryDomain] ?? HelpCircle),
             zoneName: areaKey || '',
             hubType: 'hass',
             isHA: true,
@@ -1433,8 +1614,15 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             settings: {
                 isComposite: true,
                 haDeviceId: deviceId,
-                compositeType: isAppliance ? 'appliance' : isWasher ? 'washer' : isWaterHeater ? 'water_heater' : isEVCharger ? 'ev_charger' : isPostal ? 'postal' : isIrrigation ? 'irrigation' : isVehicle ? 'vehicle' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : primaryDomain,
+                compositeType: isPrinter3d ? 'printer_3d' : isAppliance ? 'appliance' : isWasher ? 'washer' : isWaterHeater ? 'water_heater' : isEVCharger ? 'ev_charger' : isPostal ? 'postal' : isIrrigation ? 'irrigation' : isVehicle ? 'vehicle' : isVacuum ? 'vacuum' : isLawnMower ? 'lawn_mower' : primaryDomain,
                 ...(isAppliance ? { applianceKind } : {}),
+                // 3D-printer: AMS/ekstern spole er innfoldede barn — HomeyContext ruter deres
+                // state_changed hit via haDeviceIds (haDeviceId alene matcher bare printeren)
+                ...(isPrinter3d ? {
+                    haDeviceIds: [deviceId, ...(childDeviceIds[deviceId] || [])],
+                    printerMake: haDevice?.manufacturer || '',
+                    printerModel: haDevice?.model || '',
+                } : {}),
                 // Produsent/modell fra device registry (vises i bil-kortet på billader-flisen)
                 ...(isVehicle ? { vehicleMake: haDevice?.manufacturer || '', vehicleModel: haDevice?.model || '' } : {}),
             }

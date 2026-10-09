@@ -138,8 +138,9 @@ export const HomeyProvider = ({ children }) => {
                                         anyChanged = true;
                                         return applyEntityUpdateToDevice(d, newState);
                                     }
-                                    // 2. Composite device update (match by haDeviceId)
-                                    if (deviceId && d.settings?.haDeviceId === deviceId) {
+                                    // 2. Composite device update (match by haDeviceId; haDeviceIds dekker
+                                    //    innfoldede barn-enheter, f.eks. 3D-printerens AMS)
+                                    if (deviceId && (d.settings?.haDeviceId === deviceId || d.settings?.haDeviceIds?.includes(deviceId))) {
                                         anyChanged = true;
                                         return applyEntityUpdateToDevice(d, newState);
                                     }
@@ -324,6 +325,9 @@ export const HomeyProvider = ({ children }) => {
             try {
                 if (capabilityId === 'onoff' || domain === 'switch') {
                     await hassAPI.callService(domain, value ? 'turn_on' : 'turn_off', targetEntityId);
+                } else if (domain === 'light' && typeof value === 'boolean') {
+                    // Av/på-lys med egen capability-id (f.eks. 3D-printerens chamber_light)
+                    await hassAPI.callService('light', value ? 'turn_on' : 'turn_off', targetEntityId);
                 } else if (capabilityId === 'button' || domain === 'button') {
                     await hassAPI.callService(domain, 'press', targetEntityId);
                 } else if (capabilityId === 'dim') {

@@ -47,6 +47,7 @@ import ApplianceTile from './TileContent/ApplianceTile';
 import PresenceTile from './TileContent/PresenceTile';
 import LightPanelTile from './TileContent/LightPanelTile';
 import OutdoorTempTile from './TileContent/OutdoorTempTile';
+import PrinterTile from './TileContent/PrinterTile';
 
 // ... (keep unused imports if needed, but standardizing)
 
@@ -91,6 +92,8 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
         type = 'ev-charger';
     } else if (device && (device.capabilities.includes('homey_vehicle') || device.settings?.compositeType === 'vehicle')) {
         type = 'vehicle';
+    } else if (device && (device.capabilities.includes('homey_3d_printer') || device.settings?.compositeType === 'printer_3d')) {
+        type = 'printer';
     } else if (device && device.capabilities.includes('homey_vacuum')) {
         type = 'vacuum';
     } else if (device && device.capabilities.includes('homey_lawn_mower')) {
@@ -220,7 +223,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
             return;
         }
 
-        if (type === 'thermostat' || type === 'light' || type === 'switch' || type === 'multi-light' || type === 'cleaning' || type === 'fan' || type === 'trash' || type === 'postal' || type === 'ev-charger' || type === 'hierarchy' || type === 'water-heater' || type === 'weather' || type === 'keypad' || type === 'vacuum' || type === 'lawn-mower' || type === 'irrigation' || type === 'appliance' || type === 'intercom' || type === 'light-panel' || type === 'outdoor-temp' || type === 'vehicle') {
+        if (type === 'thermostat' || type === 'light' || type === 'switch' || type === 'multi-light' || type === 'cleaning' || type === 'fan' || type === 'trash' || type === 'postal' || type === 'ev-charger' || type === 'hierarchy' || type === 'water-heater' || type === 'weather' || type === 'keypad' || type === 'vacuum' || type === 'lawn-mower' || type === 'irrigation' || type === 'appliance' || type === 'intercom' || type === 'light-panel' || type === 'outdoor-temp' || type === 'vehicle' || type === 'printer') {
             setIsExpanded(true);
         }
     };
@@ -278,6 +281,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
             case 'presence': return <PresenceTile {...props} />;
             case 'light-panel': return <LightPanelTile {...props} onContentUpdate={updateSize} />;
             case 'outdoor-temp': return <OutdoorTempTile {...props} />;
+            case 'printer': return <PrinterTile {...props} />;
             default: return <div className="tile-content">Unknown type</div>;
         }
     };
@@ -386,6 +390,8 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
                             borderRadius: '1.5rem',
                         } : (type === 'thermostat' || type === 'ev-charger' || type === 'vehicle' || type === 'vacuum' || type === 'water-heater' || type === 'outdoor-temp') ? {
                             minWidth: 'min(760px, 95vw)',
+                        } : type === 'printer' ? {
+                            minWidth: 'min(860px, 95vw)',
                         } : type === 'light-panel' ? {
                             minWidth: 'min(900px, 95vw)',
                         } : {}}
