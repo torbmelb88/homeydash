@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { hassAPI } from '../../services/hass-api';
-import { AlertTriangle, TrendingUp, Activity, Zap, ChevronRight, ArrowLeft, LayoutList, Sliders, Plus, Minus } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Activity, Zap, ChevronRight, ArrowLeft, LayoutList, Sliders, Plus, Minus, Moon } from 'lucide-react';
 
 const MONTH_NAMES = ['Januar','Februar','Mars','April','Mai','Juni','Juli','August','September','Oktober','November','Desember'];
 
@@ -11,6 +11,8 @@ const BAR_COLORS = [
 ];
 
 const PERIODS = [
+    { id: 'today',      label: 'I dag' },
+    { id: 'yesterday',  label: 'I går' },
     { id: 'monthly',    label: 'Denne mnd' },
     { id: 'ytd',        label: 'Hittil i år' },
     { id: 'prev_month', label: 'Forrige mnd' },
@@ -22,7 +24,27 @@ const HOUSE = {
     ytd:        { total: 'sensor.global_energy_cost_total_cost_ytd',        power: 'sensor.global_energy_cost_electricity_ytd',        grid: 'sensor.global_energy_cost_energy_tariff_ytd',        capacity: 'sensor.global_energy_cost_capacity_tariff_ytd',        energy: 'sensor.global_energy_cost_consumption_ytd' },
     prev_month: { total: 'sensor.global_energy_cost_total_cost_prev_month', power: 'sensor.global_energy_cost_electricity_prev_month', grid: 'sensor.global_energy_cost_energy_tariff_prev_month', capacity: 'sensor.global_energy_cost_capacity_tariff_prev_month', energy: 'sensor.global_energy_cost_consumption_prev_month' },
     prev_year:  { total: 'sensor.global_energy_cost_total_cost_prev_year',  power: 'sensor.global_energy_cost_electricity_prev_year',  grid: 'sensor.global_energy_cost_energy_tariff_prev_year',  capacity: 'sensor.global_energy_cost_capacity_tariff_prev_year', energy: 'sensor.global_energy_cost_consumption_prev_year' },
+    // Kapasitetsleddet per dag er et estimat fra integrasjonen (attributt kapasitetsledd_estimat)
+    today:      { total: 'sensor.global_energy_cost_total_cost_today',      power: 'sensor.global_energy_cost_electricity_today',      grid: 'sensor.global_energy_cost_energy_tariff_today',      capacity: 'sensor.global_energy_cost_capacity_tariff_today',     energy: 'sensor.global_energy_cost_consumption_today' },
+    yesterday:  { total: 'sensor.global_energy_cost_total_cost_yesterday',  power: 'sensor.global_energy_cost_electricity_yesterday',  grid: 'sensor.global_energy_cost_energy_tariff_yesterday',  capacity: 'sensor.global_energy_cost_capacity_tariff_yesterday', energy: 'sensor.global_energy_cost_consumption_yesterday' },
 };
+
+// Nattsats-sensorene har samme suffiks for alle perioder (today/yesterday/monthly/prev_month/ytd/prev_year)
+const HOUSE_NIGHT = (period) => ({
+    share:    `sensor.global_energy_cost_night_share_${period}`,
+    savings:  `sensor.global_energy_cost_night_savings_${period}`,
+    nightKwh: `sensor.global_energy_cost_consumption_night_rate_${period}`,
+    dayKwh:   `sensor.global_energy_cost_consumption_day_rate_${period}`,
+});
+const DEVICE_NIGHT = (prefix, period) => ({
+    share:    `sensor.${prefix}_night_share_${period}`,
+    savings:  `sensor.${prefix}_night_savings_${period}`,
+    nightKwh: `sensor.${prefix}_energy_night_rate_${period}`,
+});
+
+const NIGHT_COLOR = '#6366f1';
+const DAY_COLOR   = '#f59e0b';
+const MONTH_SHORT = ['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
 
 // ── Strømstyring (load manager) ───────────────────────────────────────────────
 const LM_STATE_PREFIX    = 'sensor.global_load_manager_';
@@ -70,7 +92,38 @@ const getStr = (eid) => {
     return e.state;
 };
 
+const getAttrs = (eid) => hassAPI.entities?.[eid]?.attributes || {};
+
 const fmt    = (val, dec = 2) => (val === null || val === undefined) ? '–' : val.toFixed(dec);
+const fmtPct = (val) => (val === null || val === undefined) ? '–' : `${Math.round(val)} %`;
+const fmtKwh = (val) => (val === null || val === undefined) ? '–' : `${val >= 100 ? Math.round(val) : val.toFixed(1)} kWh`;
+
+// Kapasitetsledd per dag er et estimat (integrasjonen flagger det med estimat/kapasitetsledd_estimat).
+// Månedens tall er også flagget (trinnet er ikke endelig før måneden er over), men vises som før –
+// «≈» brukes bare i dagsperiodene, der fordelingen per dag er et rent anslag.
+const DAY_PERIODS = new Set(['today', 'yesterday']);
+const isEstimate = (eid, period) => {
+    if (!DAY_PERIODS.has(period)) return false;
+    const a = getAttrs(eid);
+    return a.estimat === true || a.kapasitetsledd_estimat === true;
+};
+const fmtKr = (val, eid, period) => val === null ? '–' : `${isEstimate(eid, period) ? '≈ ' : ''}${fmt(val)} kr`;
+
+// Nattsats-sensorene dekker bare fra en viss måned (attributt dekker_fra: «2026-09»).
+// Returnerer «fra sep.» når dekningen starter etter periodens start, ellers ''.
+const coverageNote = (eid, period) => {
+    const from = getAttrs(eid).dekker_fra;
+    if (!from || !/^\d{4}-\d{2}$/.test(from)) return '';
+    const now = new Date();
+    let start;
+    if (period === 'ytd')             start = `${now.getFullYear()}-01`;
+    else if (period === 'prev_year')  start = `${now.getFullYear() - 1}-01`;
+    else if (period === 'prev_month') { const d = new Date(now.getFullYear(), now.getMonth() - 1, 1); start = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
+    else                              start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (from <= start) return '';
+    const [y, m] = from.split('-').map(Number);
+    return y === now.getFullYear() ? `fra ${MONTH_SHORT[m - 1]}.` : `fra ${MONTH_SHORT[m - 1]}. ${y}`;
+};
 const tog    = (cfg, key, def = true) => cfg?.[key] !== undefined ? cfg[key] : def;
 
 function resolveDeviceEntities(dev, period) {
@@ -96,7 +149,7 @@ function resolveDeviceEntities(dev, period) {
 // ── Delkomponenter ────────────────────────────────────────────────────────────
 function PeriodSelector({ period, onChange }) {
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
             {PERIODS.map(p => (
                 <button key={p.id} onClick={() => onChange(p.id)} style={{
                     padding: '5px 2px',
@@ -124,6 +177,18 @@ function StatCard({ label, value, sub, accent, alert }) {
             <div style={{ fontSize: '0.88rem', fontWeight: 700, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
             {/* sub = '' beholder linjen (tom) så kortene ikke skifter høyde når teksten mangler */}
             {sub !== undefined && <div style={{ fontSize: '0.62rem', opacity: 0.5, marginTop: 2, lineHeight: 1.3, minHeight: '1.3em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub || ' '}</div>}
+        </div>
+    );
+}
+
+// Tynn todelt linje: andel på nattsats (blå) mot dagsats (gul)
+function NightSplitBar({ share, height = 5 }) {
+    if (share === null || share === undefined) return null;
+    const pct = Math.max(0, Math.min(100, share));
+    return (
+        <div style={{ height, background: 'rgba(255,255,255,0.07)', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
+            <div style={{ width: `${pct}%`, background: NIGHT_COLOR, transition: 'width 0.6s ease' }} />
+            <div style={{ width: `${100 - pct}%`, background: DAY_COLOR, opacity: 0.8, transition: 'width 0.6s ease' }} />
         </div>
     );
 }
@@ -243,6 +308,11 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
     const showLoadMgr       = tog(cfg, 'showLoadMgr', true);
 
     const showPriceCard    = tog(cfg, 'showPriceCard');
+    const showTodayCard    = tog(cfg, 'showTodayCard');
+    const showNightRow     = tog(cfg, 'showNightRow');
+    const showNightInBars  = tog(cfg, 'showNightInBars');
+    const showColNightShare   = tog(cfg, 'showColNightShare');
+    const showColNightSavings = tog(cfg, 'showColNightSavings');
     const showCapacityCard = tog(cfg, 'showCapacityCard');
     const showPeakCard     = tog(cfg, 'showPeakCard');
     const showTrackedCard  = tog(cfg, 'showTrackedCard');
@@ -276,16 +346,23 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
 
     const deviceData = devices.map((dev, i) => {
         const eids     = resolveDeviceEntities(dev, period);
+        const night    = DEVICE_NIGHT(dev.prefix, period);
+        const nightNow = DEVICE_NIGHT(dev.prefix, 'monthly'); // søylene i hovedvisningen er alltid «denne måneden»
         const powerEid = devicePowerEntities[dev.prefix];
         return {
             ...dev,
-            color:     BAR_COLORS[i % BAR_COLORS.length],
-            energy:    getVal(eids.energy),
-            power:     getVal(eids.power),
-            grid:      getVal(eids.grid),
-            capacity:  getVal(eids.capacity),
-            total:     getVal(eids.total),
-            livePower: powerEid ? getVal(powerEid) : undefined,
+            color:        BAR_COLORS[i % BAR_COLORS.length],
+            energy:       getVal(eids.energy),
+            power:        getVal(eids.power),
+            grid:         getVal(eids.grid),
+            capacity:     getVal(eids.capacity),
+            capacityEid:  eids.capacity,
+            total:        getVal(eids.total),
+            nightShare:   getVal(night.share),
+            nightSavings: getVal(night.savings),
+            nightKwh:     getVal(night.nightKwh),
+            nightShareMonthly: getVal(nightNow.share),
+            livePower:    powerEid ? getVal(powerEid) : undefined,
         };
     }).sort((a, b) => (b.total ?? -Infinity) - (a.total ?? -Infinity));
 
@@ -302,6 +379,22 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
     const housePower   = getVal(houseEids.power);
     const houseGrid    = getVal(houseEids.grid);
     const houseCapacity= getVal(houseEids.capacity);
+    const houseNightEids    = HOUSE_NIGHT(period);
+    const houseNightShare   = getVal(houseNightEids.share);
+    const houseNightSavings = getVal(houseNightEids.savings);
+    const houseNightKwh     = getVal(houseNightEids.nightKwh);
+    const houseDayKwh       = getVal(houseNightEids.dayKwh);
+    const houseNightNote    = coverageNote(houseNightEids.share, period);
+
+    // Hovedvisningen: i dag / i går og nattandel denne måneden
+    const todayTotal     = getVal(HOUSE.today.total);
+    const todayEnergy    = getVal(HOUSE.today.energy);
+    const yesterdayTotal = getVal(HOUSE.yesterday.total);
+    const monthNight     = HOUSE_NIGHT('monthly');
+    const monthNightShare   = getVal(monthNight.share);
+    const monthNightSavings = getVal(monthNight.savings);
+    const monthNightKwh     = getVal(monthNight.nightKwh);
+    const monthDayKwh       = getVal(monthNight.dayKwh);
 
     // Hent live modus for badge i navigasjonsknapper (felles for alle visninger)
     const lmModeLive  = getStr(LM_MODE_EID);
@@ -482,8 +575,13 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
                                 {showColEnergy   && <DetailPair label="Forbruk"    value={dev.energy   !== null ? `${fmt(dev.energy, 2)} kWh` : '–'} />}
                                 {showColPower    && <DetailPair label="Strøm"      value={dev.power    !== null ? `${fmt(dev.power)} kr` : '–'} />}
                                 {showColGrid     && <DetailPair label="Energiledd" value={dev.grid     !== null ? `${fmt(dev.grid)} kr` : '–'} />}
-                                {showColCapacity && <DetailPair label="Kapasitet"  value={dev.capacity !== null ? `${fmt(dev.capacity)} kr` : '–'} />}
+                                {showColCapacity && <DetailPair label="Kapasitet"  value={fmtKr(dev.capacity, dev.capacityEid, period)} />}
+                                {showColNightShare   && <DetailPair label="Nattandel"  value={fmtPct(dev.nightShare)} />}
+                                {showColNightSavings && <DetailPair label="Spart natt" value={dev.nightSavings !== null ? `${fmt(dev.nightSavings)} kr` : '–'} />}
                             </div>
+                            {showColNightShare && dev.nightShare !== null && (
+                                <div style={{ marginTop: 6 }}><NightSplitBar share={dev.nightShare} /></div>
+                            )}
                         </div>
                     ))}
 
@@ -512,11 +610,18 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
                                 {showColEnergy   && <DetailPair label="Forbruk"    value={houseEnergy   !== null ? `${fmt(houseEnergy, 2)} kWh` : '–'} color="#f59e0b" />}
                                 {showColPower    && <DetailPair label="Strøm"      value={housePower    !== null ? `${fmt(housePower)} kr` : '–'} color="#f59e0b" />}
                                 {showColGrid     && <DetailPair label="Energiledd" value={houseGrid     !== null ? `${fmt(houseGrid)} kr` : '–'} color="#f59e0b" />}
-                                {showColCapacity && <DetailPair label="Kapasitet"  value={houseCapacity !== null ? `${fmt(houseCapacity)} kr` : '–'} color="#f59e0b" />}
+                                {showColCapacity && <DetailPair label="Kapasitet"  value={fmtKr(houseCapacity, houseEids.capacity, period)} color="#f59e0b" />}
+                                {showColNightShare   && <DetailPair label="Nattandel"  value={houseNightShare !== null ? `${fmtPct(houseNightShare)}${houseNightNote ? ` (${houseNightNote})` : ''}` : '–'} color="#f59e0b" />}
+                                {showColNightSavings && <DetailPair label="Spart natt" value={houseNightSavings !== null ? `${fmt(houseNightSavings)} kr` : '–'} color="#f59e0b" />}
                             </div>
-                            {sumTotal > 0 && (
-                                <div style={{ fontSize: '0.65rem', opacity: 0.45, marginTop: 6 }}>
-                                    {((sumTotal / houseTotal) * 100).toFixed(0)}% av totalen sporet
+                            {showColNightShare && houseNightShare !== null && (
+                                <div style={{ marginTop: 6 }}><NightSplitBar share={houseNightShare} /></div>
+                            )}
+                            {(sumTotal > 0 || (showColNightShare && houseNightKwh !== null) || (showColCapacity && isEstimate(houseEids.capacity, period))) && (
+                                <div style={{ fontSize: '0.65rem', opacity: 0.45, marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: '2px 10px' }}>
+                                    {showColNightShare && houseNightKwh !== null && <span>{fmtKwh(houseNightKwh)} natt · {fmtKwh(houseDayKwh)} dag</span>}
+                                    {sumTotal > 0 && houseTotal > 0 && <span>{((sumTotal / houseTotal) * 100).toFixed(0)} % av totalen sporet</span>}
+                                    {showColCapacity && isEstimate(houseEids.capacity, period) && <span>≈ kapasitetsledd er estimert per dag</span>}
                                 </div>
                             )}
                         </div>
@@ -539,7 +644,11 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
     }
 
     // ── Hovedvisning ──────────────────────────────────────────────────────────
-    const visibleCardCount = [showPriceCard, showCapacityCard, showPeakCard, showTrackedCard].filter(Boolean).length;
+    const visibleCardCount = [showPriceCard, showTodayCard, showCapacityCard, showPeakCard, showTrackedCard].filter(Boolean).length;
+    const todaySub = [
+        todayEnergy !== null ? fmtKwh(todayEnergy) : null,
+        yesterdayTotal !== null ? `i går ${fmt(yesterdayTotal)} kr` : null,
+    ].filter(Boolean).join(' · ');
 
     return (
         <div ref={rootRef} style={s.root}>
@@ -556,9 +665,25 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
             {visibleCardCount > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
                     {showPriceCard    && <StatCard label="Effektiv pris"   value={effectivePrice !== null ? `${effectivePrice.toFixed(3)} kr/kWh` : '–'} sub={tariffLabel} accent="#f59e0b" />}
+                    {showTodayCard    && <StatCard label="I dag"           value={todayTotal !== null ? `${fmt(todayTotal)} kr` : '–'} sub={todaySub} accent="#22c55e" />}
                     {showCapacityCard && <StatCard label={`Trinn ${capacityAttrs.trinn ?? '?'}`} value={capacityCostVal !== null ? `${capacityCostVal} kr/mnd` : '–'} sub={capacityAttrs.intervall || ''} accent={capacityAlert ? '#ef4444' : '#22c55e'} alert={capacityAlert} />}
                     {showPeakCard     && <StatCard label="Snitt topp"      value={peakAvg !== null ? `${peakAvg.toFixed(2)} kW` : '–'} sub={marginNextTier !== null ? `Margin: ${marginNextTier.toFixed(2)} kW` : ''} accent={capacityAlert ? '#f97316' : '#3b82f6'} />}
                     {showTrackedCard  && <StatCard label="Totalkostnad"    value={houseTotal !== null ? `${fmt(houseTotal)} kr` : `${fmt(sumTotal)} kr`} sub={devices.length > 0 && sumTotal > 0 ? `Sporet: ${fmt(sumTotal)} kr` : ''} accent="#8b5cf6" />}
+                </div>
+            )}
+
+            {/* Nattandel denne måneden */}
+            {showNightRow && monthNightShare !== null && (
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, fontSize: '0.68rem' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, opacity: 0.8 }}><Moon size={11} style={{ color: NIGHT_COLOR }} />Nattandel denne måneden</span>
+                        <span style={{ fontWeight: 700, fontSize: '0.8rem' }}>{fmtPct(monthNightShare)}</span>
+                    </div>
+                    <NightSplitBar share={monthNightShare} height={9} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '0.62rem', opacity: 0.5, whiteSpace: 'nowrap' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{monthNightKwh !== null ? `${fmtKwh(monthNightKwh)} natt · ${fmtKwh(monthDayKwh)} dag` : ''}</span>
+                        {monthNightSavings !== null && <span style={{ flexShrink: 0 }}>Spart {fmt(monthNightSavings)} kr</span>}
+                    </div>
                 </div>
             )}
 
@@ -602,7 +727,17 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
                                     <span style={{ fontSize: '0.78rem', fontWeight: 600, flexShrink: 0, marginLeft: 4 }}>{fmt(dev.total)} kr</span>
                                 </div>
                                 <div style={{ height: 9, background: 'rgba(255,255,255,0.07)', borderRadius: 3, overflow: 'hidden' }}>
-                                    <div style={{ height: '100%', width: `${((dev.total ?? 0) / maxCost) * 100}%`, background: dev.color, borderRadius: 3, opacity: 0.85, transition: 'width 0.6s ease' }} />
+                                    {/* Søylen er kostnad; den mørke delen er andelen av kWh på nattsats, den lyse dagsats */}
+                                    <div style={{ height: '100%', width: `${((dev.total ?? 0) / maxCost) * 100}%`, borderRadius: 3, overflow: 'hidden', display: 'flex', transition: 'width 0.6s ease' }}>
+                                        {showNightInBars && dev.nightShareMonthly !== null ? (
+                                            <>
+                                                <div style={{ width: `${dev.nightShareMonthly}%`, background: dev.color, opacity: 0.95 }} />
+                                                <div style={{ width: `${100 - dev.nightShareMonthly}%`, background: dev.color, opacity: 0.4 }} />
+                                            </>
+                                        ) : (
+                                            <div style={{ width: '100%', background: dev.color, opacity: 0.85 }} />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )) : (
