@@ -8,10 +8,13 @@ import './styles/tiles/flow-tile.css'
 import App from './App.jsx'
 import { HomeyProvider } from './context/HomeyContext'
 import { bootstrapDemo } from './services/demo-mode'
+import { loadProductImages } from './services/product-images'
 
 // Demo-modus (?demo=1): seeder demo-dashboard og patcher hassAPI FØR appen
 // rendres, slik at HomeyContext ser en «ferdig tilkoblet» hub.
 bootstrapDemo()
+// Produktbilde-manifestet (public/products/manifest.json) – mangler det, brukes Lucide-ikoner.
+loadProductImages()
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }

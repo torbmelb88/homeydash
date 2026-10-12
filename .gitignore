@@ -33,3 +33,8 @@ firestore.rules
 *.njsproj
 *.sln
 *.sw?
+
+# Produktbilder (produsentenes bilder – ikke i det offentlige repoet)
+public/products/*
+!public/products/sources.json
+!public/products/README.md

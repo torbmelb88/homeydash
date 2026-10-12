@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useHomey } from '../../context/HomeyContext';
 import { Droplets, Droplet, Battery, AlertTriangle, CloudRain, Lock, Timer, Play, Square, Clock } from 'lucide-react';
+import DeviceImage from '../DeviceImage';
 
 // Vanningsautomat (SONOFF SWV-ZF2 via Zigbee2MQTT) – to uavhengige ventiler/soner.
 // Bryter PÅ = ventilen åpner og kjører «standardvarighet» (manual_default_settings,
@@ -239,11 +240,13 @@ const IrrigationTile = ({ tile, device, expanded = false }) => {
                 flex: expanded ? '0 0 auto' : 1,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
             }}>
-                <Droplets
-                    size={expanded ? 36 : 28}
-                    color={iconColor}
-                    style={{ filter: anyOn ? `drop-shadow(0 0 6px ${onColor})` : 'none', transition: 'all 0.3s' }}
-                />
+                <DeviceImage device={device} tileSettings={tile.settings} slot={expanded ? 'best' : 'hero'} size={expanded ? 72 : 44} fallback={
+                    <Droplets
+                        size={expanded ? 36 : 28}
+                        color={iconColor}
+                        style={{ filter: anyOn ? `drop-shadow(0 0 6px ${onColor})` : 'none', transition: 'all 0.3s' }}
+                    />
+                } />
                 {!expanded && (
                     <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
                         {channels.map(compactButton)}

@@ -6,6 +6,7 @@ import { getDeviceType } from '../services/utils';
 import { hassAPI } from '../services/hass-api';
 import { DEFAULT_OUTDOOR_TEMP_SETTINGS, detectOutdoorTempSensors } from '../services/outdoor-temp';
 import DiffuserIcon from './icons/DiffuserIcon';
+import DeviceImage from './DeviceImage';
 import { X, Search, Zap, Thermometer, ToggleLeft, Activity, Trash2, Mail, Blinds, Clock, CloudSun, Video, Globe, Square, Layers, Lock, WashingMachine, Droplets, Disc2, Scissors, BarChart2, Phone, Utensils, UserRound, Lightbulb, ThermometerSun, Car, Printer } from 'lucide-react';
 
 const AddTileModal = ({ onClose, onAdd }) => {
@@ -277,13 +278,15 @@ const AddTileModal = ({ onClose, onAdd }) => {
                             style={{ padding: '8px 12px' }}
                         >
                             <div className="device-icon" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {device.LucideIcon ? (
-                                    <device.LucideIcon size={20} strokeWidth={1.5} />
-                                ) : device.iconObj ? (
-                                    <img src={api.getIconUrl(device)} alt="" className="device-icon-img" />
-                                ) : (
-                                    getTypeIcon(getDeviceType(device))
-                                )}
+                                <DeviceImage device={device} size={32} fallback={
+                                    device.LucideIcon ? (
+                                        <device.LucideIcon size={20} strokeWidth={1.5} />
+                                    ) : device.iconObj ? (
+                                        <img src={api.getIconUrl(device)} alt="" className="device-icon-img" />
+                                    ) : (
+                                        getTypeIcon(getDeviceType(device))
+                                    )
+                                } />
                             </div>
                             <div className="device-info">
                                 <div className="device-name" style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>

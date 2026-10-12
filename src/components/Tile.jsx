@@ -6,6 +6,8 @@ import { WIDGET_TYPES } from '../constants';
 import { useHomey } from '../context/HomeyContext';
 import { resolveTileDevice } from '../services/utils';
 import BatteryIcon from './BatteryIcon';
+import DeviceImage from './DeviceImage';
+import { findProductImage, useProductImages } from '../services/product-images';
 import LightTile from './TileContent/LightTile';
 import ThermostatTile from './TileContent/ThermostatTile';
 import UniversalTile from './TileContent/UniversalTile';
@@ -54,6 +56,7 @@ import PrinterTile from './TileContent/PrinterTile';
 
 const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 0, ...props }) => {
     const { api, devices, isEditMode, settings, setCurrentPage } = useHomey();
+    const productManifest = useProductImages(); // før tidlig return (hook-rekkefølge)
     const [isExpanded, setIsExpanded] = useState(false);
     const contentRef = React.useRef(null);
     const [rowSpan, setRowSpan] = React.useState(null);
@@ -214,6 +217,16 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
 
     const sizeClass = `size-${tile.size || '1x1'}`;
     const iconUrl = (isMultiLight || isMultiThermostat || isMultiSensor || isWidget || isHierarchy) ? null : api.getIconUrl(device);
+    // Produktbilde i flishodet (DeviceImage); klassen gir 40 px rute i stedet for 32 px
+    const cornerImage = findProductImage(device, tile.settings, settings, productManifest);
+    // Fliser som viser «beste» bilde stort i midten (PostalTile: Posten-logoen) skal ikke ha det
+    // samme bildet i hjørnet i tillegg
+    const MIDDLE_BEST_TYPES = ['postal'];
+    const middleImage = MIDDLE_BEST_TYPES.includes(type) ? findProductImage(device, tile.settings, settings, productManifest, 'best') : null;
+    const hasProductImage = !!cornerImage && !(middleImage && middleImage.id === cornerImage.id);
+    // Flistyper som selv viser produktbildet i utvidet visning (hero-ikon byttet ut i flisen)
+    const EXPANDED_SELF_IMAGE = ['irrigation', 'ev-charger', 'vehicle', 'appliance', 'fan', 'light', 'hierarchy', 'weather', 'light-panel', 'outdoor-temp', 'keypad', 'diffuser'];
+    const showExpandedChip = hasProductImage && !isWidget && !EXPANDED_SELF_IMAGE.includes(type);
 
     const handleTileClick = (e) => {
         if (isEditMode) return;
@@ -311,15 +324,17 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
                     {(!isMultiLight && !isMultiThermostat && !isMultiSensor && !isWidget && !tile.settings?.isHorizontal) && (
                         <>
                             <div className="tile-header">
-                                <div className="tile-icon">
-                                    {tile.settings?.customIcon ? (() => {
-                                        const Icon = LucideIcons[tile.settings.customIcon];
-                                        return Icon ? <Icon size={32} strokeWidth={1.5} /> : null;
-                                    })() : device?.LucideIcon ? (
-                                        <device.LucideIcon size={32} strokeWidth={1.5} />
-                                    ) : (
-                                        <img src={iconUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                                    )}
+                                <div className={`tile-icon${hasProductImage ? ' has-product' : ''}`}>
+                                    <DeviceImage device={device} tileSettings={hasProductImage ? tile.settings : { productImage: 'none' }} size={40} fallback={
+                                        tile.settings?.customIcon ? (() => {
+                                            const Icon = LucideIcons[tile.settings.customIcon];
+                                            return Icon ? <Icon size={32} strokeWidth={1.5} /> : null;
+                                        })() : device?.LucideIcon ? (
+                                            <device.LucideIcon size={32} strokeWidth={1.5} />
+                                        ) : (
+                                            <img src={iconUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                        )
+                                    } />
                                 </div>
                                 {device?.capabilitiesObj?.measure_battery && (
                                     <div className="battery-indicator" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>
@@ -372,7 +387,7 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
             {isExpanded && createPortal(
                 <div className="tile-expanded-overlay" onClick={handleCloseExpanded}>
                     <div
-                        className={`tile-expanded-content ${type === 'hierarchy' ? 'tile-expanded-full no-scrollbar' : ''}`}
+                        className={`tile-expanded-content ${type === 'hierarchy' ? 'tile-expanded-full no-scrollbar' : ''}${showExpandedChip ? ' has-product' : ''}`}
                         onClick={e => e.stopPropagation()}
                         style={type === 'weather' ? {
                             padding: 0,
@@ -400,6 +415,11 @@ const Tile = ({ tile, onEdit, onDelete, onResize, isVisible = true, extraRows = 
                             minWidth: 'min(900px, 95vw)',
                         } : {}}
                     >
+                        {showExpandedChip && (
+                            <div className="tile-expanded-product">
+                                <DeviceImage device={device} tileSettings={tile.settings} size={48} />
+                            </div>
+                        )}
                         <button
                             className="tile-expanded-close"
                             onClick={handleCloseExpanded}

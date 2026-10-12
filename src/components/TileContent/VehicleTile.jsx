@@ -5,12 +5,13 @@ import useIsMobile from '../../hooks/useIsMobile';
 import TempStepper from '../TempStepper';
 import { formatTemp } from '../../services/climate';
 import { vehicleSummary, locationText } from '../../services/vehicle';
+import DeviceImage from '../DeviceImage';
 
 // Bilflis: kupéklima i fokus (temperatur, setevarme, rattvarme, avising) + status.
 // Lading ligger på billader-flisen (EVChargerTile) – her vises bare batteri/rekkevidde.
 
 const SEND_DELAY_MS = 800;      // samler raske −/+-trykk (Tesla-API-et er tregt)
-const EXPIRE_MS = 15000;        // ubekreftet optimistisk verdi faller tilbake
+const EXPIRE_MS = 60000;        // optimistisk verdi holdes (bilens data kan melde gammel verdi en stund etter at HA bekreftet – se useVehicleControl)
 
 const LEVEL_LABEL = { off: 'Av', low: 'Lav', medium: 'Middels', high: 'Høy' };
 const PRESET_LABEL = { off: 'Av', keep: 'Behold', dog: 'Hund', camp: 'Camp' };
@@ -130,7 +131,7 @@ const VehicleTile = ({ tile, device, expanded }) => {
                 {/* Venstre: identitet + status */}
                 <div className="veh-side">
                     <div className="veh-hero" style={{ '--veh-accent': accent }}>
-                        <div className="veh-hero-icon"><Car size={34} /></div>
+                        <DeviceImage device={device} tileSettings={tile.settings} slot="best" size={68} badge className="veh-hero-icon" fallback={<Car size={34} />} />
                         <div className="veh-hero-name">{car.name}</div>
                         <div className="veh-hero-sub">
                             {[car.make && car.model ? `${car.make} ${car.model}` : (car.model || car.make)].filter(Boolean).join(' ')}
@@ -286,7 +287,7 @@ const VehicleTile = ({ tile, device, expanded }) => {
     return (
         <div className={`tile-content veh-compact${climateOn ? ' is-on' : ''}`} style={{ '--veh-accent': accent }}>
             <div className="veh-compact-top">
-                <div className="veh-compact-icon"><Car size={22} /></div>
+                <DeviceImage device={device} tileSettings={tile.settings} slot="hero" size={40} badge className="veh-compact-icon" fallback={<Car size={22} />} />
                 {/* Batteri-% vises allerede i flishodet (Tile.jsx viser measure_battery for alle enheter) */}
                 <div className="veh-compact-badges">
                     {car.locked === false && <Unlock size={14} className="veh-warn" />}

@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import { X, Zap, Plug, BatteryCharging, Lock, Unlock, Car, ChevronRight, WifiOff } from 'lucide-react';
 import MiniPowerGraph from '../TileContent/MiniPowerGraph';
 import { AmpsPicker, BatteryBar, Group, LoadManagerRow, Stats, fmt0, fmt1 } from './shared';
-import { formatClock, formatUntil } from '../../services/vehicle';
+import { formatClock, formatUntil, chargerKey } from '../../services/vehicle';
 import { meterReadings, formatPower } from '../../services/climate';
+import DeviceImage from '../DeviceImage';
 
 const TONE_ICON = { charging: Zap, connected: Plug, done: BatteryCharging, idle: Plug };
 
@@ -29,7 +30,7 @@ export default function ChargerDetail({ charger, summary: s, car, carName, lm, l
     return (
         <>
             <div className="climate-detail-head">
-                <div className={`vp-badge tone-${s.tone} is-large`}><Icon size={24} strokeWidth={1.8} /></div>
+                <DeviceImage device={charger} tileSettings={{ heroImage: settings.productImages?.[chargerKey(charger)] }} slot="best" size={46} badge className={`vp-badge tone-${s.tone} is-large`} fallback={<Icon size={24} strokeWidth={1.8} />} />
                 <div className="climate-detail-title">
                     <strong>{s.name}</strong>
                     <span>{[s.zoneName, s.statusText].filter(Boolean).join(' · ')}</span>

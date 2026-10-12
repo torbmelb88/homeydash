@@ -5,6 +5,7 @@ import InteractiveCircularSlider from '../InteractiveCircularSlider';
 import TileCapabilities from '../TileCapabilities';
 import MiniPowerGraph from './MiniPowerGraph';
 import { DEFAULT_LIGHT_PRESETS } from './LightPanelTile';
+import DeviceImage from '../DeviceImage';
 
 const LightTile = ({ tile, device, expanded = false }) => {
     const { api, setIsInteracting, devices } = useHomey();
@@ -71,11 +72,13 @@ const LightTile = ({ tile, device, expanded = false }) => {
             {isHorizontal && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 33%', width: '33%', alignItems: 'flex-start', justifyContent: 'center', height: '100%', paddingRight: '5px' }}>
                     <div style={{ width: '28px', height: '28px', color: isOn ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)' }}>
-                        {device.LucideIcon ? (
-                            <device.LucideIcon size={28} strokeWidth={1.5} />
-                        ) : (
-                            <img src={iconUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        )}
+                        <DeviceImage device={device} tileSettings={tile?.settings} slot="hero" plain size={28} fallback={
+                            device.LucideIcon ? (
+                                <device.LucideIcon size={28} strokeWidth={1.5} />
+                            ) : (
+                                <img src={iconUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            )
+                        } />
                     </div>
 
                     {/* Name (multiline allowed) */}
@@ -149,7 +152,7 @@ const LightTile = ({ tile, device, expanded = false }) => {
                                 {/* Hide center icon in horizontal mode if desired, or keep it small. 
                                     Thermostat hides mode icon usually, but here icon is the only visual except percentage.
                                     Let's keep it but adjust if needed. */}
-                                {device.LucideIcon ? (
+                                <DeviceImage device={device} tileSettings={tile?.settings} slot="hero" plain size={expanded ? 56 : 36} fallback={device.LucideIcon ? (
                                     <device.LucideIcon 
                                         size={expanded ? 48 : 32} 
                                         strokeWidth={1.5}
@@ -171,7 +174,7 @@ const LightTile = ({ tile, device, expanded = false }) => {
                                             display: isHorizontal ? 'none' : 'block'
                                         }}
                                     />
-                                )}
+                                )} />
                                 <div style={{ fontSize: expanded ? '1.2rem' : (isHorizontal ? '2.0rem' : '0.9rem'), marginTop: isHorizontal ? '0' : '6px', fontWeight: expanded || isHorizontal ? 700 : 600, lineHeight: 1 }}>
                                     {Math.round(displayDim * 100)}%
                                 </div>
@@ -200,7 +203,7 @@ const LightTile = ({ tile, device, expanded = false }) => {
                             boxShadow: isOn ? '0 0 20px rgba(255, 179, 0, 0.3)' : 'none'
                         }}
                     >
-                        {device.LucideIcon ? (
+                        <DeviceImage device={device} tileSettings={tile?.settings} slot="hero" plain size={expanded ? 88 : 44} fallback={device.LucideIcon ? (
                             <device.LucideIcon 
                                 size={expanded ? 80 : 40} 
                                 strokeWidth={1.5}
@@ -220,7 +223,7 @@ const LightTile = ({ tile, device, expanded = false }) => {
                                     filter: isOn ? 'brightness(0) invert(1)' : 'grayscale(100%) opacity(0.5)'
                                 }}
                             />
-                        )}
+                        )} />
                     </div>
                 )}
             </div>

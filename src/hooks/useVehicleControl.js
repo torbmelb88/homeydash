@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 
 const SEND_DELAY_MS = 800;        // samler raske −/+-trykk (Tesla-API-et er tregt og rate-begrenset)
-const EXPIRE_MS = 15000;          // ubekreftet optimistisk verdi faller tilbake
-const STEP_EXPIRE_MS = 20000;     // stepper-verdier (ladegrense/kupétemp) tar lengre tid å bekrefte
+const TOGGLE_HOLD_MS = 30000;     // brytere/valg: hold vår verdi så lenge etter sending
+const STEP_HOLD_MS = 90000;       // steppede tall (kupétemp, ladegrense): bilen kan bruke lang tid
 
-// Optimistisk styring for bilsiden: brytere/valg sendes straks, mens tall som steppes
-// (kupétemperatur, ladegrense) sendes samlet 800 ms etter siste trykk. Ubekreftede verdier
-// vises som «venter» til hub-en melder samme verdi, eller til de utløper.
+// Optimistisk styring for bilsiden. Brytere/valg sendes straks, tall som steppes sendes samlet
+// 800 ms etter siste trykk.
+//
+// Hvorfor «klebrig» etter sending (okt 2026): Teslemetry skriver den nye verdien til HA i samme
+// sekund som kommandoen lykkes, men bilens egne data (streaming/polling) kan deretter overskrive
+// den med den GAMLE verdien i sekunder til minutter før bilen har tatt endringen – særlig når
+// bilen sover. Slippes vår verdi ved første bekreftelse, hopper tallet tilbake. Derfor holdes
+// vår verdi i en fast periode etter sending uansett hva HA melder, med ett unntak: melder HA en
+// TREDJE verdi (verken den gamle eller vår), har noen andre endret den, og den vinner.
 export default function useVehicleControl(api, devices) {
-    // `${deviceId}:${capId}` → { value, sent }
+    // `${deviceId}:${capId}` → { value, base, sent }   (base = verdien før vi begynte)
     const [optimistic, setOptimistic] = useState({});
     const sendTimers = useRef({});
     const expireTimers = useRef({});
@@ -18,7 +24,9 @@ export default function useVehicleControl(api, devices) {
         Object.values(expireTimers.current).forEach(clearTimeout);
     }, []);
 
-    // Rydd optimistiske verdier som hub-en har bekreftet (stepper-verdier først etter sending)
+    const same = (a, b) => (typeof b === 'number' ? Math.abs(Number(a) - b) < 0.05 : a === b);
+
+    // Slipp bare når noen andre har satt en tredje verdi (eller enheten er borte)
     useEffect(() => {
         setOptimistic(prev => {
             let changed = false;
@@ -29,8 +37,8 @@ export default function useVehicleControl(api, devices) {
                 const d = devices.find(x => x.id === id);
                 if (!d) { changed = true; continue; }
                 const actual = d.capabilitiesObj?.[capId]?.value;
-                const same = typeof o.value === 'number' ? Math.abs(Number(actual) - o.value) < 0.05 : actual === o.value;
-                if (same && o.sent) { changed = true; continue; }
+                const third = o.sent && actual != null && !same(actual, o.value) && !same(actual, o.base);
+                if (third) { changed = true; continue; }
                 next[k] = o;
             }
             return changed ? next : prev;
@@ -49,29 +57,32 @@ export default function useVehicleControl(api, devices) {
         const o = optimistic[key(d, capId)];
         return o !== undefined ? o.value : actual;
     };
+    // «Venter» = vår verdi er ikke (lenger) det HA melder
     const isPending = (d, capId, actual = d?.capabilitiesObj?.[capId]?.value) => {
         const o = optimistic[key(d, capId)];
-        return o !== undefined && o.value !== actual;
+        return o !== undefined && !same(actual, o.value);
     };
 
     const setCap = (d, capId, value) => {
         const k = key(d, capId);
-        setOptimistic(prev => ({ ...prev, [k]: { value, sent: true } }));
-        expire(k, EXPIRE_MS);
+        const actual = d?.capabilitiesObj?.[capId]?.value;
+        setOptimistic(prev => ({ ...prev, [k]: { value, base: prev[k]?.base ?? actual, sent: true } }));
+        expire(k, TOGGLE_HOLD_MS);
         return api.setCapability(d.id, capId, value).catch(err => console.error(`Kunne ikke sette ${capId}`, err));
     };
 
     // Stepper/hurtigvalg: vis ny verdi straks, send samlet etter siste trykk
     const queueValue = (d, capId, value) => {
         const k = key(d, capId);
-        setOptimistic(prev => ({ ...prev, [k]: { value, sent: false } }));
+        const actual = d?.capabilitiesObj?.[capId]?.value;
+        setOptimistic(prev => ({ ...prev, [k]: { value, base: prev[k]?.base ?? actual, sent: false } }));
         clearTimeout(expireTimers.current[k]);
         clearTimeout(sendTimers.current[k]);
         sendTimers.current[k] = setTimeout(async () => {
             setOptimistic(prev => (prev[k] ? { ...prev, [k]: { ...prev[k], sent: true } } : prev));
+            expire(k, STEP_HOLD_MS);
             try { await api.setCapability(d.id, capId, value); }
             catch (err) { console.error(`Kunne ikke sette ${capId}`, err); }
-            expire(k, STEP_EXPIRE_MS);
         }, SEND_DELAY_MS);
     };
 

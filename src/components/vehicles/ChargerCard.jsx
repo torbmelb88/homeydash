@@ -1,8 +1,9 @@
 import React from 'react';
 import { Zap, Plug, BatteryCharging, Lock, WifiOff, ChevronRight, Car } from 'lucide-react';
 import { AmpsPicker, LoadManagerRow, fmt0, stop } from './shared';
-import { formatClock } from '../../services/vehicle';
+import { formatClock, chargerKey } from '../../services/vehicle';
 import { formatPower } from '../../services/climate';
+import DeviceImage from '../DeviceImage';
 
 const TONE_ICON = { charging: Zap, connected: Plug, done: BatteryCharging, idle: Plug };
 
@@ -38,7 +39,7 @@ export default function ChargerCard({ charger, summary: s, car, carName, lm, lmA
             onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }}
         >
             <div className="vp-ch-status">
-                <div className={`vp-badge tone-${s.tone}`}><Icon size={22} strokeWidth={1.8} /></div>
+                <DeviceImage device={charger} tileSettings={{ heroImage: settings.productImages?.[chargerKey(charger)] }} slot="best" size={40} badge className={`vp-badge tone-${s.tone}`} fallback={<Icon size={22} strokeWidth={1.8} />} />
                 <div className="vp-ch-text">
                     <strong>{title}</strong>
                     <span>{sub.join(' · ')}</span>

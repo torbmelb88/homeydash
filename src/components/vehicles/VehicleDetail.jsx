@@ -2,8 +2,9 @@ import React from 'react';
 import { X, Car, Fan, Power, Zap, Minus, Plus, Snowflake, Armchair, Lock, Unlock, DoorOpen, CircleDot, Shield, MapPin, Moon } from 'lucide-react';
 import TempStepper from '../TempStepper';
 import { BatteryBar, Group, Stats, LevelPicker, Toggle, PRESET_LABEL, SEAT_LABEL, SEAT_ORDER, fmt1, stop } from './shared';
-import { climateKindOf, formatClock, formatUntil, locationText } from '../../services/vehicle';
+import { climateKindOf, formatClock, formatUntil, locationText, vehicleKey } from '../../services/vehicle';
 import { climateLimits } from './VehicleCard';
+import DeviceImage from '../DeviceImage';
 
 const LIMIT_PRESETS = [50, 60, 70, 80, 90, 100];
 
@@ -28,6 +29,10 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
     const limit = ctl.capOf(vehicle, 'vehicle_charge_limit');
     const limitPending = ctl.isPending(vehicle, 'vehicle_charge_limit');
     const chargeSwitch = !!ctl.capOf(vehicle, 'vehicle_charge_switch');
+    const hasPort = 'vehicle_charge_port_open' in caps;
+    const hasCableLock = 'vehicle_cable_locked' in caps;
+    const portOpen = !!ctl.capOf(vehicle, 'vehicle_charge_port_open');
+    const cableLocked = !!ctl.capOf(vehicle, 'vehicle_cable_locked');
 
     const preset = ctl.capOf(vehicle, 'vehicle_climate_preset');
     const presetOptions = vehicle.capabilitiesOptions?.vehicle_climate_preset?.values || [];
@@ -37,7 +42,7 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
     return (
         <>
             <div className="climate-detail-head">
-                <div className={`vp-badge tone-${tone} is-large`}>{climateOn ? <Fan size={24} strokeWidth={1.8} /> : <Car size={24} strokeWidth={1.8} />}</div>
+                <DeviceImage device={vehicle} tileSettings={{ heroImage: settings.productImages?.[vehicleKey(vehicle)] }} slot="best" size={46} badge className={`vp-badge tone-${tone} is-large`} fallback={climateOn ? <Fan size={24} strokeWidth={1.8} /> : <Car size={24} strokeWidth={1.8} />} />
                 <div className="climate-detail-title">
                     <strong>{name}</strong>
                     <span>
@@ -80,6 +85,33 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                         <button type="button" className={`climate-wide-btn${chargeSwitch ? ' is-danger' : ''}`} onClick={() => ctl.setCap(vehicle, 'vehicle_charge_switch', !chargeSwitch)}>
                             <Zap size={18} /> {chargeSwitch ? 'Stopp lading i bilen' : 'Start lading i bilen'}
                         </button>
+                    )}
+
+                    {/* Ladeluke (cover.*_charge_port_door) og ladekabellås (lock.*_charge_cable_lock).
+                        Tesla låser kabelen selv ved tilkobling – kun «lås opp» gir mening. */}
+                    {(hasPort || hasCableLock) && (
+                        <div className="vp-actions">
+                            {hasPort && (
+                                <button
+                                    type="button"
+                                    className={`climate-wide-btn${portOpen ? ' is-on' : ''}${ctl.isPending(vehicle, 'vehicle_charge_port_open') ? ' is-pending' : ''}`}
+                                    onClick={() => ctl.setCap(vehicle, 'vehicle_charge_port_open', !portOpen)}
+                                >
+                                    <CircleDot size={18} /> {portOpen ? 'Lukk ladeluke' : 'Åpne ladeluke'}
+                                </button>
+                            )}
+                            {hasCableLock && (
+                                <button
+                                    type="button"
+                                    className={`climate-wide-btn${ctl.isPending(vehicle, 'vehicle_cable_locked') ? ' is-pending' : ''}`}
+                                    disabled={!cableLocked}
+                                    title={cableLocked ? 'Lås opp ladekabelen i bilen' : 'Kabelen er ulåst – låses automatisk når den kobles til'}
+                                    onClick={() => ctl.setCap(vehicle, 'vehicle_cable_locked', false)}
+                                >
+                                    {cableLocked ? <Unlock size={18} /> : <Lock size={18} />} {cableLocked ? 'Lås opp ladekabel' : 'Ladekabel ulåst'}
+                                </button>
+                            )}
+                        </div>
                     )}
 
                     <Stats label="" items={[
@@ -174,7 +206,8 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                             {'vehicle_windows_open' in caps && <span className={`vp-chip${caps.vehicle_windows_open.value ? ' is-warn' : ''}`}><DoorOpen size={12} />Vinduer {caps.vehicle_windows_open.value ? 'åpne' : 'lukket'}</span>}
                             {caps.vehicle_frunk_open?.value && <span className="vp-chip is-warn"><DoorOpen size={12} />Frunk åpen</span>}
                             {caps.vehicle_trunk_open?.value && <span className="vp-chip is-warn"><DoorOpen size={12} />Bagasjerom åpent</span>}
-                            {car.portOpen != null && <span className="vp-chip"><CircleDot size={12} />Ladeluke {car.portOpen ? 'åpen' : 'lukket'}</span>}
+                            {hasPort && <span className="vp-chip"><CircleDot size={12} />Ladeluke {portOpen ? 'åpen' : 'lukket'}</span>}
+                            {hasCableLock && <span className={`vp-chip${cableLocked ? '' : ' is-warn'}`}>{cableLocked ? <Lock size={12} /> : <Unlock size={12} />}Ladekabel {cableLocked ? 'låst' : 'ulåst'}</span>}
                             {'vehicle_sentry' in caps && <span className={`vp-chip${caps.vehicle_sentry.value ? ' is-on' : ''}`}><Shield size={12} />Vaktmodus {caps.vehicle_sentry.value ? 'på' : 'av'}</span>}
                             {car.location && <span className="vp-chip"><MapPin size={12} />{locationText(car.location)}</span>}
                             {car.userPresent && <span className="vp-chip">Noen i bilen</span>}

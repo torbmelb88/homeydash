@@ -7,6 +7,7 @@ import { useApplianceState, findCycleDevice, nativeStateOf } from '../../hooks/u
 import { getMachinePopupCfg } from '../../services/popup-settings';
 import { hassAPI } from '../../services/hass-api';
 import useIsMobile from '../../hooks/useIsMobile';
+import DeviceImage from '../DeviceImage';
 
 /**
  * Apparat på smartplugg (oppvaskmaskin, tørketrommel, ...).
@@ -307,14 +308,16 @@ const ApplianceTile = ({ tile, device, expanded = false }) => {
         <div className="tile-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: isMobile ? undefined : '420px' }}>
             {/* Status-topp */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{
-                    width: '64px', height: '64px', borderRadius: '18px',
-                    background: 'rgba(255,255,255,0.06)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: statusColor, flexShrink: 0,
-                }}>
-                    <KindIcon size={34} strokeWidth={1.6} />
-                </div>
+                <DeviceImage
+                    device={device}
+                    tileSettings={tile.settings}
+                    slot="best"
+                    size={64}
+                    badge
+                    className="appliance-hero"
+                    style={{ color: statusColor }}
+                    fallback={<KindIcon size={34} strokeWidth={1.6} />}
+                />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: '1.05rem', color: 'var(--color-text-secondary)' }}>{applianceLabel}</span>
                     <span style={{ fontSize: '1.5rem', fontWeight: 700, color: statusColor, display: 'flex', alignItems: 'center', gap: '8px' }}>

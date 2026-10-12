@@ -163,3 +163,22 @@
     height: 44px;
     background: rgba(255, 255, 255, 0.1);
 }
+
+/* Produktbilde oppe til venstre i utvidet visning (speiler flishodet) for flistyper som ikke
+   har sitt eget hero-ikon. Innholdet skyves ned så brikken står på egen linje med X-knappen. */
+.tile-expanded-product {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 5;
+}
+
+.tile-expanded-content.has-product {
+    padding-top: 4.5rem;
+}
+
+@media (max-width: 768px) {
+    .tile-expanded-content.has-product {
+        padding-top: 4.25rem;
+    }
+}

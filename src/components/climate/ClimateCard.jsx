@@ -2,10 +2,11 @@ import React from 'react';
 import { Flame, Droplet, Power, Waves, WifiOff, ChevronRight } from 'lucide-react';
 import TempStepper from '../TempStepper';
 import { modeIcon } from './climateIcons';
-import { climateStatus, formatPower, formatTemp, kindOf, limitsOf, powerCapOf } from '../../services/climate';
+import { climateStatus, formatPower, formatTemp, keyOf, kindOf, limitsOf, powerCapOf } from '../../services/climate';
+import DeviceImage from '../DeviceImage';
 
 // Statusmerke: fylt + glød = jobber nå, ring = på men i ro, grått = av
-export function ClimateBadge({ device, status, mode, large = false }) {
+export function ClimateBadge({ device, status, mode, large = false, imageChoice = '' }) {
     const kind = kindOf(device);
     const icon = status.na ? WifiOff
         : kind === 'wh' ? Droplet
@@ -13,9 +14,15 @@ export function ClimateBadge({ device, status, mode, large = false }) {
         : kind === 'floor' ? Waves
         : modeIcon(mode);
     return (
-        <div className={`climate-badge tone-${status.tone} ${status.active ? 'is-active' : ''} ${large ? 'is-large' : ''}`}>
-            {React.createElement(icon, { size: large ? 24 : 20, strokeWidth: 1.8 })}
-        </div>
+        <DeviceImage
+            device={device}
+            tileSettings={{ heroImage: imageChoice }}
+            slot="best"
+            size={large ? 46 : 38}
+            badge
+            className={`climate-badge tone-${status.tone} ${status.active ? 'is-active' : ''} ${large ? 'is-large' : ''}`}
+            fallback={React.createElement(icon, { size: large ? 24 : 20, strokeWidth: 1.8 })}
+        />
     );
 }
 
@@ -89,7 +96,7 @@ export default function ClimateCard({ device, meter, name, ctl, settings, select
             onClick={onOpen}
             onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }}
         >
-            <ClimateBadge device={device} status={status} mode={mode} />
+            <ClimateBadge device={device} status={status} mode={mode} imageChoice={settings.productImages?.[keyOf(device)]} />
             <div className="climate-card-name">
                 <strong>{name}</strong>
                 <span>{sub}</span>

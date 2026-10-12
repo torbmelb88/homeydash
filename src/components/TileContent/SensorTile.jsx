@@ -2,6 +2,7 @@ import React from 'react';
 import { useHomey } from '../../context/HomeyContext';
 import TileCapabilities from '../TileCapabilities';
 import { Zap, Thermometer, Droplets, Battery, Gauge, Wind, Activity, Sun } from 'lucide-react';
+import DeviceImage from '../DeviceImage';
 
 const getCapabilityIcon = (capId) => {
     if (!capId) return null;
@@ -90,11 +91,13 @@ const SensorTile = ({ tile, device }) => {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', flexDirection: 'column', gap: '5px' }}>
                 <div style={{ color: 'var(--color-accent-primary)', opacity: 0.8, marginBottom: '5px' }}>
-                    {device.LucideIcon ? (
-                        <device.LucideIcon size={24} strokeWidth={1.5} />
-                    ) : (
-                        CapIcon || null
-                    )}
+                    <DeviceImage device={device} tileSettings={tile?.settings} slot="hero" size={40} fallback={
+                        device.LucideIcon ? (
+                            <device.LucideIcon size={24} strokeWidth={1.5} />
+                        ) : (
+                            CapIcon || null
+                        )
+                    } />
                 </div>
                 {/* Verdi-raden er alltid rendret (– ved manglende verdi) så høyden ikke hopper */}
                 <div style={{ fontSize: '1.8rem', fontWeight: 700, lineHeight: 1, maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

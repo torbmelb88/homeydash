@@ -5,7 +5,7 @@ import MiniPowerGraph from '../TileContent/MiniPowerGraph';
 import { ClimateBadge } from './ClimateCard';
 import { modeIcon } from './climateIcons';
 import {
-    CLIMATE_KINDS, MODE_LABELS, climateStatus, formatPower, formatTemp, kindOf, limitsOf, meterReadings, modesOf, optionLabel, optionsOf, powerCapOf,
+    CLIMATE_KINDS, MODE_LABELS, climateStatus, formatPower, formatTemp, keyOf, kindOf, limitsOf, meterReadings, modesOf, optionLabel, optionsOf, powerCapOf,
 } from '../../services/climate';
 
 const num = (v, decimals = 1) => (v == null || isNaN(v) ? '–' : Number(v).toFixed(decimals).replace('.', ','));
@@ -92,7 +92,7 @@ export default function ClimateDetail({ device, devices, meter, name, ctl, setti
 
     const header = (
         <div className="climate-detail-head">
-            <ClimateBadge device={device} status={status} mode={mode} large />
+            <ClimateBadge device={device} status={status} mode={mode} large imageChoice={settings.productImages?.[keyOf(device)]} />
             <div className="climate-detail-title">
                 <strong>{name}</strong>
                 <span>{[kindLabel, device.zoneName !== name ? device.zoneName : null].filter(Boolean).join(' · ')}</span>

@@ -2,7 +2,8 @@ import React from 'react';
 import { Car, Clock, Moon, Lock, Unlock, MapPin, Thermometer, Power, Fan, ChevronRight, Zap } from 'lucide-react';
 import TempStepper from '../TempStepper';
 import { BatteryBar, fmt1, stop } from './shared';
-import { climateKindOf, formatClock, formatUntil, locationText } from '../../services/vehicle';
+import { climateKindOf, formatClock, formatUntil, locationText, vehicleKey } from '../../services/vehicle';
+import DeviceImage from '../DeviceImage';
 
 // Klimagrenser (HA oppgir min/max/step på climate-entiteten; Tesla 15–28, trinn 0,5)
 export const climateLimits = (v) => {
@@ -12,7 +13,7 @@ export const climateLimits = (v) => {
 
 // Ett bilkort på bilsiden: batteri → ladegrense, rekkevidde, lading/ferdig-tid, posisjon og lås,
 // pluss én klimarad (inne nå, −/+ ønsket temperatur, på/av). Alt annet ligger i utvidet visning.
-export default function VehicleCard({ vehicle, car, name, onCharger, ctl, selected, onOpen }) {
+export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settings = {}, selected, onOpen }) {
     const caps = vehicle.capabilitiesObj || {};
     const climateKind = climateKindOf(vehicle);
     const climateOn = climateKind === 'entity' && !!ctl.capOf(vehicle, 'vehicle_climate_on');
@@ -56,7 +57,7 @@ export default function VehicleCard({ vehicle, car, name, onCharger, ctl, select
             onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }}
         >
             <div className="vp-car-head">
-                <div className={`vp-badge tone-${tone}`}>{climateOn ? <Fan size={22} strokeWidth={1.8} /> : <Car size={22} strokeWidth={1.8} />}</div>
+                <DeviceImage device={vehicle} tileSettings={{ heroImage: settings.productImages?.[vehicleKey(vehicle)] }} slot="best" size={40} badge className={`vp-badge tone-${tone}`} fallback={climateOn ? <Fan size={22} strokeWidth={1.8} /> : <Car size={22} strokeWidth={1.8} />} />
                 <div className="vp-car-name">
                     <strong>{name}</strong>
                     <span>{[model, status].filter(Boolean).join(' · ')}</span>

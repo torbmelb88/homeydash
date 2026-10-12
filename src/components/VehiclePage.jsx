@@ -4,6 +4,7 @@ import { Car, Settings, X, Zap, Moon, Sun, ChevronUp, ChevronDown } from 'lucide
 import { useHomey } from '../context/HomeyContext';
 import { useLayout } from './music/musicUtils';
 import { CheckboxRow, ShowOptionsGroup } from './SettingsControls';
+import ProductImagePicker from './ProductImagePicker';
 import ChargerCard from './vehicles/ChargerCard';
 import ChargerDetail from './vehicles/ChargerDetail';
 import VehicleCard from './vehicles/VehicleCard';
@@ -161,6 +162,7 @@ export default function VehiclePage({ page }) {
                                                         name={nameOf(v)}
                                                         onCharger={key === chargingKey}
                                                         ctl={ctl}
+                                                        settings={settings}
                                                         selected={layout === 'wide' && effectiveKey === key}
                                                         onOpen={() => setOpenKey(key)}
                                                     />
@@ -202,11 +204,12 @@ function VehicleListSettings({ settings, devices, onChange }) {
     const excluded = settings.excludedVehicleIds || [];
     const setExcluded = (key, hide) =>
         onChange({ excludedVehicleIds: hide ? [...excluded, key] : excluded.filter(k => k !== key) });
-    const setName = (key, value) => {
-        const next = { ...(settings.customNames || {}) };
+    const setMapValue = (field, key, value) => {
+        const next = { ...(settings[field] || {}) };
         if (value) next[key] = value; else delete next[key];
-        onChange({ customNames: next });
+        onChange({ [field]: next });
     };
+    const setName = (key, value) => setMapValue('customNames', key, value);
     const move = (idx, dir) => {
         const j = idx + dir;
         if (j < 0 || j >= vehicles.length) return;
@@ -237,13 +240,25 @@ function VehicleListSettings({ settings, devices, onChange }) {
                                 <button className="icon-btn" disabled={idx === vehicles.length - 1} onClick={() => move(idx, 1)} title="Flytt ned"><ChevronDown size={16} /></button>
                             </div>
                             {shown && (
-                                <input
-                                    type="text"
-                                    value={settings.customNames?.[key] || ''}
-                                    onChange={(e) => setName(key, e.target.value)}
-                                    placeholder={`Eget navn (${v.name || 'Bil'})`}
-                                    style={{ width: '100%', marginTop: 8, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)' }}
-                                />
+                                <>
+                                    <div style={{ marginTop: 8 }}>
+                                        <ProductImagePicker
+                                            compact
+                                            id={`vehicleImage-${key}`}
+                                            device={v}
+                                            slot="best"
+                                            value={settings.productImages?.[key] || ''}
+                                            onChange={(val) => setMapValue('productImages', key, val)}
+                                        />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={settings.customNames?.[key] || ''}
+                                        onChange={(e) => setName(key, e.target.value)}
+                                        placeholder={`Eget navn (${v.name || 'Bil'})`}
+                                        style={{ width: '100%', marginTop: 8, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)' }}
+                                    />
+                                </>
                             )}
                         </div>
                     );
@@ -262,9 +277,24 @@ function ChargerSettings({ settings, devices, onChange }) {
     if (!charger) return <p className="hint">Fant ingen billader.</p>;
     const auto = findLoadManager(devices, charger, {});
     const autoCharger = findPageCharger(devices, {});
+    const setImage = (value) => {
+        const next = { ...(settings.productImages || {}) };
+        const key = chargerKey(charger);
+        if (value) next[key] = value; else delete next[key];
+        onChange({ productImages: next });
+    };
     return (
         <div className="form-group">
             <label>Lader</label>
+            <ProductImagePicker
+                compact
+                id="chargerImage"
+                device={charger}
+                slot="best"
+                value={settings.productImages?.[chargerKey(charger)] || ''}
+                onChange={setImage}
+                hint="Bilde i statusmerket på laderkortet og i utvidet visning."
+            />
             {chargers.length > 1 && (
                 <select
                     className="select-input"

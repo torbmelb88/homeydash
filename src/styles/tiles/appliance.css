@@ -131,3 +131,15 @@
     .appliance-badge { width: 48px; height: 48px; }
     .appliance-title { font-size: 0.95rem; }
 }
+
+/* Status-topp i utvidet visning: ikon/produktbilde i avrundet rute */
+.appliance-hero {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}

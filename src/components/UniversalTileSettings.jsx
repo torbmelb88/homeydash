@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import * as LucideIcons from 'lucide-react';
+import ProductImagePicker from './ProductImagePicker';
+import { useProductImages } from '../services/product-images';
 
 // ─────────────────────────────────────────────
 //  Tile-type info lookup table
@@ -192,10 +194,11 @@ const FIXED_TYPE_TILES = new Set([
 // ─────────────────────────────────────────────
 const UniversalTileSettings = ({ device, originalTile, values, onChange, stretchCandidates = [] }) => {
     const {
-        size, customName, forcedType, mainIcon, customIcon, stretchToTileId = '',
+        size, customName, forcedType, mainIcon, customIcon, productImage = '', heroImage = '', stretchToTileId = '',
     } = values;
 
     const [iconSearch, setIconSearch] = useState('');
+    const manifest = useProductImages();
 
     const tileType = originalTile?.type ?? 'auto';
     const isFixedType = FIXED_TYPE_TILES.has(tileType);
@@ -388,6 +391,36 @@ const UniversalTileSettings = ({ device, originalTile, values, onChange, stretch
                 <h3 style={{ fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px', color: 'var(--color-text-secondary)' }}>
                     Ikon
                 </h3>
+
+                {device && (
+                    <>
+                        <ProductImagePicker
+                            id="productImageSelect"
+                            label="Bilde i hjørnet (flishodet)"
+                            device={device}
+                            slot="corner"
+                            value={productImage}
+                            customIcon={customIcon}
+                            onChange={(v) => onChange('productImage', v)}
+                            hint={!manifest.loaded || manifest.entries.length === 0
+                                ? 'Biblioteket (public/products/manifest.json) er ikke lastet – kjør scripts/fetch_product_images.py.'
+                                : customIcon && !productImage
+                                    ? 'Et valgt hurtigvalg-ikon under vinner over automatisk bilde. Velg et bilde her for å bruke det likevel.'
+                                    : device.class === 'light' && !productImage
+                                        ? 'Lys får ikke automatisk bilde (bildet ville vist dimmeren bak bryteren). Velg et selv om du vil.'
+                                        : 'Automatisk: merkelogo i hjørnet når enheten også har produktbilde, ellers det som finnes.'}
+                        />
+                        <ProductImagePicker
+                            id="heroImageSelect"
+                            label="Bilde i midten av flisen"
+                            device={device}
+                            slot="hero"
+                            value={heroImage}
+                            onChange={(v) => onChange('heroImage', v)}
+                            hint="Brukes av fliser med et stort ikon i midten (duftspreder, støvsuger, robotklipper, vanning, vifte, bil, lader) og i utvidet visning. Automatisk: produktbildet når hjørnet viser logoen."
+                        />
+                    </>
+                )}
 
                 <div className="form-group">
                     <label>Søk etter Lucide-ikon</label>

@@ -1,0 +1,112 @@
+{
+  "tesla": {
+    "model": "my",
+    "options": "$MTY07,$PPSW,$WY19B,$INPB0",
+    "view": "STUD_3QTR"
+  },
+  "manual": [
+    {
+      "id": "varmepumpe-midea",
+      "label": "Varmepumpe (Midea)",
+      "match": "^Varmepumpe (Barnerom|Soverom|Gjesterom)$",
+      "keys": ["smlight|slwf-01pro"]
+    },
+    {
+      "id": "varmepumpe-daikin",
+      "label": "Varmepumpe (Daikin)",
+      "match": "^Varmepumpe$",
+      "keys": ["revk|1481"]
+    },
+    {
+      "id": "varmepumpe-stue",
+      "label": "Varmepumpe (Stue)",
+      "match": "^Varmepumpe Stue$",
+      "keys": ["espressif|esp12e"]
+    },
+    {
+      "id": "zaptec-go",
+      "label": "Zaptec Go",
+      "keys": ["zaptec|zaptec go"]
+    },
+    {
+      "id": "heatit-z-trm3",
+      "label": "Heatit Z-TRM3 (gulvvarme)",
+      "keys": ["heatit|z-trm3"]
+    },
+    {
+      "id": "namron-4512744",
+      "label": "Namron termostat 4512744",
+      "keys": ["namron|4512744"]
+    },
+    {
+      "id": "heatit-z-dim2",
+      "label": "Heatit Z-DIM2 (dimmer)",
+      "keys": ["heatit|z-dim2"]
+    },
+    {
+      "id": "xsense-xs01-m",
+      "label": "X-Sense XS01-M (røykvarsler)",
+      "keys": ["x-sense|xs01-m", "xs01-m"]
+    },
+    {
+      "id": "worx-landroid-vision",
+      "label": "Worx Landroid Vision",
+      "keys": ["worx|landroid vision cloud500 (wr305e)"]
+    },
+    {
+      "id": "roborock-a15",
+      "label": "Roborock (støvsuger)",
+      "keys": ["roborock|roborock.vacuum.a15", "roborock.vacuum.a15"]
+    },
+    {
+      "id": "roborock-wm-a102",
+      "label": "Roborock (vaskemaskin)",
+      "keys": ["roborock|roborock.wm.a102", "roborock.wm.a102"]
+    },
+    {
+      "id": "electrolux-oppvaskmaskin",
+      "label": "Electrolux oppvaskmaskin",
+      "keys": ["electrolux|model: dw-911434989_00"]
+    },
+    {
+      "id": "rituals-perfume-genie",
+      "label": "Rituals Perfume Genie 2.0",
+      "keys": ["rituals cosmetics|the perfume genie 2.0"]
+    },
+    {
+      "id": "bambu-p2s",
+      "label": "Bambu Lab P2S",
+      "keys": ["bambu lab|p2s"]
+    },
+    {
+      "id": "varmtvannsbereder",
+      "label": "Varmtvannsbereder (myUplink)",
+      "match": "^Varmtvannsbereder$"
+    },
+    {
+      "id": "somfy-screen",
+      "label": "Somfy screen/markise",
+      "keys": ["somfy|exteriorscreen", "somfy|awning"]
+    },
+    {
+      "id": "google-nest-hub",
+      "label": "Google Nest Hub",
+      "keys": ["google inc.|google nest hub"]
+    },
+    {
+      "id": "google-nest-mini",
+      "label": "Google Nest Mini / Home Mini",
+      "keys": ["google inc.|google nest mini", "google inc.|google home mini"]
+    },
+    {
+      "id": "samsung-hw-q70r",
+      "label": "Samsung HW-Q70R lydplanke",
+      "keys": ["samsung electronics|hw-q70r"]
+    },
+    {
+      "id": "nvidia-shield",
+      "label": "NVIDIA Shield TV",
+      "keys": ["nvidia|shield android tv"]
+    }
+  ]
+}

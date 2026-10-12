@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useHomey } from '../../context/HomeyContext';
 import { Lock, Unlock, Bell, Battery } from 'lucide-react';
+import DeviceImage from '../DeviceImage';
 
 const DoorControlTile = ({ tile }) => {
     const { api, devices, isInteracting, setIsInteracting } = useHomey();
@@ -136,7 +137,7 @@ const DoorControlTile = ({ tile }) => {
                     }}
                     className="lock-btn"
                 >
-                    {lockDevice.LucideIcon ? (
+                    <DeviceImage device={lockDevice} tileSettings={tile?.settings} slot="hero" plain size={48} fallback={lockDevice.LucideIcon ? (
                         <lockDevice.LucideIcon 
                             size={40} 
                             strokeWidth={1.5}
@@ -155,7 +156,7 @@ const DoorControlTile = ({ tile }) => {
                                 filter: 'brightness(0) invert(1)' // Make white to contrast with colored button
                             }}
                         />
-                    )}
+                    )} />
                 </button>
 
                 <div style={{ fontSize: '1rem', fontWeight: 500, color: isLocked ? 'var(--color-text-secondary)' : 'var(--color-success)' }}>

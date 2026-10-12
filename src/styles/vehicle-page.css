@@ -449,6 +449,18 @@
 }
 
 .climate-wide-btn.is-pending { opacity: 0.7; }
+
+.climate-wide-btn.is-on {
+    background: rgba(var(--primary-rgb), 0.16);
+    border-color: var(--color-accent-primary);
+}
+
+/* Ladeluke + ladekabellås side om side (én kolonne når det er trangt) */
+.vp-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 6px;
+}
 .climate-wide-btn:disabled { opacity: 0.4; cursor: default; }
 
 .vp-row-icon { display: flex; align-items: center; gap: 8px; }

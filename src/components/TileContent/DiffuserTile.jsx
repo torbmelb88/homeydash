@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useHomey } from '../../context/HomeyContext';
 import { Wifi } from 'lucide-react';
 import DiffuserIcon from '../icons/DiffuserIcon';
+import DeviceImage from '../DeviceImage';
 
 // Duftspreder (Rituals Perfume Genie 2.0 via rituals_perfume_genie). I praksis en
 // av/på-enhet: bryter, duftstyrke (1–3) og duftnavn. Ingen utvidet visning.
 // Fyllingsgrad vises bare hvis sensoren faktisk gir tall (den står normalt «unavailable»).
 
-const DiffuserTile = ({ device }) => {
+const DiffuserTile = ({ tile, device }) => {
     const { api, setIsInteracting } = useHomey();
 
     const getCap = (id) => device?.capabilitiesObj?.[id]?.value;
@@ -64,7 +65,7 @@ const DiffuserTile = ({ device }) => {
                 aria-pressed={isOn}
                 title={isOn ? 'Slå av' : 'Slå på'}
             >
-                <DiffuserIcon size={38} strokeWidth={1.5} />
+                <DeviceImage device={device} tileSettings={tile.settings} slot="hero" plain size={52} fallback={<DiffuserIcon size={38} strokeWidth={1.5} />} />
             </button>
 
             <div className="diff-status">{isOn ? 'På' : 'Av'}</div>

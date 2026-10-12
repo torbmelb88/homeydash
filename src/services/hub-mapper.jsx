@@ -1444,6 +1444,24 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
 };
 
 /**
+ * Produktinfo fra HA sitt device registry. Legges på `device.product` for alle enheter som
+ * hører til en registry-enhet (composite, enkeltentitet og _inComposite-entiteter) og brukes
+ * av services/product-images.js til å finne produktbilde (produsent|modell → fil).
+ * `integration` = første identifikator-domene (zaptec, mqtt, zwave_js, ...), brukes til merkelogo.
+ */
+export const productInfoOf = (haDevice) => {
+    if (!haDevice) return null;
+    const info = {
+        manufacturer: haDevice.manufacturer || '',
+        model: haDevice.model || '',
+        modelId: haDevice.model_id || '',
+        integration: haDevice.identifiers?.[0]?.[0] || '',
+        haName: haDevice.name_by_user || haDevice.name || '',
+    };
+    return (info.manufacturer || info.model || info.modelId || info.integration) ? info : null;
+};
+
+/**
  * Advanced Mapper: Groups entities by physical device to create composite Homey-like devices.
  *
  * For every HA physical device that has more than one entity AND at least one
@@ -1518,7 +1536,11 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
         // Single-entity groups — add as standalone only, no composite needed
         if (deviceEntities.length < 2) {
             const mapped = mapHassToHomey(deviceEntities[0], entityToArea[deviceEntities[0].entity_id]);
-            if (mapped) resultDevices.push(mapped);
+            if (mapped) {
+                const product = productInfoOf(haDevice);
+                if (product) mapped.product = product;
+                resultDevices.push(mapped);
+            }
             return;
         }
 
@@ -1541,6 +1563,7 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
 
         // Determine whether a composite will be created for this group
         const willCreateComposite = primaryPriority >= 4 || isPostal;
+        const product = productInfoOf(haDevice);
 
         // Always expose individual entities so existing tiles still work.
         // Mark them as part of a composite so the "Add Tile" picker can hide duplicates.
@@ -1548,6 +1571,7 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             const mapped = mapHassToHomey(entity, entityToArea[entity.entity_id]);
             if (mapped) {
                 if (willCreateComposite) mapped._inComposite = true;
+                if (product) mapped.product = product;
                 resultDevices.push(mapped);
             }
         });
@@ -1655,6 +1679,7 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             // entity-ID-er overlever at HA gir enheten ny device registry-UUID.
             entityIds: deviceEntities.map(e => e.entity_id),
             primaryEntityId: primaryEntity.entity_id,
+            ...(product ? { product } : {}),
             settings: {
                 isComposite: true,
                 haDeviceId: deviceId,
@@ -1859,6 +1884,8 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
                 zoneName: areaKey,
                 hubType: 'hass',
                 isHA: true,
+                // Ingen registry-enhet, men integrasjonen er kjent → merkelogo (brand:posten)
+                product: { manufacturer: '', model: '', modelId: '', integration: 'posten', haName: 'Posten' },
                 settings: {
                     isComposite: true,
                     compositeType: 'postal',

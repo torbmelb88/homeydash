@@ -107,6 +107,8 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
     // UniversalTile specialized settings
     const [mainIcon, setMainIcon] = useState(tile.settings?.mainIcon || '');
     const [customIcon, setCustomIcon] = useState(tile.settings?.customIcon || '');
+    const [productImage, setProductImage] = useState(tile.settings?.productImage || '');
+    const [heroImage, setHeroImage] = useState(tile.settings?.heroImage || '');
     // Initial load for compact setting and keypad migration
     useEffect(() => {
         const initialSettings = { ...(tile.settings || {}) };
@@ -399,6 +401,8 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
                 secondaryControls,
                 mainIcon,
                 customIcon,
+                productImage,
+                heroImage,
             }
         };
 
@@ -590,6 +594,8 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
                                 forcedType,
                                 mainIcon,
                                 customIcon,
+                                productImage,
+                                heroImage,
                                 stretchToTileId: widgetSettings.stretchToTileId || '',
                             }}
                             stretchCandidates={stretchCandidates}
@@ -599,6 +605,8 @@ const TileSettingsModal = ({ tile, onClose, onSave, onDelete, pageTiles = [] }) 
                                 if (key === 'forcedType') setForcedType(val);
                                 if (key === 'mainIcon') setMainIcon(val);
                                 if (key === 'customIcon') setCustomIcon(val);
+                                if (key === 'productImage') setProductImage(val);
+                                if (key === 'heroImage') setHeroImage(val);
                                 if (key === 'stretchToTileId') setWidgetSettings(prev => ({ ...prev, stretchToTileId: val || '' }));
                             }}
                         />

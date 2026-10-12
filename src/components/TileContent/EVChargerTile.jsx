@@ -5,6 +5,7 @@ import useIsMobile from '../../hooks/useIsMobile';
 import { findChargingVehicle, vehicleSummary, allVehicles, formatClock, formatUntil, locationText } from '../../services/vehicle';
 import { meterReadings } from '../../services/climate';
 import { findLoadManager, OVERRIDE_UNLESS_CRITICAL, OVERRIDE_LABEL } from '../../services/load-manager';
+import DeviceImage from '../DeviceImage';
 
 // Zaptec mode values → norsk statustekst + stil
 const CHARGE_MODE_MAP = {
@@ -242,14 +243,16 @@ const EVChargerTile = ({ tile, device, expanded }) => {
                 {/* Status + knapper */}
                 <div style={{ flex: isMobile ? '0 0 auto' : '0 0 220px', width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{
-                            width: '64px', height: '64px', borderRadius: '50%',
-                            background: `color-mix(in srgb, ${statusColor} 20%, transparent)`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: statusColor
-                        }}>
-                            <StatusIcon size={32} />
-                        </div>
+                        <DeviceImage
+                            device={device}
+                            tileSettings={tile.settings}
+                            slot="best"
+                            size={64}
+                            badge
+                            className="evc-status-hero"
+                            style={{ background: `color-mix(in srgb, ${statusColor} 20%, transparent)`, color: statusColor }}
+                            fallback={<StatusIcon size={32} />}
+                        />
                         <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>{Math.round(power)} W</div>
                         <div style={{ color: statusColor, fontWeight: 500 }}>{statusText}</div>
                     </div>
@@ -513,14 +516,16 @@ const EVChargerTile = ({ tile, device, expanded }) => {
 
             {/* Topp: ikon + lås/offline */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-                <div style={{
-                    color: statusColor,
-                    background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
-                    padding: '8px', borderRadius: '50%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                    <StatusIcon size={24} />
-                </div>
+                <DeviceImage
+                    device={device}
+                    tileSettings={tile.settings}
+                    slot="hero"
+                    size={40}
+                    badge
+                    className="evc-status-compact"
+                    style={{ color: statusColor, background: `color-mix(in srgb, ${statusColor} 15%, transparent)` }}
+                    fallback={<StatusIcon size={24} />}
+                />
                 {/* Rad (ikke kolonne): lås/offline/Overstyrt/A-chip skal ikke gjøre toppen høyere enn ikonet */}
                 <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', minWidth: 0, overflow: 'hidden', minHeight: '40px' }}>
                     {cableLocked && <Lock size={16} color="var(--color-text-secondary)" />}

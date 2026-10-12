@@ -5,6 +5,7 @@ import TileCapabilities from '../TileCapabilities';
 import MiniPowerGraph from './MiniPowerGraph';
 import { Flame, Snowflake, Wind, Power, Droplets, Zap, Thermometer, WifiOff, MonitorOff, Check } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
+import DeviceImage from '../DeviceImage';
 
 const ThermostatTile = ({ tile, device, expanded = false }) => {
     const { api, setIsInteracting, devices } = useHomey();
@@ -148,11 +149,13 @@ const ThermostatTile = ({ tile, device, expanded = false }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 33%', width: '33%', alignItems: 'flex-start', justifyContent: 'center', height: '100%', paddingRight: '5px' }}>
                     {/* Icon */}
                     <div style={{ width: '28px', height: '28px', color: 'var(--color-text-secondary)' }}>
-                        {device.LucideIcon ? (
-                            <device.LucideIcon size={28} strokeWidth={1.5} />
-                        ) : (
-                            <img src={iconUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        )}
+                        <DeviceImage device={device} tileSettings={tile?.settings} slot="hero" plain size={28} fallback={
+                            device.LucideIcon ? (
+                                <device.LucideIcon size={28} strokeWidth={1.5} />
+                            ) : (
+                                <img src={iconUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            )
+                        } />
                     </div>
 
                     {/* Name (multiline allowed) */}

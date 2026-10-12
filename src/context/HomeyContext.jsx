@@ -353,6 +353,12 @@ export const HomeyProvider = ({ children }) => {
                     await hassAPI.callService('climate', 'set_temperature', targetEntityId, { temperature: value });
                 } else if (capabilityId === 'vehicle_climate_preset') {
                     await hassAPI.callService('climate', 'set_preset_mode', targetEntityId, { preset_mode: value });
+                } else if (domain === 'cover' && typeof value === 'boolean') {
+                    // Bilens ladeluke (cover.*_charge_port_door): true = åpne, false = lukk
+                    await hassAPI.callService('cover', value ? 'open_cover' : 'close_cover', targetEntityId);
+                } else if (domain === 'lock' && typeof value === 'boolean') {
+                    // Ladekabellås (lock.*_charge_cable_lock): false = lås opp (Tesla låser selv ved tilkobling)
+                    await hassAPI.callService('lock', value ? 'lock' : 'unlock', targetEntityId);
                 } else if (capabilityId === 'preset_mode') {
                     await hassAPI.callService('climate', 'set_preset_mode', targetEntityId, { preset_mode: value });
                 } else if (capabilityId === 'windowcoverings_set') {

@@ -137,7 +137,9 @@ export const buildDemoWorld = () => {
         E('switch.tesla_auto_steering_wheel_heater', 'on', { friendly_name: 'Auto rattvarme' }),
         E('switch.tesla_sentry_mode', 'on', { friendly_name: 'Vaktmodus' }),
         E('lock.tesla_lock', 'locked', { friendly_name: 'Lås' }),
+        E('lock.tesla_charge_cable_lock', 'locked', { friendly_name: 'Ladekabellås' }),
         E('cover.tesla_windows', 'closed', { friendly_name: 'Vinduer' }),
+        E('cover.tesla_charge_port_door', 'open', { friendly_name: 'Ladeluke', device_class: 'door' }),
 
         // ── Robotklipper (composite: demo-mower) ─────────────────────────
         E('lawn_mower.robotklipper', 'mowing', { friendly_name: 'Robotklipper' }),
@@ -237,14 +239,15 @@ export const buildDemoWorld = () => {
 
     // Device registry: fire «fysiske» enheter som gir composite-fliser
     const deviceRegistry = [
-        { id: 'demo-washer', name: 'Vaskemaskin' },
-        { id: 'demo-vvb', name: 'Varmtvannsbereder' },
-        { id: 'demo-charger', name: 'Elbillader' },
-        { id: 'demo-car', name: 'Tesla', manufacturer: 'Tesla', model: 'Model Y' },
-        { id: 'demo-mower', name: 'Robotklipper' },
-        { id: 'demo-printer', name: '3D-printer', manufacturer: 'Bambu Lab', model: 'P2S' },
-        { id: 'demo-printer-ams', name: '3D-printer AMS', manufacturer: 'Bambu Lab', model: 'AMS 2 Pro', via_device_id: 'demo-printer' },
-        { id: 'demo-diffuser', name: 'Diffuser', manufacturer: 'Rituals Cosmetics', model: 'The Perfume Genie 2.0' },
+        // identifiers[0][0] = integrasjon → merkelogo (product-images.js) når biblioteket finnes
+        { id: 'demo-washer', name: 'Vaskemaskin', manufacturer: 'Roborock', model: 'roborock.wm.a102', identifiers: [['roborock', 'demo-washer']] },
+        { id: 'demo-vvb', name: 'Varmtvannsbereder', identifiers: [['myuplink', 'demo-vvb']] },
+        { id: 'demo-charger', name: 'Elbillader', manufacturer: 'Zaptec', model: 'Zaptec Go', identifiers: [['zaptec', 'demo-charger']] },
+        { id: 'demo-car', name: 'Tesla', manufacturer: 'Tesla', model: 'Model Y', identifiers: [['teslemetry', 'demo-car']] },
+        { id: 'demo-mower', name: 'Robotklipper', manufacturer: 'Worx', model: 'Landroid Vision Cloud500 (WR305E)', identifiers: [['worx_vision_cloud', 'demo-mower']] },
+        { id: 'demo-printer', name: '3D-printer', manufacturer: 'Bambu Lab', model: 'P2S', identifiers: [['bambu_lab', 'demo-printer']] },
+        { id: 'demo-printer-ams', name: '3D-printer AMS', manufacturer: 'Bambu Lab', model: 'AMS 2 Pro', via_device_id: 'demo-printer', identifiers: [['bambu_lab', 'demo-printer-ams']] },
+        { id: 'demo-diffuser', name: 'Diffuser', manufacturer: 'Rituals Cosmetics', model: 'The Perfume Genie 2.0', identifiers: [['rituals_perfume_genie', 'demo-diffuser']] },
     ];
 
     const entityToDevice = {};

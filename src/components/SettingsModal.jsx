@@ -38,6 +38,7 @@ const SettingsModal = ({ onClose }) => {
     const setPopup = (kind, key, value) =>
         setPopups(prev => ({ ...prev, [kind]: { ...prev[kind], [key]: value } }));
     const [incomingCallPopup, setIncomingCallPopup] = useState(settings.incomingCallPopupEnabled !== false);
+    const [productImages, setProductImages] = useState(settings.productImagesEnabled !== false);
     const [wastePrompt, setWastePrompt] = useState(settings.wastePromptEnabled !== false);
     const [bladePrompt, setBladePrompt] = useState(settings.bladePromptEnabled !== false);
     const [gridColumns, setGridColumns] = useState(settings.gridColumns || 'auto');
@@ -90,6 +91,7 @@ const SettingsModal = ({ onClose }) => {
             panelMode: panelMode,
             popups,
             incomingCallPopupEnabled: incomingCallPopup,
+            productImagesEnabled: productImages,
             wastePromptEnabled: wastePrompt,
             bladePromptEnabled: bladePrompt,
             gridColumns,
@@ -293,6 +295,17 @@ const SettingsModal = ({ onClose }) => {
                         <div className="form-group checkbox-group">
                             <input type="checkbox" id="sbCheck" checked={showSidebar} onChange={e => setShowSidebar(e.target.checked)} />
                             <label htmlFor="sbCheck">Vis sidepanel (meny)</label>
+                        </div>
+                        <div className="form-group">
+                            <CheckboxRow
+                                label="Produktbilder på flisene (bilde av enheten i stedet for ikon)"
+                                checked={productImages}
+                                onChange={setProductImages}
+                            />
+                            <p className="hint" style={{ marginTop: '4px' }}>
+                                Krever at biblioteket i public/products/ er lastet ned (scripts/fetch_product_images.py).
+                                Fliser med eget ikon-hurtigvalg beholder ikonet.
+                            </p>
                         </div>
                         <div className="form-group checkbox-group">
                             <input type="checkbox" id="panelCheck" checked={panelMode} onChange={e => setPanelMode(e.target.checked)} />

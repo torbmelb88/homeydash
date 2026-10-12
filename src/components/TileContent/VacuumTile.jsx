@@ -4,6 +4,7 @@ import { useHomey } from '../../context/HomeyContext';
 import { Disc2, Play, Pause, Home, Battery, MapPin, AlertTriangle, Droplets,
          Volume2, BellOff, Map, Maximize2 } from 'lucide-react';
 import { hassAPI } from '../../services/hass-api';
+import DeviceImage from '../DeviceImage';
 
 const STATE_LABELS = {
     docked: 'Dokket',
@@ -249,15 +250,17 @@ const VacuumTile = ({ tile, device, expanded = false }) => {
                 gap: '5px',
             }}>
                 <div style={{ position: 'relative' }}>
-                    <Disc2
-                        size={expanded ? 38 : 30}
-                        color={stateColor}
-                        strokeWidth={1.5}
-                        style={{
-                            filter: isCleaning ? `drop-shadow(0 0 7px ${stateColor})` : 'none',
-                            transition: 'color 0.4s, filter 0.4s',
-                        }}
-                    />
+                    <DeviceImage device={device} tileSettings={tile.settings} slot={expanded ? 'best' : 'hero'} size={expanded ? 64 : 48} fallback={
+                        <Disc2
+                            size={expanded ? 38 : 30}
+                            color={stateColor}
+                            strokeWidth={1.5}
+                            style={{
+                                filter: isCleaning ? `drop-shadow(0 0 7px ${stateColor})` : 'none',
+                                transition: 'color 0.4s, filter 0.4s',
+                            }}
+                        />
+                    } />
                     {hasError && (
                         <AlertTriangle size={13} color="var(--color-danger)"
                             style={{ position: 'absolute', top: -3, right: -5 }} />

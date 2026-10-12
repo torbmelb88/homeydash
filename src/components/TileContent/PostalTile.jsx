@@ -1,5 +1,6 @@
 import React from 'react';
 import { CalendarDays } from 'lucide-react';
+import DeviceImage from '../DeviceImage';
 
 // Approksimering av Posten-logoen som SVG
 const PostenLogo = ({ size = 38 }) => (
@@ -112,7 +113,7 @@ const PostalTile = ({ tile, device, expanded }) => {
                         flexShrink: 0,
                         overflow: 'hidden',
                     }}>
-                        <PostenLogo size={58} />
+                        <DeviceImage device={device} tileSettings={tile?.settings} slot="best" plain size={58} fallback={<PostenLogo size={58} />} />
                     </div>
                     <div>
                         <div style={{
@@ -214,7 +215,7 @@ const PostalTile = ({ tile, device, expanded }) => {
                     boxShadow: `0 3px 10px ${POSTEN_GLOW}`,
                     flexShrink: 0,
                 }}>
-                    <PostenLogo size={48} />
+                    <DeviceImage device={device} tileSettings={tile?.settings} slot="best" plain size={48} fallback={<PostenLogo size={48} />} />
                 </div>
                 <span style={{
                     fontSize: '0.95rem',
@@ -267,7 +268,7 @@ const PostalTile = ({ tile, device, expanded }) => {
                     overflow: 'hidden',
                     boxShadow: `0 3px 10px ${POSTEN_GLOW}`,
                 }}>
-                    <PostenLogo size={40} />
+                    <DeviceImage device={device} tileSettings={tile?.settings} slot="best" plain size={40} fallback={<PostenLogo size={40} />} />
                 </div>
                 <span style={{
                     fontSize: '0.68rem',

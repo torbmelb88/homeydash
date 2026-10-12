@@ -4,6 +4,7 @@ import { Thermometer, Settings, X, Zap, ChevronUp, ChevronDown } from 'lucide-re
 import { useHomey } from '../context/HomeyContext';
 import { useLayout } from './music/musicUtils';
 import { CheckboxRow, ShowOptionsGroup } from './SettingsControls';
+import ProductImagePicker from './ProductImagePicker';
 import ClimateCard from './climate/ClimateCard';
 import ClimateDetail from './climate/ClimateDetail';
 import useClimateControl from '../hooks/useClimateControl';
@@ -207,6 +208,16 @@ function ClimateDevicesSettings({ settings, devices, onChange }) {
                             </div>
                             {shown && (
                                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                                    <div style={{ flex: '1 1 100%', minWidth: 0 }}>
+                                        <ProductImagePicker
+                                            compact
+                                            id={`climateImage-${key}`}
+                                            device={d}
+                                            slot="best"
+                                            value={settings.productImages?.[key] || ''}
+                                            onChange={(v) => setMapValue('productImages', key, v)}
+                                        />
+                                    </div>
                                     <input
                                         type="text"
                                         value={settings.customNames?.[key] || ''}

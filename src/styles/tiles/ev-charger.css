@@ -340,3 +340,25 @@
     color: var(--color-warning, #f59e0b);
     background: color-mix(in srgb, var(--color-warning, #f59e0b) 18%, transparent);
 }
+
+/* Status-sirkelen øverst i utvidet visning (farge settes inline fra statusColor) */
+.evc-status-hero {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Status-sirkelen øverst i kompakt visning (farge settes inline fra statusColor) */
+.evc-status-compact {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}

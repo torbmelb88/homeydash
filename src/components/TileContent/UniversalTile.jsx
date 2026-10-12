@@ -3,6 +3,7 @@ import * as LucideIcons from 'lucide-react';
 import { useHomey } from '../../context/HomeyContext';
 import TileCapabilities from '../TileCapabilities';
 import MiniPowerGraph from './MiniPowerGraph';
+import DeviceImage from '../DeviceImage';
 
 const UniversalTile = ({ tile, isEditing, onSettings, expanded = false }) => {
     const { api, devices } = useHomey();
@@ -133,11 +134,13 @@ const UniversalTile = ({ tile, isEditing, onSettings, expanded = false }) => {
                 {!settings.showInternalHeader && (
                     <div className="universal-center-action" onClick={handleToggle}>
                         <div className={`main-switch-button ${isOn ? 'active' : ''}`}>
-                            {React.createElement(MainIconComponent, { 
-                                size: 42, 
-                                strokeWidth: 1.5,
-                                color: isOn ? 'white' : 'var(--color-text-secondary)'
-                            })}
+                            <DeviceImage device={device} tileSettings={tile.settings} slot="hero" plain size={56} fallback={
+                                React.createElement(MainIconComponent, {
+                                    size: 42,
+                                    strokeWidth: 1.5,
+                                    color: isOn ? 'white' : 'var(--color-text-secondary)'
+                                })
+                            } />
                         </div>
                     </div>
                 )}

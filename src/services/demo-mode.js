@@ -235,7 +235,10 @@ export function bootstrapDemo() {
         } else if (domain === 'cover') {
             if (service === 'set_cover_position') {
                 setState(entityId, data.position > 0 ? 'open' : 'closed', { current_position: data.position });
-            }
+            } else if (service === 'open_cover') setState(entityId, 'open');
+            else if (service === 'close_cover') setState(entityId, 'closed');
+        } else if (domain === 'lock') {
+            setState(entityId, service === 'lock' ? 'locked' : 'unlocked');
         } else if (domain === 'number') {
             setState(entityId, data.value);
         } else if (domain === 'select' || domain === 'input_select') {

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useHomey } from '../../context/HomeyContext';
 import { hassAPI } from '../../services/hass-api';
 import { Scissors, Play, Pause, Home, Battery, BatteryCharging, AlertTriangle, CloudRain, Clock, Ruler, Minus, Plus, ArrowUp, Timer, Maximize2 } from 'lucide-react';
+import DeviceImage from '../DeviceImage';
 
 const STATE_LABELS = {
     mowing: 'Klipper',
@@ -228,14 +229,16 @@ const LawnMowerTile = ({ tile, device, expanded = false }) => {
             }}>
                 {/* Gressklipper-ikon */}
                 <div style={{ position: 'relative' }}>
-                    <Scissors
-                        size={expanded ? 36 : 32}
-                        color={iconColor}
-                        style={{
-                            filter: isActive ? `drop-shadow(0 0 6px ${iconColor})` : 'none',
-                            transition: 'all 0.3s',
-                        }}
-                    />
+                    <DeviceImage device={device} tileSettings={tile.settings} slot={expanded ? 'best' : 'hero'} size={expanded ? 64 : 48} fallback={
+                        <Scissors
+                            size={expanded ? 36 : 32}
+                            color={iconColor}
+                            style={{
+                                filter: isActive ? `drop-shadow(0 0 6px ${iconColor})` : 'none',
+                                transition: 'all 0.3s',
+                            }}
+                        />
+                    } />
                     {hasError && (
                         <AlertTriangle
                             size={14}

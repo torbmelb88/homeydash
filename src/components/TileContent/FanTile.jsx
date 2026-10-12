@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useHomey } from '../../context/HomeyContext';
 import { Fan, Lightbulb, Thermometer, Power } from 'lucide-react';
 import TileCapabilities from '../TileCapabilities';
+import DeviceImage from '../DeviceImage';
 
 const FanTile = ({ tile, device, expanded = false }) => {
     const { api, setIsInteracting } = useHomey();
@@ -86,14 +87,16 @@ const FanTile = ({ tile, device, expanded = false }) => {
                         boxShadow: isOn ? '0 0 15px rgba(59, 130, 246, 0.3)' : 'none'
                     }}
                 >
-                    <Fan
-                        size={expanded ? 64 : 42}
-                        color={fanColor}
-                        style={{
-                            animation: isOn ? `spin ${3 / (speed || 1)}s linear infinite` : 'none',
-                            transition: 'color 0.3s ease'
-                        }}
-                    />
+                    <DeviceImage device={device} tileSettings={tile.settings} slot={expanded ? 'best' : 'hero'} plain size={expanded ? 72 : 48} fallback={
+                        <Fan
+                            size={expanded ? 64 : 42}
+                            color={fanColor}
+                            style={{
+                                animation: isOn ? `spin ${3 / (speed || 1)}s linear infinite` : 'none',
+                                transition: 'color 0.3s ease'
+                            }}
+                        />
+                    } />
                 </div>
 
                 {/* Speed Indicator (Small View) – alltid rendret så flisen har samme høyde av/på */}
