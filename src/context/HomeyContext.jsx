@@ -7,6 +7,62 @@ import { INTERACTION_TIMEOUT_MS, MAX_TOAST_COUNT } from '../constants';
 
 const HomeyContext = createContext(null);
 
+// Hvor lenge innkommende state_changed samles før de tas inn i én setDevices.
+// Etter en vekking kan det komme tusenvis av hendelser i ett rykk (alt som
+// skjedde mens fanen sov, eller en full resync) – én render i stedet for én
+// per hendelse. 50 ms merkes ikke i vanlig drift.
+const STATE_FLUSH_MS = 50;
+
+/** Tar én HA-state inn i enhetslista (ren funksjon – brukes av batch-flushen). */
+const applyStateToDevices = (prev, newState) => {
+    const entityId = newState.entity_id;
+    const deviceId = hassAPI.entityToDevice?.[entityId];
+
+    let anyChanged = false;
+    const nextDevices = prev.map(d => {
+        // 1. Standalone device update
+        if (d.id === entityId) {
+            anyChanged = true;
+            return applyEntityUpdateToDevice(d, newState);
+        }
+        // 2. Composite device update (match by haDeviceId; haDeviceIds dekker
+        //    innfoldede barn-enheter, f.eks. 3D-printerens AMS)
+        if (deviceId && (d.settings?.haDeviceId === deviceId || d.settings?.haDeviceIds?.includes(deviceId))) {
+            anyChanged = true;
+            return applyEntityUpdateToDevice(d, newState);
+        }
+        // 3. Waste composite update (standalone entities matched by prefix)
+        if (d.settings?.compositeType === 'waste_collection' &&
+            d.settings?.haPrefix &&
+            entityId.split('.')[1]?.startsWith(d.settings.haPrefix)) {
+            anyChanged = true;
+            return applyEntityUpdateToDevice(d, newState);
+        }
+        // 4. Postal composite update (standalone entities matched by prefix)
+        if (d.settings?.compositeType === 'postal' &&
+            d.settings?.haPrefix &&
+            entityId.split('.')[1]?.startsWith(d.settings.haPrefix)) {
+            anyChanged = true;
+            return applyEntityUpdateToDevice(d, newState);
+        }
+        return d;
+    });
+
+    if (anyChanged) return nextDevices;
+
+    // Fallback: if it's a new entity not yet in our device list
+    const mapped = mapHassToHomey(newState, hassAPI.entityToArea);
+    if (!mapped) return prev;
+
+    // Check if we already have it (safety)
+    const index = prev.findIndex(d => d.id === mapped.id);
+    if (index === -1) return [...prev, mapped];
+
+    const newDevs = [...prev];
+    newDevs[index] = mapped;
+    return newDevs;
+};
+
 export const HomeyProvider = ({ children }) => {
     const [devices, setDevices] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -20,6 +76,11 @@ export const HomeyProvider = ({ children }) => {
     const [isInteracting, setIsInteracting] = useState(false);
     // Ref mirrors isInteracting so callbacks registered in useEffect([]) see the current value
     const isInteractingRef = useRef(false);
+    // HA-tilkobling: false mens vi kobler til på nytt (viser indikator i App).
+    const [haConnected, setHaConnected] = useState(true);
+    // Innkommende HA-states i kø (entity_id → siste state) + flush-timer.
+    const pendingStatesRef = useRef(new Map());
+    const flushTimerRef = useRef(null);
     const [error, setError] = useState(null);
     const [toasts, setToasts] = useState([]);
     const hasInitialized = useRef(false);
@@ -49,9 +110,36 @@ export const HomeyProvider = ({ children }) => {
         setCurrentPageState(previousPageId);
     };
 
+    const flushPendingStates = () => {
+        flushTimerRef.current = null;
+        if (pendingStatesRef.current.size === 0) return;
+        // Under en interaksjon (slider-drag o.l.) venter køen – før ble
+        // hendelsene kastet, og verdien sto stale til neste endring.
+        if (isInteractingRef.current) {
+            scheduleFlush(300);
+            return;
+        }
+        const batch = Array.from(pendingStatesRef.current.values());
+        pendingStatesRef.current = new Map();
+        setDevices(prev => batch.reduce((acc, s) => applyStateToDevices(acc, s), prev));
+    };
+    const scheduleFlush = (delay = STATE_FLUSH_MS) => {
+        if (flushTimerRef.current) return;
+        flushTimerRef.current = setTimeout(flushPendingStates, delay);
+    };
+    const queueState = (newState) => {
+        pendingStatesRef.current.set(newState.entity_id, newState);
+        scheduleFlush();
+    };
+
     // Keep ref in sync with state so WebSocket callbacks always see current value
     useEffect(() => {
         isInteractingRef.current = isInteracting;
+        if (!isInteracting && pendingStatesRef.current.size > 0) {
+            if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+            flushTimerRef.current = null;
+            scheduleFlush(0);
+        }
     }, [isInteracting]);
 
     // Safety mechanism: auto-release the interaction lock after a timeout
@@ -124,61 +212,14 @@ export const HomeyProvider = ({ children }) => {
                         setIsAuthenticated(true);
                         setError(null);
                         
-                        // Handle HA updates — use ref to avoid stale closure on isInteracting
-                        hassAPI.onStateChanged = (newState) => {
-                            if (isInteractingRef.current) return;
-                            setDevices(prev => {
-                                const entityId = newState.entity_id;
-                                const deviceId = hassAPI.entityToDevice?.[entityId];
-                                
-                                let anyChanged = false;
-                                const nextDevices = prev.map(d => {
-                                    // 1. Standalone device update
-                                    if (d.id === entityId) {
-                                        anyChanged = true;
-                                        return applyEntityUpdateToDevice(d, newState);
-                                    }
-                                    // 2. Composite device update (match by haDeviceId; haDeviceIds dekker
-                                    //    innfoldede barn-enheter, f.eks. 3D-printerens AMS)
-                                    if (deviceId && (d.settings?.haDeviceId === deviceId || d.settings?.haDeviceIds?.includes(deviceId))) {
-                                        anyChanged = true;
-                                        return applyEntityUpdateToDevice(d, newState);
-                                    }
-                                    // 3. Waste composite update (standalone entities matched by prefix)
-                                    if (d.settings?.compositeType === 'waste_collection' &&
-                                        d.settings?.haPrefix &&
-                                        entityId.split('.')[1]?.startsWith(d.settings.haPrefix)) {
-                                        anyChanged = true;
-                                        return applyEntityUpdateToDevice(d, newState);
-                                    }
-                                    // 4. Postal composite update (standalone entities matched by prefix)
-                                    if (d.settings?.compositeType === 'postal' &&
-                                        d.settings?.haPrefix &&
-                                        entityId.split('.')[1]?.startsWith(d.settings.haPrefix)) {
-                                        anyChanged = true;
-                                        return applyEntityUpdateToDevice(d, newState);
-                                    }
-                                    return d;
-                                });
-                                
-                                if (anyChanged) return nextDevices;
-
-                                // Fallback: if it's a new entity not yet in our device list
-                                const mapped = mapHassToHomey(newState, hassAPI.entityToArea);
-                                if (!mapped) return prev;
-                                
-                                // Check if we already have it (safety)
-                                const index = prev.findIndex(d => d.id === mapped.id);
-                                if (index === -1) return [...prev, mapped];
-                                
-                                const newDevs = [...prev];
-                                newDevs[index] = mapped;
-                                return newDevs;
-                            });
-                        };
+                        // Handle HA updates – samles i kø og tas inn i én render (se applyStateToDevices)
+                        hassAPI.onStateChanged = queueState;
+                        hassAPI.onConnectionChange = setHaConnected;
 
                         // Signal ready and handle bulk load
                         hassAPI.onReady = (entities) => {
+                            // Alt i køen er eldre enn dette øyeblikksbildet.
+                            pendingStatesRef.current = new Map();
                             const hassDevices = groupEntitiesByDevice(entities, {
                                 entityToDevice: hassAPI.entityToDevice,
                                 deviceRegistry: hassAPI.deviceRegistry,
@@ -471,6 +512,7 @@ export const HomeyProvider = ({ children }) => {
             flows,
             api: activeApi,
             isAuthenticated,
+            haConnected,
             isLoading,
             reloadData: loadDashboardData,
             settings,

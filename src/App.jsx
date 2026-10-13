@@ -5,6 +5,7 @@ import TileGrid from './components/TileGrid';
 import Sidebar from './components/Sidebar';
 import BottomNavBar from './components/BottomNavBar';
 import ToastContainer from './components/ToastContainer';
+import ConnectionBanner from './components/ConnectionBanner';
 import FinishedPromptManager from './components/FinishedPromptManager';
 import IncomingCallOverlay from './components/IncomingCallOverlay';
 import FamilyPage from './components/FamilyPage';
@@ -121,6 +122,7 @@ function App() {
         </button>
       )}
       <ToastContainer />
+      <ConnectionBanner />
       {/* Globale popuper («dynamiske fliser») — vises uansett aktiv side */}
       <FinishedPromptManager />
       <IncomingCallOverlay />
