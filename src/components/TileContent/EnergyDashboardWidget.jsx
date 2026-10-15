@@ -53,6 +53,9 @@ const LM_CAPACITY_EID    = 'number.global_load_manager_capacity_target';
 const LM_MODE_EID        = 'sensor.global_load_manager_mode';
 const LM_HEADROOM_EID    = 'sensor.global_load_manager_headroom';
 const LM_TARIFF_EID      = 'sensor.global_load_manager_tariff';
+// Husets effekt fra HAN-måleren – samme sensor som Strømstyring-integrasjonen styrer etter
+// (`power_sensor` i integrasjonens oppsett). Kortet skjules når sensoren mangler.
+const LM_POWER_EID       = 'sensor.tech_han_meter_power';
 
 const MODE_STYLE = {
     normal:    { label: 'Normal',    color: '#22c55e' },
@@ -294,6 +297,20 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
         return () => clearTimeout(t);
     }, [view]);
 
+    // Smal widget (flis) → statuskortene i Strømstyring legges 2×2 i stedet for fire på rad.
+    // Observatøren bindes på nytt per visning fordi hver visning har sin egen rot-div.
+    const [narrow, setNarrow] = useState(false);
+    useEffect(() => {
+        const el = rootRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver(entries => {
+            const w = entries[0]?.contentRect?.width;
+            if (w > 0) setNarrow(w < 500);
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [view]);
+
     // Synkroniser kapasitetsmål fra HA når man åpner strømstyring-visning
     useEffect(() => {
         if (view === 'loadmgr') {
@@ -423,7 +440,14 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
         const lmMode     = getStr(LM_MODE_EID);
         const lmHeadroom = getVal(LM_HEADROOM_EID);
         const lmTariff   = getStr(LM_TARIFF_EID);
+        const lmPower    = getVal(LM_POWER_EID);
         const capTarget  = capacityTarget ?? getVal(LM_CAPACITY_EID);
+        // Farge etter hvor nær kapasitetsmålet forbruket ligger: grønn < 90 %, oransje ≥ 90 %, rød over målet
+        const capTargetW = capTarget !== null ? capTarget * 1000 : null;
+        const lmPowerAccent = lmPower === null || capTargetW === null ? '#8b5cf6'
+            : lmPower > capTargetW        ? '#ef4444'
+            : lmPower > capTargetW * 0.9  ? '#f97316'
+            : '#22c55e';
         const capAttrs   = hassAPI.entities?.[LM_CAPACITY_EID]?.attributes || {};
         const modeStyle  = MODE_STYLE[lmMode] || { label: lmMode || '–', color: 'rgba(255,255,255,0.4)' };
         const lmTariffLabel = lmTariff === 'dag' ? '☀ Dag' : lmTariff === 'natt' ? '🌙 Natt' : lmTariff || '–';
@@ -460,9 +484,12 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
                     <span style={s.timestamp}>{now.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
 
-                {/* Statusbanner */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {/* Statusbanner – fire kort på én rad, 2×2 i smal widget */}
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${narrow && lmPower !== null ? 2 : lmPower !== null ? 4 : 3}, 1fr)`, gap: 6 }}>
                     <StatCard label="Modus"        value={modeStyle.label} accent={modeStyle.color} />
+                    {lmPower !== null && (
+                        <StatCard label="Forbruk nå" value={`${Math.round(lmPower).toLocaleString('nb-NO')} W`} accent={lmPowerAccent} />
+                    )}
                     <StatCard label="Tilgjengelig" value={lmHeadroom !== null ? `${Math.round(lmHeadroom)} W` : '–'} accent="#3b82f6" />
                     <StatCard label="Tariff"       value={lmTariffLabel} accent="#f59e0b" />
                 </div>
