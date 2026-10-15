@@ -34,6 +34,7 @@ class HassAPI {
         this.status = { phase: 'connecting', attempt: 0, since: Date.now() };
         this.events = this.loadEvents(); // tilkoblingslogg (ringbuffer, speiles til localStorage)
         this.openedAt = 0;
+        this.lastWakeAt = 0;           // siste vekking – de første sekundene etterpå brukes korte frister
     }
 
     // --- Tilkoblingslogg ---------------------------------------------------
@@ -99,6 +100,9 @@ class HassAPI {
     static COMMAND_TIMEOUT_MS = 20000;
     static OPEN_TIMEOUT_MS = 4000;         // socket must reach onopen (TCP/TLS) within this – a SYN
                                            // that hangs while wifi comes up is retried instead of waited on
+    static OPEN_TIMEOUT_WAKE_MS = 2000;    // same, right after a wake: the phone opens a socket in
+                                           // 300–450 ms on wifi, so 2 s is plenty and 4 s was wasted
+    static FRESH_WAKE_MS = 15000;          // how long after a wake the short limits apply
     static HANDSHAKE_TIMEOUT_MS = 8000;    // TCP + auth only; data load has per-command timeouts
     static RESYNC_AFTER_HIDDEN_MS = 20000; // hidden longer than this → get_states on wake
     static RECONNECT_AFTER_HIDDEN_MS = 120000; // hidden longer than this → skip the ping, reconnect at once
@@ -125,6 +129,11 @@ class HassAPI {
         return typeof document === 'undefined' || document.visibilityState === 'visible';
     }
 
+    /** True in the first seconds after a wake, when the user is waiting and the radio may be late. */
+    isFreshWake() {
+        return Date.now() - this.lastWakeAt < HassAPI.FRESH_WAKE_MS;
+    }
+
     notifyConnection(connected) {
         if (this.lastNotifiedConnected === connected) return;
         this.lastNotifiedConnected = connected;
@@ -143,6 +152,7 @@ class HassAPI {
         if (reason === 'visible' || hiddenFor > 0) {
             this.logEvent(`Vekket (${reason})${hiddenFor ? ` etter ${Math.round(hiddenFor / 1000)} s skjult` : ''}`);
         }
+        this.lastWakeAt = Date.now();
 
         // Backoff was tuned for a hidden page – start over now that someone is looking.
         this.reconnectAttempts = 0;
@@ -152,7 +162,14 @@ class HassAPI {
             return;
         }
         if (this.isConnecting) {
-            if (Date.now() - this.connectStartedAt > HassAPI.STALE_CONNECT_MS) {
+            if (this.ws?.readyState === WebSocket.CONNECTING) {
+                // Fikk ikke kontakt ennå (typisk: startet i bakgrunnen eller i
+                // samme sekund som opplåsingen, før wifi var oppe). Et nytt
+                // forsøk nå får den korte vekkingsfristen; dette ville hengt
+                // hele den lange (sett i loggen 15/10: 4 s tapt).
+                this.logEvent('Forsøk uten kontakt ennå – starter på nytt med kort frist');
+                this.forceReconnect();
+            } else if (Date.now() - this.connectStartedAt > HassAPI.STALE_CONNECT_MS) {
                 this.logEvent('Hengende tilkoblingsforsøk fra før søvnen – starter på nytt');
                 this.forceReconnect();
             }
@@ -333,12 +350,13 @@ class HassAPI {
             // Separate, shorter limit for the TCP/TLS part: a SYN that is
             // silently dropped (wifi still coming up after unlock) would
             // otherwise cost the full handshake timeout before we retry.
+            const openMs = this.isFreshWake() ? HassAPI.OPEN_TIMEOUT_WAKE_MS : HassAPI.OPEN_TIMEOUT_MS;
             const openTimeout = setTimeout(() => {
                 if (ws && ws.readyState === WebSocket.CONNECTING && this.ws === ws) {
-                    this.logEvent(`Ingen kontakt på ${HassAPI.OPEN_TIMEOUT_MS / 1000} s – prøver igjen`, 'warn');
+                    this.logEvent(`Ingen kontakt på ${openMs / 1000} s – prøver igjen`, 'warn');
                     ws.close(); // onclose schedules the retry
                 }
-            }, HassAPI.OPEN_TIMEOUT_MS);
+            }, openMs);
 
             try {
                 ws = new WebSocket(wsUrl);
@@ -686,7 +704,8 @@ class HassAPI {
         // Visible page: retry every few seconds at most – a 30 s wait feels
         // like «it does not work». Hidden page: back off up to 30 s.
         const cap = this.isVisible() ? HassAPI.VISIBLE_BACKOFF_MAX_MS : HassAPI.HIDDEN_BACKOFF_MAX_MS;
-        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), cap);
+        const base = this.isFreshWake() ? 500 : 1000; // rett etter vekking: 0,5 · 1 · 2 · 4 · 5 s
+        const delay = Math.min(base * Math.pow(2, this.reconnectAttempts), cap);
         this.reconnectAttempts++;
         this.logEvent(`Nytt forsøk om ${delay / 1000} s`);
         this.setStatus('waiting', { until: Date.now() + delay });
