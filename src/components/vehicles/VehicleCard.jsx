@@ -1,8 +1,8 @@
 import React from 'react';
-import { Car, Clock, Moon, Lock, Unlock, MapPin, Thermometer, Power, Fan, ChevronRight, Zap } from 'lucide-react';
+import { Car, Clock, Moon, Lock, Unlock, MapPin, Thermometer, Power, Fan, ChevronRight, Zap, Route } from 'lucide-react';
 import TempStepper from '../TempStepper';
 import { BatteryBar, fmt1, stop } from './shared';
-import { climateKindOf, formatClock, formatUntil, locationText, vehicleKey } from '../../services/vehicle';
+import { climateKindOf, formatClock, formatUntil, locationText, reportedText, vehicleKey } from '../../services/vehicle';
 import DeviceImage from '../DeviceImage';
 
 // Klimagrenser (HA oppgir min/max/step på climate-entiteten; Tesla 15–28, trinn 0,5)
@@ -16,13 +16,16 @@ export const climateLimits = (v) => {
 export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settings = {}, selected, onOpen }) {
     const caps = vehicle.capabilitiesObj || {};
     const climateKind = climateKindOf(vehicle);
-    const climateOn = climateKind === 'entity' && !!ctl.capOf(vehicle, 'vehicle_climate_on');
+    const climateOn = climateKind != null && !!ctl.capOf(vehicle, 'vehicle_climate_on');
     const climateNA = !!caps.vehicle_climate_on?.unavailable;
     const target = ctl.capOf(vehicle, 'vehicle_climate_target');
     const inside = caps['measure_temperature.inside']?.value ?? caps.vehicle_climate_current?.value ?? null;
     const outside = caps['measure_temperature.outside']?.value ?? null;
     const asleep = car.awake === false;
+    const driving = car.ignition === true || (car.speed != null && car.speed > 0);
     const lim = climateLimits(vehicle);
+    // Kona (Pleos) rapporterer med minutters forsinkelse – vis når dataene er fra
+    const reported = car.lastReported && !car.isCharging ? reportedText(car) : '';
 
     const tone = climateOn ? 'climate' : car.isCharging ? 'charging' : 'idle';
     const model = [car.make && car.model ? `${car.make} ${car.model}` : (car.model || car.make)].filter(Boolean)[0];
@@ -42,10 +45,12 @@ export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settin
         line = <><Zap size={13} /> Fulladet{car.energyAdded != null ? ` · +${Number(car.energyAdded).toFixed(1)} kWh` : ''}</>;
     } else if (car.scheduledCharging) {
         line = <><Clock size={13} /> Planlagt lading venter</>;
+    } else if (driving) {
+        line = <><Route size={13} /> Kjører{car.speed > 0 ? ` · ${Math.round(car.speed)} km/t` : ''}{reported ? ` · ${reported}` : ''}</>;
     } else if (asleep) {
-        line = <><Moon size={13} /> Sover{car.cableConnected ? ' · kabel tilkoblet' : ''}</>;
+        line = <><Moon size={13} /> Sover{car.cableConnected ? ' · kabel tilkoblet' : ''}{reported ? ` · ${reported}` : ''}</>;
     } else {
-        line = <>{car.stateInfo?.text || (car.cableConnected ? 'Kabel tilkoblet' : 'Ikke tilkoblet')}</>;
+        line = <>{car.stateInfo?.text || (car.cableConnected ? 'Kabel tilkoblet' : 'Ikke tilkoblet')}{reported ? ` · ${reported}` : ''}</>;
     }
 
     return (
@@ -79,17 +84,21 @@ export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settin
             <BatteryBar battery={car.battery} limit={ctl.capOf(vehicle, 'vehicle_charge_limit')} charging={car.isCharging} />
             <div className={`vp-line${car.isCharging ? ' is-ok' : ''}`}>{line}</div>
 
-            {climateKind === 'entity' && (
+            {climateKind != null && (
                 <div className={`vp-cl${climateOn ? ' is-on' : ''}`} onClick={stop} onPointerDown={stop}>
                     <Thermometer size={18} className="vp-dim" />
                     <div className="vp-cl-text">
-                        <strong>{inside != null ? `${fmt1(inside)}° inne` : 'Kupé'}</strong>
+                        <strong>{inside != null ? `${fmt1(inside)}° inne` : climateOn ? 'Klima på' : 'Klima av'}</strong>
                         <span>
-                            {climateNA ? 'Klima utilgjengelig' : climateOn ? `Varmer til ${fmt1(target)}°` : 'Klima av'}
+                            {climateNA ? 'Klima utilgjengelig'
+                                : ctl.isPending(vehicle, 'vehicle_climate_on') ? (climateOn ? 'Starter – venter på bilen …' : 'Slår av – venter på bilen …')
+                                : climateOn ? `Varmer til ${fmt1(target)}°`
+                                : inside != null ? 'Klima av' : `Innstilt ${fmt1(target)}°`}
                             {outside != null && ` · ute ${fmt1(outside)}°`}
+                            {climateKind === 'status' && ' · kun status'}
                         </span>
                     </div>
-                    <div className="vp-cl-ctl">
+                    {climateKind === 'entity' && <div className="vp-cl-ctl">
                         <TempStepper
                             value={target}
                             step={lim.step}
@@ -107,7 +116,7 @@ export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settin
                             title={climateOn ? 'Slå av klima' : 'Slå på klima'}
                             onClick={() => ctl.setCap(vehicle, 'vehicle_climate_on', !climateOn)}
                         ><Power size={18} /></button>
-                    </div>
+                    </div>}
                 </div>
             )}
         </div>

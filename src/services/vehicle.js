@@ -1,8 +1,17 @@
 // Elbiler (vehicle-composites fra hub-mapper) og koblingen til billader-flisen.
 // Laderen (Zaptec) er hoveddelen av flisen; bilen som faktisk lader finnes her.
 
+// Reserve-integrasjoner som holdes skjult så lenge hovedintegrasjonen lever (brukervalg okt 2026):
+// Kona-en finnes både som kia_uvo (Bluelink, styring) og pleos_vehicle_data (kun sensorer).
+// Ryker Bluelink igjen: fjern 'pleos_vehicle_data' her, så dukker Pleos-kortet opp.
+export const BACKUP_VEHICLE_INTEGRATIONS = ['pleos_vehicle_data'];
+
+export const isBackupVehicle = (d) =>
+    BACKUP_VEHICLE_INTEGRATIONS.includes(d?.product?.integration) ||
+    (d?.entityIds?.length > 0 && d.entityIds.every(e => e.includes('_pleos_')));
+
 export const isVehicle = (d) =>
-    !!d && !d._inComposite &&
+    !!d && !d._inComposite && !isBackupVehicle(d) &&
     (d.capabilities?.includes('homey_vehicle') || d.settings?.compositeType === 'vehicle');
 
 // Stabil nøkkel for innstillinger: posisjons-entiteten overlever at HA gir
@@ -20,19 +29,65 @@ export const VEHICLE_STATE_MAP = {
     complete:     { text: 'Fulladet',       charging: false },
     disconnected: { text: 'Frakoblet',      charging: false },
     no_power:     { text: 'Ingen strøm',    charging: false },
+    connected:    { text: 'Tilkoblet, lader ikke', charging: false },
 };
 
 const capVal = (d, id) => d?.capabilitiesObj?.[id]?.value;
+const capRO = (d, id) => !!d?.capabilitiesObj?.[id]?.readonly;
+
+// Ladestatus: Tesla gir enum (vehicle_charging_state); Kona (Pleos) gir binær «lader» +
+// tekststatus (notCharging/…) + kabel – utled samme vokabular.
+function chargingStateOf(v) {
+    const raw = capVal(v, 'vehicle_charging_state') || '';
+    if (VEHICLE_STATE_MAP[raw]) return raw;
+    const isChg = capVal(v, 'vehicle_is_charging');
+    const cs = String(capVal(v, 'vehicle_charging_status') || '').toLowerCase();
+    const cable = capVal(v, 'vehicle_cable_connected');
+    if (isChg === true || cs === 'charging') return 'charging';
+    if (cs.includes('complete') || cs.includes('finish')) return 'complete';
+    if (cable === true) return 'connected';
+    if (cable === false) return 'disconnected';
+    return raw;
+}
 
 // Flat oppsummering av bilen til visning
 export function vehicleSummary(v) {
     if (!v) return null;
-    const state = capVal(v, 'vehicle_charging_state') || '';
+    const state = chargingStateOf(v);
+    const isCharging = VEHICLE_STATE_MAP[state]?.charging ?? false;
     const limit = capVal(v, 'vehicle_charge_limit');
     const battery = capVal(v, 'measure_battery');
     const timeToFullRaw = capVal(v, 'vehicle_time_to_full');
-    const timeToFull = timeToFullRaw ? new Date(timeToFullRaw) : null;
+    let timeToFull = timeToFullRaw ? new Date(timeToFullRaw) : null;
+    // Kona: minutter igjen (fra siste rapport) – bare meningsfullt mens det lades
+    const ttfMin = capVal(v, 'vehicle_time_to_full_minutes');
+    if (!timeToFull && isCharging && ttfMin != null) {
+        const base = v.capabilitiesObj.vehicle_time_to_full_minutes.reported_at;
+        const baseDate = base ? new Date(base) : new Date();
+        timeToFull = new Date((isNaN(baseDate.getTime()) ? Date.now() : baseDate.getTime()) + ttfMin * 60000);
+    }
+    // Låst: Tesla har én lås; Kona rapporterer per dør (locked/unlocked/open)
+    let locked = capVal(v, 'vehicle_locked');
+    const doors = Object.keys(v.capabilitiesObj || {}).filter(k => k.startsWith('vehicle_door.'));
+    if (locked == null && doors.length) locked = doors.every(k => capVal(v, k) === 'locked');
+    const lastReportedRaw = capVal(v, 'vehicle_last_reported');
+    const lastReported = lastReportedRaw ? new Date(lastReportedRaw) : null;
     return {
+        lastReported: lastReported && !isNaN(lastReported.getTime()) ? lastReported : null,
+        dataAge: capVal(v, 'vehicle_data_age'),
+        dataStale: capVal(v, 'vehicle_data_stale') === true,
+        limitDc: capVal(v, 'vehicle_charge_limit_dc'),
+        speed: capVal(v, 'vehicle_speed'),
+        ignition: capVal(v, 'vehicle_ignition'),
+        parked: capVal(v, 'vehicle_parked'),
+        warnings: capVal(v, 'vehicle_warnings') || null,
+        wheelHeaterOn: capVal(v, 'vehicle_wheel_heater_on'),
+        defrostOn: capVal(v, 'vehicle_defrost_on'),
+        rearHeaterOn: capVal(v, 'vehicle_rear_heater_on'),
+        tireWarning: capVal(v, 'vehicle_tire_warning') === true,
+        battery12v: capVal(v, 'vehicle_battery_12v'),
+        hasRefresh: v.capabilities?.includes('vehicle_refresh'),
+        doorsOpen: doors.filter(k => capVal(v, k) === 'open').map(k => k.split('.')[1]),
         id: v.id,
         key: vehicleKey(v),
         name: v.name || 'Bil',
@@ -48,7 +103,7 @@ export function vehicleSummary(v) {
         rangeUnit: (v.capabilitiesObj?.vehicle_range_ideal || v.capabilitiesObj?.vehicle_range || v.capabilitiesObj?.vehicle_range_estimate)?.units || 'km',
         state,
         stateInfo: VEHICLE_STATE_MAP[state] || null,
-        isCharging: VEHICLE_STATE_MAP[state]?.charging ?? false,
+        isCharging,
         chargeRate: capVal(v, 'vehicle_charge_rate'),
         chargeRateUnit: v.capabilitiesObj?.vehicle_charge_rate?.units || 'km/h',
         chargerPower: capVal(v, 'vehicle_charger_power'),
@@ -58,11 +113,12 @@ export function vehicleSummary(v) {
         cableConnected: capVal(v, 'vehicle_cable_connected'),
         chargeSwitch: capVal(v, 'vehicle_charge_switch'),
         hasChargeSwitch: v.capabilities?.includes('vehicle_charge_switch'),
-        hasChargeLimit: v.capabilities?.includes('vehicle_charge_limit'),
+        // Kona: ladegrensen er en sensor (readonly) – vises, men uten stepper
+        hasChargeLimit: v.capabilities?.includes('vehicle_charge_limit') && !capRO(v, 'vehicle_charge_limit'),
         location: capVal(v, 'vehicle_location'),
         atHome: capVal(v, 'vehicle_location') === 'home',
         awake: capVal(v, 'vehicle_awake'),
-        locked: capVal(v, 'vehicle_locked'),
+        locked,
         portOpen: capVal(v, 'vehicle_charge_port_open'),
         insideTemp: capVal(v, 'measure_temperature.inside'),
         scheduledCharging: capVal(v, 'vehicle_scheduled_charging'),
@@ -212,7 +268,22 @@ export const vehicleName = (v, settings = {}) =>
 // Hvordan bilen styrer kupéklima: 'entity' = HA climate-entitet (Tesla), ellers null.
 // Hyundai/Kia Connect har ingen climate-entitet (forvarming er én kommando) og får en egen
 // variant ('command') når bil nr. 2 er i HA.
-export const climateKindOf = (v) => (v?.capabilitiesObj && 'vehicle_climate_on' in v.capabilitiesObj) ? 'entity' : null;
+// 'status' = bilen rapporterer klima (Kona via Pleos: sensorer), men kan ikke styres herfra.
+export const climateKindOf = (v) => {
+    const cap = v?.capabilitiesObj?.vehicle_climate_on;
+    if (!cap) return null;
+    return cap.readonly ? 'status' : 'entity';
+};
+
+// «12:25» / «i går 18:40» for siste rapport fra bilen, pluss alder i minutter
+export function reportedText(car) {
+    if (!car?.lastReported) return '';
+    const min = Math.round((Date.now() - car.lastReported.getTime()) / 60000);
+    const when = formatClock(car.lastReported);
+    if (min < 2) return 'nå nettopp';
+    if (min < 60) return `${when} (${min} min siden)`;
+    return `${when}`;
+}
 
 // Laderens status (Zaptec-modus, ellers effekt/tilkobling)
 export const CHARGER_MODE_TEXT = {

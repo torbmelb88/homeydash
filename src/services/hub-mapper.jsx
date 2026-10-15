@@ -41,6 +41,14 @@ import {
 import DiffuserIcon from '../components/icons/DiffuserIcon';
 
 // 3D-printer (Bambu Lab-integrasjonen): kjennetegnes av fremdrifts- og status-sensorene
+// Elbil: Tesla (Teslemetry) på produsent, ellers generisk – posisjon + batteri + lade-entitet
+// (Hyundai Kona via pleos_vehicle_data: device_tracker + sensor battery + binary_sensor *_charging).
+const isVehicleEntities = (entities, haDevice) =>
+    (haDevice?.manufacturer || '').toLowerCase() === 'tesla' ||
+    (entities.some(e => e.entity_id.startsWith('device_tracker.')) &&
+     entities.some(e => e.entity_id.startsWith('sensor.') && e.attributes?.device_class === 'battery') &&
+     entities.some(e => /(_charge_limit|_charging|_charge_port_door|_charge_cable)$/.test(e.entity_id.split('.')[1] || '')));
+
 const isPrinterGroup = (entities) => {
     const objs = entities.map(e => e.entity_id.split('.')[1] || '');
     return objs.some(o => o.endsWith('_print_progress')) && objs.some(o => o.endsWith('_print_status'));
@@ -538,10 +546,76 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
             const num = parseFloat(value);
             const n = (value === 'unknown' || value === 'unavailable' || isNaN(num)) ? null : num;
             const unit = attr.unit_of_measurement || null;
+            // Siste rapportering fra bilen (Hyundai Pleos: *_last_reported per datagruppe) – behold nyeste
+            const noteReported = (iso) => {
+                if (!iso || iso === 'unknown' || iso === 'unavailable') return;
+                const cur = updatedDevice.capabilitiesObj.vehicle_last_reported?.value;
+                if (!cur || new Date(iso) > new Date(cur)) addCap('vehicle_last_reported', iso, null, 'string');
+            };
+            if (attr.reported_at) noteReported(attr.reported_at);
             if (domain === 'sensor') {
-                if (obj.endsWith('_usable_battery_level')) {
+                // ── Hyundai Kona via pleos_vehicle_data (kun sensorer, ingen styring) ──
+                // Suffiksene under finnes ikke hos Tesla; `readonly` på capObj forteller UI-et at
+                // verdien ikke kan settes (ladegrense/klima vises, men uten stepper/knapper).
+                const ro = (id, val, units, type) => { addCap(id, val, units, type); updatedDevice.capabilitiesObj[id].readonly = true; };
+                // ── Hyundai Kona via kia_uvo (Bluelink) – styring finnes, se number/switch/climate ──
+                if (obj.endsWith('_12v_battery_level')) {
+                    // FØR batteri-fangsten: slutter også på _battery_level
+                    addCap('vehicle_battery_12v', n, '%');
+                } else if (obj.endsWith('_last_updated')) {
+                    // kia_uvo: *_last_updated = bilens siste rapport (også *_location_last_updated)
+                    noteReported(value);
+                } else if (obj.endsWith('_last_scanned') || obj.endsWith('_set_temperature') || obj.endsWith('_total_range')) {
+                    // last_scanned = når HA spurte skyen; set_temperature dekkes av climate-entiteten;
+                    // total_range = samme som _range for en elbil
+                } else if (obj.endsWith('_last_reported')) {
+                    noteReported(value);
+                } else if (obj.endsWith('_data_age')) {
+                    // flere grupper – behold den eldste (verste) som «dataalder»
+                    const cur = updatedDevice.capabilitiesObj.vehicle_data_age?.value;
+                    if (n != null && (cur == null || n > cur)) addCap('vehicle_data_age', n, 'min');
+                } else if (obj.endsWith('_traction_battery_level')) {
+                    // samme som _battery_level hos Pleos – hopp over så den ikke overskriver
+                } else if (obj.endsWith('_charge_limit_ac')) {
+                    ro('vehicle_charge_limit', n, '%');
+                } else if (obj.endsWith('_charge_limit_dc')) {
+                    ro('vehicle_charge_limit_dc', n, '%');
+                } else if (obj.endsWith('_charging_status')) {
+                    addCap('vehicle_charging_status', value, null, 'string');
+                } else if (obj.endsWith('_ev_range')) {
+                    addCap('vehicle_range', n, unit || 'km');
+                } else if (obj.endsWith('_target_temperature')) {
+                    ro('vehicle_climate_target', n, '°C');
+                } else if (obj.endsWith('_climate')) {
+                    ro('vehicle_climate_on', value === 'on', null, 'boolean');
+                } else if (obj.endsWith('_steering_wheel_heater')) {
+                    ro('vehicle_wheel_heater_on', value === 'on', null, 'boolean');
+                } else if (obj.endsWith('_defrost')) {
+                    ro('vehicle_defrost_on', value === 'on', null, 'boolean');
+                } else if (/_(front|rear)_(driver|passenger)_door$/.test(obj)) {
+                    addCap(`vehicle_door.${obj.replace(/^.*_(front|rear)_(driver|passenger)_door$/, '$1_$2')}`, value, null, 'string');
+                } else if (obj.endsWith('_bonnet')) {
+                    addCap('vehicle_frunk_open', value === 'open', null, 'boolean');
+                } else if (obj.endsWith('_trunk')) {
+                    addCap('vehicle_trunk_open', value === 'open', null, 'boolean');
+                } else if (obj.endsWith('_sleep_mode')) {
+                    addCap('vehicle_awake', value !== 'on', null, 'boolean');
+                } else if (obj.endsWith('_ignition')) {
+                    addCap('vehicle_ignition', value === 'on', null, 'boolean');
+                } else if (obj.endsWith('_speed') && attr.device_class === 'speed') {
+                    addCap('vehicle_speed', n, unit || 'km/h');
+                } else if (obj.endsWith('_warnings')) {
+                    addCap('vehicle_warnings', (!value || value === 'None' || value === 'none' || value === 'unknown' || value === 'unavailable') ? null : value, null, 'string');
+                } else if (obj.endsWith('_time_to_full_charge') && (unit === 'min' || attr.device_class === 'duration')) {
+                    // Pleos gir minutter (står igjen med gammel verdi når det ikke lades) – tidspunktet
+                    // regnes ut i vehicleSummary fra reported_at + minutter, kun mens det lades
+                    addCap('vehicle_time_to_full_minutes', n, 'min');
+                    updatedDevice.capabilitiesObj.vehicle_time_to_full_minutes.reported_at = attr.reported_at || null;
+                // ── Tesla via Teslemetry ──
+                } else if (obj.endsWith('_usable_battery_level')) {
                     addCap('vehicle_battery_usable', n, '%');
-                } else if (obj.endsWith('_battery_level') || (attr.device_class === 'battery' && !obj.includes('arrival'))) {
+                } else if (obj.endsWith('_battery_level') || (attr.device_class === 'battery' && !obj.includes('arrival') && !obj.includes('charge_limit'))) {
+                    if (attr.data_stale != null) addCap('vehicle_data_stale', !!attr.data_stale, null, 'boolean');
                     // Rundes: Tesla gir 72.833 og Tile.jsx viser rå verdi i flishodet
                     addCap('measure_battery', n == null ? null : Math.round(n), '%');
                 } else if (obj.endsWith('_charging') && Array.isArray(attr.options)) {
@@ -572,11 +646,41 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                     addCap('measure_temperature.outside', n, '°C');
                 } else if (obj.endsWith('_odometer')) {
                     addCap('vehicle_odometer', n, unit || 'km');
+                } else if (obj.endsWith('_range') && attr.device_class === 'distance') {
+                    // kia_uvo: sensor.*_range (elektrisk rekkevidde) – sist, etter Teslas mer spesifikke suffikser
+                    addCap('vehicle_range', n, unit || 'km');
                 }
             } else if (domain === 'binary_sensor') {
                 const on = value === 'on';
+                const door = /_(front|rear)_(driver|passenger)_door$/.exec(obj);
                 if (obj.endsWith('_charge_cable')) {
                     addCap('vehicle_cable_connected', on, null, 'boolean');
+                } else if (obj.endsWith('_charging') && attr.device_class === 'battery_charging') {
+                    // Kona: binær «Lader» – vehicleSummary utleder ladestatus når bilen mangler enum
+                    addCap('vehicle_is_charging', on, null, 'boolean');
+                } else if (obj.endsWith('_in_park')) {
+                    addCap('vehicle_parked', on, null, 'boolean');
+                // ── kia_uvo: status som binærsensorer ──
+                } else if (door) {
+                    addCap(`vehicle_door.${door[1]}_${door[2]}`, on ? 'open' : 'closed', null, 'string');
+                } else if (obj.endsWith('_trunk')) {
+                    addCap('vehicle_trunk_open', on, null, 'boolean');
+                } else if (obj.endsWith('_bonnet')) {
+                    addCap('vehicle_frunk_open', on, null, 'boolean');
+                } else if (obj.endsWith('_locked') && attr.device_class === 'lock') {
+                    // device_class lock: on = låst (lock.*_lock overskriver med samme verdi når den finnes)
+                    addCap('vehicle_locked', on, null, 'boolean');
+                } else if (obj.endsWith('_engine')) {
+                    addCap('vehicle_ignition', on, null, 'boolean');
+                } else if (obj.endsWith('_defrost')) {
+                    addCap('vehicle_defrost_on', on, null, 'boolean');
+                } else if (obj.endsWith('_steering_wheel_heater')) {
+                    addCap('vehicle_wheel_heater_on', on, null, 'boolean');
+                } else if (obj.endsWith('_rear_window_heater')) {
+                    addCap('vehicle_rear_heater_on', on, null, 'boolean');
+                } else if (obj.endsWith('_tire_pressure_warning')) {
+                    // kun samlevarselet (per hjul heter *_tire_pressure_<hjul>)
+                    addCap('vehicle_tire_warning', on, null, 'boolean');
                 } else if (obj.endsWith('_status') && attr.device_class === 'connectivity') {
                     addCap('vehicle_awake', on, null, 'boolean');
                 } else if (obj.endsWith('_user_present')) {
@@ -614,11 +718,14 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                     if (attr.options) updatedDevice.capabilitiesOptions['vehicle_wheel_heater'] = { values: attr.options };
                 }
             } else if (domain === 'number') {
-                if (obj.endsWith('_charge_limit')) {
+                if (obj.endsWith('_charge_limit') || obj.endsWith('_charge_limit_ac')) {
+                    // Tesla: én grense; kia_uvo: AC (hjemmelading, 50–100 trinn 10) + DC
                     addCap('vehicle_charge_limit', n, '%');
                     updatedDevice.capabilitiesOptions['vehicle_charge_limit'] = {
                         min: attr.min ?? 50, max: attr.max ?? 100, step: attr.step ?? 1
                     };
+                } else if (obj.endsWith('_charge_limit_dc')) {
+                    addCap('vehicle_charge_limit_dc', n, '%');
                 } else if (obj.endsWith('_charge_current')) {
                     addCap('vehicle_charge_current_limit', n, 'A');
                     updatedDevice.capabilitiesOptions['vehicle_charge_current_limit'] = {
@@ -643,6 +750,8 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                 else if (obj.endsWith('_trunk')) addCap('vehicle_trunk_open', open, null, 'boolean');
             } else if (domain === 'button') {
                 if (obj.endsWith('_wake')) addCap('vehicle_wake', value, null, 'button');
+                // kia_uvo: tvungen oppdatering fra bilen (vekker den, tapper 12 V) → «Hent nå» i utvidet visning
+                else if (obj.endsWith('_force_refresh')) addCap('vehicle_refresh', value, null, 'button');
             } else if (domain === 'climate' && !obj.includes('overheat')) {
                 // Kupéklima — bevisst IKKE target_temperature, ellers havner bilen på Klimasiden.
                 // `vehicle_climate_*` rutes i HomeyContext til climate.set_hvac_mode/set_temperature/set_preset_mode.
@@ -1561,8 +1670,13 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
             ['sensor', 'binary_sensor'].includes(e.entity_id.split('.')[0])
         );
 
+        // --- Elbil-deteksjon ---
+        // Må også kjøres FØR sperren: Hyundai Kona via pleos_vehicle_data har KUN sensorer,
+        // binærsensorer og device_tracker (prioritet ≤ 2) og ville ellers aldri blitt composite.
+        const isVehicleGroup = isVehicleEntities(deviceEntities, haDevice);
+
         // Determine whether a composite will be created for this group
-        const willCreateComposite = primaryPriority >= 4 || isPostal;
+        const willCreateComposite = primaryPriority >= 4 || isPostal || isVehicleGroup;
         const product = productInfoOf(haDevice);
 
         // Always expose individual entities so existing tiles still work.
@@ -1636,12 +1750,7 @@ export const groupEntitiesByDevice = (entities, apiData = {}) => {
         const isPrinter3d = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isIrrigation &&
             isPrinterGroup(deviceEntities);
 
-        const isVehicle = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isIrrigation && !isPrinter3d && (
-            (haDevice?.manufacturer || '').toLowerCase() === 'tesla' ||
-            (deviceEntities.some(e => e.entity_id.startsWith('device_tracker.')) &&
-             deviceEntities.some(e => e.entity_id.startsWith('sensor.') && e.attributes?.device_class === 'battery') &&
-             deviceEntities.some(e => /(_charge_limit|_charging|_charge_port_door|_charge_cable)$/.test(e.entity_id.split('.')[1] || '')))
-        );
+        const isVehicle = !isAppliance && !isWasher && !isWaterHeater && !isEVCharger && !isIrrigation && !isPrinter3d && isVehicleGroup;
 
         // --- Build the composite ---
         const compositeId = `composite:${deviceId}`;

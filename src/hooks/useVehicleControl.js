@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 
 const SEND_DELAY_MS = 800;        // samler raske −/+-trykk (Tesla-API-et er tregt og rate-begrenset)
-const TOGGLE_HOLD_MS = 30000;     // brytere/valg: hold vår verdi så lenge etter sending
-const STEP_HOLD_MS = 90000;       // steppede tall (kupétemp, ladegrense): bilen kan bruke lang tid
+const TOGGLE_HOLD_MS = 30000;     // brytere/valg (laderen): hold vår verdi så lenge etter sending
+const STEP_HOLD_MS = 90000;       // steppede tall (laderen)
+// Bilkommandoer (vehicle_*): kia_uvo har ingen optimistisk tilstand i HA – status kommer først når
+// bilen har kvittert via Hyundais sky og integrasjonen har hentet ny status (20 s til godt over
+// 1 min). Teslemetry bekrefter straks, men bilens data kan overskrive med gammel verdi lenge etterpå.
+const VEHICLE_HOLD_MS = 180000;
+const holdFor = (capId, stepped) => (capId.startsWith('vehicle_') ? VEHICLE_HOLD_MS : stepped ? STEP_HOLD_MS : TOGGLE_HOLD_MS);
 
 // Optimistisk styring for bilsiden. Brytere/valg sendes straks, tall som steppes sendes samlet
 // 800 ms etter siste trykk.
@@ -32,7 +37,10 @@ export default function useVehicleControl(api, devices) {
             let changed = false;
             const next = {};
             for (const [k, o] of Object.entries(prev)) {
-                const i = k.indexOf(':');
+                // Enhets-id-er inneholder selv kolon («composite:<uuid>»), cap-id-er gjør det aldri →
+                // del på SISTE kolon. (indexOf ga id «composite» → enhet ikke funnet → alt ble sluppet
+                // ved neste state_changed, dvs. umiddelbart mot ekte HA. Funnet 15/10 på Kona-en.)
+                const i = k.lastIndexOf(':');
                 const id = k.slice(0, i), capId = k.slice(i + 1);
                 const d = devices.find(x => x.id === id);
                 if (!d) { changed = true; continue; }
@@ -67,7 +75,7 @@ export default function useVehicleControl(api, devices) {
         const k = key(d, capId);
         const actual = d?.capabilitiesObj?.[capId]?.value;
         setOptimistic(prev => ({ ...prev, [k]: { value, base: prev[k]?.base ?? actual, sent: true } }));
-        expire(k, TOGGLE_HOLD_MS);
+        expire(k, holdFor(capId, false));
         return api.setCapability(d.id, capId, value).catch(err => console.error(`Kunne ikke sette ${capId}`, err));
     };
 
@@ -80,7 +88,7 @@ export default function useVehicleControl(api, devices) {
         clearTimeout(sendTimers.current[k]);
         sendTimers.current[k] = setTimeout(async () => {
             setOptimistic(prev => (prev[k] ? { ...prev, [k]: { ...prev[k], sent: true } } : prev));
-            expire(k, STEP_HOLD_MS);
+            expire(k, holdFor(capId, true));
             try { await api.setCapability(d.id, capId, value); }
             catch (err) { console.error(`Kunne ikke sette ${capId}`, err); }
         }, SEND_DELAY_MS);

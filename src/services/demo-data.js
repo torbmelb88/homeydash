@@ -141,6 +141,38 @@ export const buildDemoWorld = () => {
         E('cover.tesla_windows', 'closed', { friendly_name: 'Vinduer' }),
         E('cover.tesla_charge_port_door', 'open', { friendly_name: 'Ladeluke', device_class: 'door' }),
 
+        // ── Elbil nr. 2 (composite: demo-kona, Hyundai Kona via kia_uvo/Bluelink) ─
+        E('device_tracker.kona_location', 'not_home', { friendly_name: 'Posisjon', source_type: 'gps' }),
+        E('sensor.kona_battery_level', '48', { friendly_name: 'Batterinivå', device_class: 'battery', unit_of_measurement: '%' }),
+        E('sensor.kona_12v_battery_level', '86', { friendly_name: '12V-batteri', unit_of_measurement: '%' }),
+        E('sensor.kona_range', '211', { friendly_name: 'Rekkevidde', device_class: 'distance', unit_of_measurement: 'km' }),
+        E('sensor.kona_total_range', '211', { friendly_name: 'Total rekkevidde', device_class: 'distance', unit_of_measurement: 'km' }),
+        E('sensor.kona_odometer', '92216', { friendly_name: 'Kilometerstand', device_class: 'distance', unit_of_measurement: 'km' }),
+        E('sensor.kona_time_to_full_charge', '155', { friendly_name: 'Tid til fulladet', device_class: 'duration', unit_of_measurement: 'min' }),
+        E('sensor.kona_charger_power', 'unknown', { friendly_name: 'Ladeeffekt', device_class: 'power', unit_of_measurement: 'kW' }),
+        E('sensor.kona_last_updated', isoInMinutes(-12), { friendly_name: 'Sist oppdatert', device_class: 'timestamp' }),
+        E('sensor.kona_set_temperature', '15', { friendly_name: 'Innstilt temperatur', device_class: 'temperature', unit_of_measurement: '°C' }),
+        E('binary_sensor.kona_charge_cable', 'off', { friendly_name: 'Ladekabel tilkoblet', device_class: 'plug' }),
+        E('binary_sensor.kona_charging', 'off', { friendly_name: 'Lader', device_class: 'battery_charging' }),
+        E('binary_sensor.kona_engine', 'off', { friendly_name: 'Motor' }),
+        E('binary_sensor.kona_locked', 'off', { friendly_name: 'Låst', device_class: 'lock' }),
+        E('binary_sensor.kona_front_driver_door', 'off', { friendly_name: 'Dør foran fører', device_class: 'door' }),
+        E('binary_sensor.kona_front_passenger_door', 'off', { friendly_name: 'Dør foran passasjer', device_class: 'door' }),
+        E('binary_sensor.kona_rear_driver_door', 'off', { friendly_name: 'Dør bak fører', device_class: 'door' }),
+        E('binary_sensor.kona_rear_passenger_door', 'off', { friendly_name: 'Dør bak passasjer', device_class: 'door' }),
+        E('binary_sensor.kona_bonnet', 'off', { friendly_name: 'Panser', device_class: 'door' }),
+        E('binary_sensor.kona_trunk', 'off', { friendly_name: 'Bagasjelokk', device_class: 'door' }),
+        E('binary_sensor.kona_defrost', 'off', { friendly_name: 'Avising' }),
+        E('binary_sensor.kona_steering_wheel_heater', 'off', { friendly_name: 'Rattvarme' }),
+        E('binary_sensor.kona_rear_window_heater', 'off', { friendly_name: 'Bakrutevarme' }),
+        E('binary_sensor.kona_tire_pressure_warning', 'off', { friendly_name: 'Dekktrykkvarsel', device_class: 'problem' }),
+        E('lock.kona_lock', 'unlocked', { friendly_name: 'Lås' }),
+        E('number.kona_charge_limit_ac', '80', { friendly_name: 'Ladegrense AC', min: 50, max: 100, step: 10, unit_of_measurement: '%' }),
+        E('number.kona_charge_limit_dc', '80', { friendly_name: 'Ladegrense DC', min: 50, max: 100, step: 10, unit_of_measurement: '%' }),
+        E('switch.kona_charge', 'off', { friendly_name: 'Lading' }),
+        E('button.kona_force_refresh', 'unknown', { friendly_name: 'Hent nå' }),
+        E('climate.kona_climate', 'off', { friendly_name: 'Klima', hvac_modes: ['off', 'auto'], min_temp: 14, max_temp: 30, target_temp_step: 0.5, temperature: 15, current_temperature: null }),
+
         // ── Robotklipper (composite: demo-mower) ─────────────────────────
         E('lawn_mower.robotklipper', 'mowing', { friendly_name: 'Robotklipper' }),
         E('sensor.robotklipper_status', 'mowing', {
@@ -244,6 +276,7 @@ export const buildDemoWorld = () => {
         { id: 'demo-vvb', name: 'Varmtvannsbereder', identifiers: [['myuplink', 'demo-vvb']] },
         { id: 'demo-charger', name: 'Elbillader', manufacturer: 'Zaptec', model: 'Zaptec Go', identifiers: [['zaptec', 'demo-charger']] },
         { id: 'demo-car', name: 'Tesla', manufacturer: 'Tesla', model: 'Model Y', identifiers: [['teslemetry', 'demo-car']] },
+        { id: 'demo-kona', name: 'Kona', manufacturer: 'Hyundai Europe', model: 'KONA', identifiers: [['kia_uvo', 'demo-kona']] },
         { id: 'demo-mower', name: 'Robotklipper', manufacturer: 'Worx', model: 'Landroid Vision Cloud500 (WR305E)', identifiers: [['worx_vision_cloud', 'demo-mower']] },
         { id: 'demo-printer', name: '3D-printer', manufacturer: 'Bambu Lab', model: 'P2S', identifiers: [['bambu_lab', 'demo-printer']] },
         { id: 'demo-printer-ams', name: '3D-printer AMS', manufacturer: 'Bambu Lab', model: 'AMS 2 Pro', via_device_id: 'demo-printer', identifiers: [['bambu_lab', 'demo-printer-ams']] },
@@ -257,6 +290,7 @@ export const buildDemoWorld = () => {
         else if (obj.startsWith('water_heater_')) entityToDevice[eid] = 'demo-vvb';
         else if (obj.startsWith('car_charger_')) entityToDevice[eid] = 'demo-charger';
         else if (obj.startsWith('tesla_')) entityToDevice[eid] = 'demo-car';
+        else if (obj.startsWith('kona_') || obj.startsWith('utendors_kona_')) entityToDevice[eid] = 'demo-kona';
         else if (obj === 'robotklipper' || obj.startsWith('robotklipper_')) entityToDevice[eid] = 'demo-mower';
         else if (obj.startsWith('printer_ams_')) entityToDevice[eid] = 'demo-printer-ams';
         else if (obj.startsWith('printer_')) entityToDevice[eid] = 'demo-printer';
@@ -274,7 +308,7 @@ export const buildDemoWorld = () => {
     const entityToArea = { ...AREA };
     Object.keys(entityToDevice).forEach((eid) => {
         const dev = entityToDevice[eid];
-        entityToArea[eid] = dev === 'demo-charger' || dev === 'demo-mower' || dev === 'demo-car' ? 'Ute'
+        entityToArea[eid] = dev === 'demo-charger' || dev === 'demo-mower' || dev === 'demo-car' || dev === 'demo-kona' ? 'Ute'
             : dev === 'demo-printer' || dev === 'demo-printer-ams' ? 'Kontor'
             : dev === 'demo-diffuser' ? 'Stue' : 'Vaskerom';
     });

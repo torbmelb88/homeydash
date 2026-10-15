@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Car, Fan, Power, Zap, Minus, Plus, Snowflake, Armchair, Lock, Unlock, DoorOpen, CircleDot, Shield, MapPin, Moon } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Car, Fan, Power, Zap, Minus, Plus, Snowflake, Armchair, Lock, Unlock, DoorOpen, CircleDot, Shield, MapPin, Moon, RefreshCw, Check } from 'lucide-react';
 import TempStepper from '../TempStepper';
 import { BatteryBar, Group, Stats, LevelPicker, Toggle, PRESET_LABEL, SEAT_LABEL, SEAT_ORDER, fmt1, stop } from './shared';
 import { climateKindOf, formatClock, formatUntil, locationText, vehicleKey } from '../../services/vehicle';
@@ -13,7 +13,7 @@ const LIMIT_PRESETS = [50, 60, 70, 80, 90, 100];
 export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSummary: ch, lm, ctl, settings, onClose }) {
     const caps = vehicle.capabilitiesObj || {};
     const climateKind = climateKindOf(vehicle);
-    const climateOn = climateKind === 'entity' && !!ctl.capOf(vehicle, 'vehicle_climate_on');
+    const climateOn = climateKind != null && !!ctl.capOf(vehicle, 'vehicle_climate_on');
     const climateNA = !!caps.vehicle_climate_on?.unavailable;
     const target = ctl.capOf(vehicle, 'vehicle_climate_target');
     const inside = caps['measure_temperature.inside']?.value ?? caps.vehicle_climate_current?.value ?? null;
@@ -29,6 +29,13 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
     const limit = ctl.capOf(vehicle, 'vehicle_charge_limit');
     const limitPending = ctl.isPending(vehicle, 'vehicle_charge_limit');
     const chargeSwitch = !!ctl.capOf(vehicle, 'vehicle_charge_switch');
+    // «Hent nå» er en puls-knapp uten status: kort «Sendt»-tilbakemelding
+    const [refreshSent, setRefreshSent] = useState(false);
+    useEffect(() => {
+        if (!refreshSent) return;
+        const t = setTimeout(() => setRefreshSent(false), 2000);
+        return () => clearTimeout(t);
+    }, [refreshSent]);
     const hasPort = 'vehicle_charge_port_open' in caps;
     const hasCableLock = 'vehicle_cable_locked' in caps;
     const portOpen = !!ctl.capOf(vehicle, 'vehicle_charge_port_open');
@@ -82,8 +89,8 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                     )}
 
                     {car.hasChargeSwitch && (
-                        <button type="button" className={`climate-wide-btn${chargeSwitch ? ' is-danger' : ''}`} onClick={() => ctl.setCap(vehicle, 'vehicle_charge_switch', !chargeSwitch)}>
-                            <Zap size={18} /> {chargeSwitch ? 'Stopp lading i bilen' : 'Start lading i bilen'}
+                        <button type="button" className={`climate-wide-btn${chargeSwitch ? ' is-danger' : ''}${ctl.isPending(vehicle, 'vehicle_charge_switch') ? ' is-pending' : ''}`} onClick={() => ctl.setCap(vehicle, 'vehicle_charge_switch', !chargeSwitch)}>
+                            <Zap size={18} /> {ctl.isPending(vehicle, 'vehicle_charge_switch') ? (chargeSwitch ? 'Starter lading – venter på bilen …' : 'Stopper lading – venter på bilen …') : chargeSwitch ? 'Stopp lading i bilen' : 'Start lading i bilen'}
                         </button>
                     )}
 
@@ -125,6 +132,22 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                     {!onCharger && !car.isCharging && <div className="climate-tiny">Bilen står ikke på laderen hjemme.</div>}
                 </Group>
 
+                {/* ── Kupéklima: kun status (Kona via Pleos) ─────────── */}
+                {climateKind === 'status' && (
+                    <Group label="Kupéklima">
+                        <div className="climate-hero-now" style={{ justifyContent: 'flex-start' }}>
+                            <span className={climateOn ? 'tone-heat' : ''}>{climateOn ? 'Klima på' : 'Klima av'}</span>
+                            {target != null && <span>Innstilt <b>{fmt1(target)}°</b></span>}
+                            {inside != null && <span>Inne <b>{fmt1(inside)}°</b></span>}
+                        </div>
+                        <div className="vp-chips vp-chips--wrap">
+                            {car.wheelHeaterOn != null && <span className={`vp-chip${car.wheelHeaterOn ? ' is-on' : ''}`}>Rattvarme {car.wheelHeaterOn ? 'på' : 'av'}</span>}
+                            {car.defrostOn != null && <span className={`vp-chip${car.defrostOn ? ' is-on' : ''}`}><Snowflake size={12} />Avising {car.defrostOn ? 'på' : 'av'}</span>}
+                        </div>
+                        <div className="climate-tiny">Viser bilens egen innstilling. Forvarming må foreløpig startes fra Hyundai-appen.</div>
+                    </Group>
+                )}
+
                 {/* ── Kupéklima ──────────────────────────────────────── */}
                 {climateKind === 'entity' && (
                     <Group label="Kupéklima">
@@ -151,8 +174,16 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                             disabled={climateNA}
                             onClick={() => ctl.setCap(vehicle, 'vehicle_climate_on', !climateOn)}
                         >
-                            <Power size={18} /> {climateOn ? 'Slå av klima' : 'Slå på klima'}
+                            <Power size={18} /> {ctl.isPending(vehicle, 'vehicle_climate_on') ? (climateOn ? 'Starter – venter på bilen …' : 'Slår av – venter på bilen …') : climateOn ? 'Slå av klima' : 'Slå på klima'}
                         </button>
+                        {/* kia_uvo: rattvarme/avising/bakrute er kun status (styres ikke separat) */}
+                        {(car.wheelHeaterOn != null || car.defrostOn != null || car.rearHeaterOn != null) && (
+                            <div className="vp-chips vp-chips--wrap">
+                                {car.wheelHeaterOn != null && <span className={`vp-chip${car.wheelHeaterOn ? ' is-on' : ''}`}>Rattvarme {car.wheelHeaterOn ? 'på' : 'av'}</span>}
+                                {car.defrostOn != null && <span className={`vp-chip${car.defrostOn ? ' is-on' : ''}`}><Snowflake size={12} />Avising {car.defrostOn ? 'på' : 'av'}</span>}
+                                {car.rearHeaterOn != null && <span className={`vp-chip${car.rearHeaterOn ? ' is-on' : ''}`}>Bakrute {car.rearHeaterOn ? 'på' : 'av'}</span>}
+                            </div>
+                        )}
                         {settings.showPresets !== false && presetOptions.length > 0 && (
                             <div className="climate-chips">
                                 {presetOptions.map(p => (
@@ -212,6 +243,11 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                             {car.location && <span className="vp-chip"><MapPin size={12} />{locationText(car.location)}</span>}
                             {car.userPresent && <span className="vp-chip">Noen i bilen</span>}
                             {asleep && <span className="vp-chip"><Moon size={12} />Sover</span>}
+                            {car.doorsOpen?.length > 0 && <span className="vp-chip is-warn"><DoorOpen size={12} />{car.doorsOpen.length === 1 ? 'Én dør åpen' : `${car.doorsOpen.length} dører åpne`}</span>}
+                            {car.ignition === true && <span className="vp-chip is-on">Tenning på</span>}
+                            {car.parked === false && <span className="vp-chip">Ikke i parkering</span>}
+                            {car.warnings && <span className="vp-chip is-warn">{car.warnings}</span>}
+                            {car.tireWarning && <span className="vp-chip is-warn">Dekktrykk</span>}
                         </div>
                     </Group>
                 )}
@@ -221,7 +257,30 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                     { label: 'Brukbart batteri', value: car.batteryUsable != null ? `${Math.round(car.batteryUsable)} %` : null },
                     { label: 'Rekkevidde', value: car.range != null ? `${Math.round(car.range)} ${car.rangeUnit}` : null },
                     { label: 'Kabel', value: car.cableConnected == null ? null : car.cableConnected ? 'Tilkoblet' : 'Ikke tilkoblet' },
+                    { label: 'Ladegrense DC', value: car.limitDc != null ? `${Math.round(car.limitDc)} %` : null },
+                    { label: '12 V-batteri', value: car.battery12v != null ? `${Math.round(car.battery12v)} %` : null },
+                    { label: 'Sist rapportert', value: car.lastReported ? `${formatClock(car.lastReported)}${car.dataAge != null ? ` (${Math.round(car.dataAge)} min)` : ''}` : null },
                 ]} />
+                {car.hasRefresh && (
+                    <>
+                        <button
+                            type="button"
+                            className={`climate-wide-btn${refreshSent ? ' is-on' : ''}`}
+                            onClick={() => { setRefreshSent(true); ctl.setCap(vehicle, 'vehicle_refresh', true); }}
+                        >
+                            {refreshSent ? <><Check size={18} /> Sendt</> : <><RefreshCw size={18} /> Hent nå fra bilen</>}
+                        </button>
+                        <div className="climate-tiny">
+                            Vekker bilen og henter ferske data. Integrasjonen henter selv hvert kvarter, så bruk knappen sparsomt – vekking tapper 12 V-batteriet.
+                        </div>
+                    </>
+                )}
+                {climateKind === 'status' && car.lastReported && (
+                    <div className="climate-tiny">
+                        Bilen rapporterer til Hyundai med noen minutters mellomrom{car.dataStale ? ' – dataene er nå merket som utdaterte' : ''}.
+                        Styring (forvarming, ladegrense) er ikke tilgjengelig i denne integrasjonen.
+                    </div>
+                )}
             </div>
         </>
     );

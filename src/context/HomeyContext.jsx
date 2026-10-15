@@ -12,6 +12,9 @@ const HomeyContext = createContext(null);
 // skjedde mens fanen sov, eller en full resync) – én render i stedet for én
 // per hendelse. 50 ms merkes ikke i vanlig drift.
 const STATE_FLUSH_MS = 50;
+// Bilkommandoer: HA returnerer først når bilen har kvittert via produsentens sky (kia_uvo venter
+// på bilen; Teslemetry er raskere, men vekking kan ta tid). Standard 20 s ga falsk feil-toast.
+const VEHICLE_CMD_TIMEOUT_MS = 120000;
 
 /** Tar én HA-state inn i enhetslista (ren funksjon – brukes av batch-flushen). */
 const applyStateToDevices = (prev, newState) => {
@@ -362,15 +365,18 @@ export const HomeyProvider = ({ children }) => {
             const isVacuumCmd = capabilityId.startsWith('vacuum_') || capabilityId.startsWith('lawn_mower_');
             if (!entity && capabilityId !== 'available_current_limit' && capabilityId !== 'cutting_height' && !isVacuumCmd) return;
             const [domain] = targetEntityId.split('.');
-            
+            // Bilkommandoer (vehicle_*): HA svarer først når bilen har kvittert via skyen (kia_uvo
+            // venter på bilen før tjenesten returnerer) – standardfristen på 20 s ga falsk feil-toast.
+            const cmdTimeout = capabilityId.startsWith('vehicle_') ? VEHICLE_CMD_TIMEOUT_MS : undefined;
+
             try {
                 if (capabilityId === 'onoff' || domain === 'switch') {
-                    await hassAPI.callService(domain, value ? 'turn_on' : 'turn_off', targetEntityId);
+                    await hassAPI.callService(domain, value ? 'turn_on' : 'turn_off', targetEntityId, {}, cmdTimeout);
                 } else if (domain === 'light' && typeof value === 'boolean') {
                     // Av/på-lys med egen capability-id (f.eks. 3D-printerens chamber_light)
                     await hassAPI.callService('light', value ? 'turn_on' : 'turn_off', targetEntityId);
                 } else if (capabilityId === 'button' || domain === 'button') {
-                    await hassAPI.callService(domain, 'press', targetEntityId);
+                    await hassAPI.callService(domain, 'press', targetEntityId, {}, cmdTimeout);
                 } else if (capabilityId === 'dim') {
                     await hassAPI.callService(domain, 'turn_on', targetEntityId, { brightness: Math.round(value * 255) });
                 } else if (capabilityId === 'light_temperature') {
@@ -389,23 +395,23 @@ export const HomeyProvider = ({ children }) => {
                     await hassAPI.callService('climate', 'set_swing_mode', targetEntityId, { swing_mode: value });
                 } else if (capabilityId === 'vehicle_climate_on') {
                     // Bilens kupéklima (Tesla: heat_cool / off)
-                    await hassAPI.callService('climate', value ? 'turn_on' : 'turn_off', targetEntityId);
+                    await hassAPI.callService('climate', value ? 'turn_on' : 'turn_off', targetEntityId, {}, cmdTimeout);
                 } else if (capabilityId === 'vehicle_climate_target') {
-                    await hassAPI.callService('climate', 'set_temperature', targetEntityId, { temperature: value });
+                    await hassAPI.callService('climate', 'set_temperature', targetEntityId, { temperature: value }, cmdTimeout);
                 } else if (capabilityId === 'vehicle_climate_preset') {
-                    await hassAPI.callService('climate', 'set_preset_mode', targetEntityId, { preset_mode: value });
+                    await hassAPI.callService('climate', 'set_preset_mode', targetEntityId, { preset_mode: value }, cmdTimeout);
                 } else if (domain === 'cover' && typeof value === 'boolean') {
                     // Bilens ladeluke (cover.*_charge_port_door): true = åpne, false = lukk
-                    await hassAPI.callService('cover', value ? 'open_cover' : 'close_cover', targetEntityId);
+                    await hassAPI.callService('cover', value ? 'open_cover' : 'close_cover', targetEntityId, {}, cmdTimeout);
                 } else if (domain === 'lock' && typeof value === 'boolean') {
                     // Ladekabellås (lock.*_charge_cable_lock): false = lås opp (Tesla låser selv ved tilkobling)
-                    await hassAPI.callService('lock', value ? 'lock' : 'unlock', targetEntityId);
+                    await hassAPI.callService('lock', value ? 'lock' : 'unlock', targetEntityId, {}, cmdTimeout);
                 } else if (capabilityId === 'preset_mode') {
                     await hassAPI.callService('climate', 'set_preset_mode', targetEntityId, { preset_mode: value });
                 } else if (capabilityId === 'windowcoverings_set') {
                     await hassAPI.callService('cover', 'set_cover_position', targetEntityId, { position: Math.round(value * 100) });
                 } else if (capabilityId === 'available_current_limit' || domain === 'number') {
-                    await hassAPI.callService('number', 'set_value', targetEntityId, { value: String(value) });
+                    await hassAPI.callService('number', 'set_value', targetEntityId, { value: String(value) }, cmdTimeout);
                 } else if (domain === 'select') {
                     await hassAPI.callService('select', 'select_option', targetEntityId, { option: value });
                 } else if (capabilityId === 'vacuum_start') {

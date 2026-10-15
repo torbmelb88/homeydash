@@ -547,14 +547,16 @@ class HassAPI {
      * @param {string} entityId - Target entity
      * @param {object} serviceData - Action parameters
      */
-    async callService(domain, service, entityId, serviceData = {}) {
+    // timeoutMs: HA svarer først når tjenesten er ferdig. Bilkommandoer (kia_uvo) venter på at
+    // bilen kvitterer via skyen – det kan ta over et minutt, så de sender inn lengre frist.
+    async callService(domain, service, entityId, serviceData = {}, timeoutMs = undefined) {
         return this.sendCommand({
             type: 'call_service',
             domain,
             service,
             target: { entity_id: entityId },
             service_data: serviceData
-        });
+        }, timeoutMs);
     }
 
     async callServiceWithResponse(domain, service, entityId, serviceData = {}) {
