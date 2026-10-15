@@ -11,8 +11,15 @@ const SHOW_AFTER_MS = 4000;
  * på nytt. Gjør det synlig at noe skjer (og når det er over) i stedet for at
  * brukeren lurer på om verdiene er ferske.
  */
+const PHASE_TEXT = {
+    checking: 'Sjekker tilkoblingen til Home Assistant …',
+    connecting: 'Kobler til Home Assistant på nytt …',
+    loading: 'Henter enheter fra Home Assistant …',
+    waiting: 'Venter før nytt forsøk …',
+};
+
 const ConnectionBanner = () => {
-    const { haConnected, settings } = useHomey();
+    const { haConnected, haStatus, settings } = useHomey();
     const [show, setShow] = useState(false);
 
     useEffect(() => {
@@ -34,6 +41,7 @@ const ConnectionBanner = () => {
             `}</style>
             <div
                 role="status"
+                data-testid="ha-connection-banner"
                 style={{
                     position: 'fixed',
                     left: '50%',
@@ -56,7 +64,8 @@ const ConnectionBanner = () => {
                 }}
             >
                 <RefreshCw size={14} color="var(--color-warning, #f59e0b)" style={{ animation: 'conn-banner-spin 1.2s linear infinite' }} />
-                Kobler til Home Assistant på nytt …
+                {PHASE_TEXT[haStatus?.phase] || PHASE_TEXT.connecting}
+                {haStatus?.attempt > 1 && (haStatus.phase === 'connecting' || haStatus.phase === 'waiting') ? ` (forsøk ${haStatus.attempt})` : ''}
             </div>
         </>
     );

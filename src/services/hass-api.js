@@ -30,6 +30,55 @@ class HassAPI {
         this.resyncing = false;
         this.onConnectionChange = null; // (connected: boolean) => void
         this.lastNotifiedConnected = null;
+        this.onStatusChange = null;     // (status) => void – fase for banner/innstillinger
+        this.status = { phase: 'connecting', attempt: 0, since: Date.now() };
+        this.events = this.loadEvents(); // tilkoblingslogg (ringbuffer, speiles til localStorage)
+        this.openedAt = 0;
+    }
+
+    // --- Tilkoblingslogg ---------------------------------------------------
+    // Konsollen er utilgjengelig på mobilen, så de viktige hendelsene i
+    // tilkoblingsløpet logges her og vises i Innstillinger → Hub.
+    static EVENT_LIMIT = 80;
+    static EVENT_STORE_KEY = 'haConnLog';
+
+    loadEvents() {
+        try {
+            const raw = typeof localStorage !== 'undefined' && localStorage.getItem(HassAPI.EVENT_STORE_KEY);
+            const list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) ? list : [];
+        } catch {
+            return [];
+        }
+    }
+
+    logEvent(text, level = 'log') {
+        const entry = { t: Date.now(), text };
+        this.events.push(entry);
+        if (this.events.length > HassAPI.EVENT_LIMIT) this.events.splice(0, this.events.length - HassAPI.EVENT_LIMIT);
+        try {
+            if (typeof localStorage !== 'undefined') localStorage.setItem(HassAPI.EVENT_STORE_KEY, JSON.stringify(this.events));
+        } catch { /* full/privat modus – uviktig */ }
+        (level === 'warn' ? console.warn : console.log)(`HA: ${text}`);
+    }
+
+    getEvents() {
+        return this.events.slice();
+    }
+
+    clearEvents() {
+        this.events = [];
+        try { localStorage.removeItem(HassAPI.EVENT_STORE_KEY); } catch { /* ignore */ }
+    }
+
+    /** Fase i tilkoblingsløpet: connected | checking | connecting | loading | waiting */
+    setStatus(phase, extra = {}) {
+        this.status = { phase, attempt: this.reconnectAttempts, since: Date.now(), ...extra };
+        try {
+            if (this.onStatusChange) this.onStatusChange(this.status);
+        } catch (e) {
+            console.error('HA onStatusChange handler error', e);
+        }
     }
 
     // --- Liveness ---------------------------------------------------------
@@ -48,8 +97,11 @@ class HassAPI {
     static HEARTBEAT_MS = 30000;
     static PING_TIMEOUT_MS = 3000;
     static COMMAND_TIMEOUT_MS = 20000;
-    static HANDSHAKE_TIMEOUT_MS = 10000;   // TCP + auth only; data load has per-command timeouts
+    static OPEN_TIMEOUT_MS = 4000;         // socket must reach onopen (TCP/TLS) within this – a SYN
+                                           // that hangs while wifi comes up is retried instead of waited on
+    static HANDSHAKE_TIMEOUT_MS = 8000;    // TCP + auth only; data load has per-command timeouts
     static RESYNC_AFTER_HIDDEN_MS = 20000; // hidden longer than this → get_states on wake
+    static RECONNECT_AFTER_HIDDEN_MS = 120000; // hidden longer than this → skip the ping, reconnect at once
     static STALE_CONNECT_MS = 3000;        // a connect attempt older than this is restarted on wake
     static VISIBLE_BACKOFF_MAX_MS = 5000;
     static HIDDEN_BACKOFF_MAX_MS = 30000;
@@ -59,7 +111,10 @@ class HassAPI {
         this.wakeHandlersBound = true;
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') this.onWake('visible');
-            else this.hiddenSince = Date.now();
+            else {
+                this.hiddenSince = Date.now();
+                this.logEvent('Siden ble skjult');
+            }
         });
         window.addEventListener('pageshow', () => this.onWake('pageshow'));
         window.addEventListener('online', () => this.onWake('online'));
@@ -85,19 +140,29 @@ class HassAPI {
         if (this.manuallyDisconnected || !this.url || !this.token) return;
         const hiddenFor = this.hiddenSince ? Date.now() - this.hiddenSince : 0;
         if (reason === 'visible') this.hiddenSince = null;
+        if (reason === 'visible' || hiddenFor > 0) {
+            this.logEvent(`Vekket (${reason})${hiddenFor ? ` etter ${Math.round(hiddenFor / 1000)} s skjult` : ''}`);
+        }
 
         // Backoff was tuned for a hidden page – start over now that someone is looking.
         this.reconnectAttempts = 0;
         if (this.reconnectTimer) {
-            console.log(`🔄 HA: Woke on ${reason} with a reconnect pending – connecting now`);
+            this.logEvent('Ventende nytt forsøk hoppes over – kobler til nå');
             this.forceReconnect();
             return;
         }
         if (this.isConnecting) {
             if (Date.now() - this.connectStartedAt > HassAPI.STALE_CONNECT_MS) {
-                console.log(`🔄 HA: Woke on ${reason} with a stale connect attempt – restarting it`);
+                this.logEvent('Hengende tilkoblingsforsøk fra før søvnen – starter på nytt');
                 this.forceReconnect();
             }
+            return;
+        }
+        if (hiddenFor > HassAPI.RECONNECT_AFTER_HIDDEN_MS) {
+            // Etter så lang tid er socketen på Android så godt som alltid død –
+            // 3 s ping-timeout er bortkastet ventetid. Kobler rett til på nytt.
+            this.logEvent('Lenge skjult – kobler til på nytt uten å pinge først');
+            this.forceReconnect();
             return;
         }
         this.checkConnection(reason, { resync: hiddenFor > HassAPI.RESYNC_AFTER_HIDDEN_MS });
@@ -112,19 +177,25 @@ class HassAPI {
         if (this.manuallyDisconnected || !this.url || !this.token) return;
         if (this.isConnecting) return;
         if (!this.isAuthenticated || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.log(`🔄 HA: Socket not open on ${reason} – reconnecting now`);
+            this.logEvent(`Socket ikke åpen (${reason}) – kobler til på nytt`);
             this.forceReconnect();
             return;
         }
         const ws = this.ws;
+        const t0 = Date.now();
+        if (reason !== 'heartbeat') this.setStatus('checking');
         try {
             await this.sendCommand({ type: 'ping' }, HassAPI.PING_TIMEOUT_MS);
         } catch (err) {
             // Another check may already have replaced the socket meanwhile.
             if (this.ws !== ws || this.isConnecting) return;
-            console.warn(`🔄 HA: Ping failed on ${reason} (${err.message}) – reconnecting now`);
+            this.logEvent(`Ping uten svar (${reason}, ${Date.now() - t0} ms, ${err.message}) – kobler til på nytt`, 'warn');
             this.forceReconnect();
             return;
+        }
+        if (reason !== 'heartbeat') {
+            this.logEvent(`Ping OK (${reason}, ${Date.now() - t0} ms)`);
+            if (this.status.phase !== 'connected') this.setStatus('connected');
         }
         if (resync && this.ws === ws) await this.resyncStates(reason);
     }
@@ -149,9 +220,9 @@ class HassAPI {
                 changed++;
                 if (this.onStateChanged) this.onStateChanged(state);
             }
-            console.log(`🔁 HA: Resync on ${reason} – ${changed} of ${states.length} entities had changed`);
+            this.logEvent(`Resync (${reason}): ${changed} av ${states.length} enheter var endret`);
         } catch (err) {
-            console.warn(`HA resync on ${reason} failed:`, err.message);
+            this.logEvent(`Resync (${reason}) feilet: ${err.message}`, 'warn');
         } finally {
             this.resyncing = false;
         }
@@ -224,6 +295,9 @@ class HassAPI {
         this.isConnecting = true;
         this.isAuthenticated = false;
         this.connectStartedAt = Date.now();
+        this.openedAt = 0;
+        this.setStatus('connecting');
+        this.logEvent(`Kobler til (forsøk ${this.reconnectAttempts + 1})`);
         this.connectionPromise = new Promise((resolve, reject) => {
             // Clean up old connection safely
             if (this.ws) {
@@ -251,20 +325,36 @@ class HassAPI {
                 // Only act on the socket this attempt created – a forced
                 // reconnect may already have replaced it.
                 if (!this.isAuthenticated && this.ws === ws) {
-                    console.warn('⏱ HA: Handshake timed out – closing socket');
+                    this.logEvent('Handshake tidsavbrutt – lukker socketen', 'warn');
                     if (ws) ws.close(); // onclose schedules the retry
-                    reject(new Error('Tilkobling til Home Assistant tidsavbrutt (10s). Sjekk IP-adresse og at HA er oppe.'));
+                    reject(new Error('Tilkobling til Home Assistant tidsavbrutt. Sjekk IP-adresse og at HA er oppe.'));
                 }
             }, HassAPI.HANDSHAKE_TIMEOUT_MS);
+            // Separate, shorter limit for the TCP/TLS part: a SYN that is
+            // silently dropped (wifi still coming up after unlock) would
+            // otherwise cost the full handshake timeout before we retry.
+            const openTimeout = setTimeout(() => {
+                if (ws && ws.readyState === WebSocket.CONNECTING && this.ws === ws) {
+                    this.logEvent(`Ingen kontakt på ${HassAPI.OPEN_TIMEOUT_MS / 1000} s – prøver igjen`, 'warn');
+                    ws.close(); // onclose schedules the retry
+                }
+            }, HassAPI.OPEN_TIMEOUT_MS);
 
             try {
                 ws = new WebSocket(wsUrl);
                 this.ws = ws;
             } catch (e) {
                 clearTimeout(timeout);
+                clearTimeout(openTimeout);
                 this.isConnecting = false;
                 return reject(new Error(`Kunne ikke opprette WebSocket: ${e.message}`));
             }
+
+            this.ws.onopen = () => {
+                clearTimeout(openTimeout);
+                this.openedAt = Date.now();
+                this.logEvent(`Socket åpen etter ${this.openedAt - this.connectStartedAt} ms`);
+            };
 
             this.ws.onmessage = (event) => {
                 let message;
@@ -283,6 +373,8 @@ class HassAPI {
                     clearTimeout(timeout);
                     this.isAuthenticated = true; // Must be set BEFORE setupSubscriptions sends commands
                     this.haVersion = message.ha_version;
+                    this.setStatus('loading');
+                    const tLoad = Date.now();
                     this.setupSubscriptions().then(() => {
                         if (this.ws !== ws) return; // replaced by a forced reconnect meanwhile
                         this.isConnected = true;
@@ -290,12 +382,13 @@ class HassAPI {
                         this.initialDataLoaded = true;
                         this.reconnectAttempts = 0;
                         this.startHeartbeat();
-                        console.log(`🏁 HA: Full state loaded (${Object.keys(this.entities).length} entities).`);
+                        this.logEvent(`Tilkoblet: ${Object.keys(this.entities).length} enheter lastet på ${Date.now() - tLoad} ms (totalt ${Date.now() - this.connectStartedAt} ms)`);
+                        this.setStatus('connected');
                         this.notifyConnection(true);
                         if (this.onReady) this.onReady(this.entities);
                         resolve(true);
                     }).catch(err => {
-                        console.error('❌ HA: Loading states after auth failed:', err);
+                        this.logEvent(`Lasting etter innlogging feilet: ${err?.message || err}`, 'warn');
                         if (this.ws === ws) {
                             // Drop the socket – onclose resets the flags and schedules
                             // a retry. (Before, this path left a dead client that only
@@ -309,6 +402,7 @@ class HassAPI {
                 } else if (message.type === 'auth_invalid') {
                     this.isConnecting = false;
                     clearTimeout(timeout);
+                    this.logEvent(`Innlogging avvist: ${message.message}`, 'warn');
                     reject(new Error(`Autentisering feilet: ${message.message}`));
                 } else {
                     this.handleMessage(message);
@@ -322,12 +416,9 @@ class HassAPI {
                 this.connectionPromise = null;
                 this.stopHeartbeat();
                 this.rejectPending(new Error('Tilkoblingen til Home Assistant ble brutt'));
-                console.log('❌ HA Connection closed', {
-                    code: event.code,
-                    reason: event.reason,
-                    wasClean: event.wasClean
-                });
+                this.logEvent(`Tilkoblingen lukket (kode ${event.code}${event.reason ? `, ${event.reason}` : ''})`, 'warn');
                 clearTimeout(timeout);
+                clearTimeout(openTimeout);
                 this.notifyConnection(false);
                 if (!this.manuallyDisconnected && this.url && this.token) {
                     this.scheduleReconnect();
@@ -339,6 +430,7 @@ class HassAPI {
                 this.isConnecting = false;
                 console.error('⚠️ HA Socket error context:', err);
                 clearTimeout(timeout);
+                clearTimeout(openTimeout);
 
                 let errorMsg = 'WebSocket-feil. ';
                 if (window.location.hostname === 'localhost') {
@@ -596,7 +688,8 @@ class HassAPI {
         const cap = this.isVisible() ? HassAPI.VISIBLE_BACKOFF_MAX_MS : HassAPI.HIDDEN_BACKOFF_MAX_MS;
         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), cap);
         this.reconnectAttempts++;
-        console.log(`🔄 HA: Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+        this.logEvent(`Nytt forsøk om ${delay / 1000} s`);
+        this.setStatus('waiting', { until: Date.now() + delay });
         this.reconnectTimer = setTimeout(async () => {
             this.reconnectTimer = null;
             if (this.manuallyDisconnected) return;
@@ -621,3 +714,6 @@ class HassAPI {
 }
 
 export const hassAPI = new HassAPI();
+// Tilgjengelig i konsollen (og for røyktester) som window.__hassAPI – nyttig ved feilsøking via remote devtools.
+if (typeof window !== 'undefined') window.__hassAPI = hassAPI;
+

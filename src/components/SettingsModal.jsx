@@ -4,6 +4,7 @@ import { useHomey } from '../context/HomeyContext';
 import { storage } from '../services/storage';
 import { X, Copy, Trash2, History, Pencil, Save } from 'lucide-react';
 import { CheckboxRow } from './SettingsControls';
+import ConnectionLog from './ConnectionLog';
 import { MACHINE_POPUP_KINDS, getMachinePopupCfg } from '../services/popup-settings';
 
 const TABS = [
@@ -281,6 +282,7 @@ const SettingsModal = ({ onClose }) => {
                         <div className="connection-status" style={{ marginTop: '10px', fontSize: '0.9rem', color: status.includes('✅') ? '#4caf50' : '#f44336' }}>
                             {status}
                         </div>
+                        {hubType === 'hass' && <ConnectionLog />}
                     </div>
                     )}
 

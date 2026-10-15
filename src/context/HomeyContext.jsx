@@ -81,6 +81,8 @@ export const HomeyProvider = ({ children }) => {
     const isInteractingRef = useRef(false);
     // HA-tilkobling: false mens vi kobler til på nytt (viser indikator i App).
     const [haConnected, setHaConnected] = useState(true);
+    // Fase i gjenoppkoblingsløpet (checking/connecting/loading/waiting/connected) – vises i banneret.
+    const [haStatus, setHaStatus] = useState(() => hassAPI.status);
     // Innkommende HA-states i kø (entity_id → siste state) + flush-timer.
     const pendingStatesRef = useRef(new Map());
     const flushTimerRef = useRef(null);
@@ -218,6 +220,7 @@ export const HomeyProvider = ({ children }) => {
                         // Handle HA updates – samles i kø og tas inn i én render (se applyStateToDevices)
                         hassAPI.onStateChanged = queueState;
                         hassAPI.onConnectionChange = setHaConnected;
+                        hassAPI.onStatusChange = setHaStatus;
 
                         // Signal ready and handle bulk load
                         hassAPI.onReady = (entities) => {
@@ -519,6 +522,7 @@ export const HomeyProvider = ({ children }) => {
             api: activeApi,
             isAuthenticated,
             haConnected,
+            haStatus,
             isLoading,
             reloadData: loadDashboardData,
             settings,
