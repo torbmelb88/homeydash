@@ -35,6 +35,7 @@ class HassAPI {
         this.events = this.loadEvents(); // tilkoblingslogg (ringbuffer, speiles til localStorage)
         this.openedAt = 0;
         this.lastWakeAt = 0;           // siste vekking – de første sekundene etterpå brukes korte frister
+        this.lastOpenMs = 0;           // sist målte tid fra new WebSocket til onopen (styrer vekkingsfristen)
     }
 
     // --- Tilkoblingslogg ---------------------------------------------------
@@ -100,8 +101,11 @@ class HassAPI {
     static COMMAND_TIMEOUT_MS = 20000;
     static OPEN_TIMEOUT_MS = 4000;         // socket must reach onopen (TCP/TLS) within this – a SYN
                                            // that hangs while wifi comes up is retried instead of waited on
-    static OPEN_TIMEOUT_WAKE_MS = 2000;    // same, right after a wake: the phone opens a socket in
-                                           // 300–450 ms on wifi, so 2 s is plenty and 4 s was wasted
+    static OPEN_TIMEOUT_WAKE_MIN_MS = 1500; // same, right after a wake: 2 × sist målte oppkoblingstid,
+                                            // minst 1,5 s. Android slipper nettet gjennom noen sekunder
+                                            // etter at appen er tilbake; hvert forsøk sender SYN straks
+                                            // (+ retransmit etter 1 s), så korte, tette forsøk gir
+                                            // kontakt < 1 s etter at nettet er tilbake (brukerlogg 15/10)
     static FRESH_WAKE_MS = 15000;          // how long after a wake the short limits apply
     static HANDSHAKE_TIMEOUT_MS = 8000;    // TCP + auth only; data load has per-command timeouts
     static RESYNC_AFTER_HIDDEN_MS = 20000; // hidden longer than this → get_states on wake
@@ -132,6 +136,12 @@ class HassAPI {
     /** True in the first seconds after a wake, when the user is waiting and the radio may be late. */
     isFreshWake() {
         return Date.now() - this.lastWakeAt < HassAPI.FRESH_WAKE_MS;
+    }
+
+    /** Kontaktfrist for et forsøk: kort og adaptiv rett etter vekking, ellers 4 s. */
+    openTimeoutMs() {
+        if (!this.isFreshWake()) return HassAPI.OPEN_TIMEOUT_MS;
+        return Math.min(HassAPI.OPEN_TIMEOUT_MS, Math.max(HassAPI.OPEN_TIMEOUT_WAKE_MIN_MS, 2 * this.lastOpenMs));
     }
 
     notifyConnection(connected) {
@@ -350,10 +360,10 @@ class HassAPI {
             // Separate, shorter limit for the TCP/TLS part: a SYN that is
             // silently dropped (wifi still coming up after unlock) would
             // otherwise cost the full handshake timeout before we retry.
-            const openMs = this.isFreshWake() ? HassAPI.OPEN_TIMEOUT_WAKE_MS : HassAPI.OPEN_TIMEOUT_MS;
+            const openMs = this.openTimeoutMs();
             const openTimeout = setTimeout(() => {
                 if (ws && ws.readyState === WebSocket.CONNECTING && this.ws === ws) {
-                    this.logEvent(`Ingen kontakt på ${openMs / 1000} s – prøver igjen`, 'warn');
+                    this.logEvent(`Ingen kontakt på ${(openMs / 1000).toFixed(1).replace('.', ',')} s – prøver igjen`, 'warn');
                     ws.close(); // onclose schedules the retry
                 }
             }, openMs);
@@ -371,7 +381,8 @@ class HassAPI {
             this.ws.onopen = () => {
                 clearTimeout(openTimeout);
                 this.openedAt = Date.now();
-                this.logEvent(`Socket åpen etter ${this.openedAt - this.connectStartedAt} ms`);
+                this.lastOpenMs = this.openedAt - this.connectStartedAt;
+                this.logEvent(`Socket åpen etter ${this.lastOpenMs} ms`);
             };
 
             this.ws.onmessage = (event) => {
@@ -704,10 +715,10 @@ class HassAPI {
         // Visible page: retry every few seconds at most – a 30 s wait feels
         // like «it does not work». Hidden page: back off up to 30 s.
         const cap = this.isVisible() ? HassAPI.VISIBLE_BACKOFF_MAX_MS : HassAPI.HIDDEN_BACKOFF_MAX_MS;
-        const base = this.isFreshWake() ? 500 : 1000; // rett etter vekking: 0,5 · 1 · 2 · 4 · 5 s
+        const base = this.isFreshWake() ? 300 : 1000; // rett etter vekking: 0,3 · 0,6 · 1,2 · 2,4 · 4,8 s
         const delay = Math.min(base * Math.pow(2, this.reconnectAttempts), cap);
         this.reconnectAttempts++;
-        this.logEvent(`Nytt forsøk om ${delay / 1000} s`);
+        this.logEvent(`Nytt forsøk om ${(delay / 1000).toFixed(1).replace('.', ',')} s`);
         this.setStatus('waiting', { until: Date.now() + delay });
         this.reconnectTimer = setTimeout(async () => {
             this.reconnectTimer = null;
