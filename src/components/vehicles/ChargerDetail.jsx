@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { X, Zap, Plug, BatteryCharging, Lock, Unlock, Car, ChevronRight, WifiOff } from 'lucide-react';
 import MiniPowerGraph from '../TileContent/MiniPowerGraph';
 import { AmpsPicker, BatteryBar, Group, LoadManagerRow, Stats, fmt0, fmt1 } from './shared';
-import { formatClock, formatUntil, chargerKey } from '../../services/vehicle';
+import { formatClock, formatUntil, chargerKey, FINISH_LABEL } from '../../services/vehicle';
 import { meterReadings, formatPower } from '../../services/climate';
 import DeviceImage from '../DeviceImage';
 
@@ -83,13 +83,13 @@ export default function ChargerDetail({ charger, summary: s, car, carName, lm, l
                             <div className="vp-car-mini-head">
                                 <Car size={16} />
                                 <strong>{carName}</strong>
-                                <span>{car.battery != null ? `${Math.round(car.battery)} %` : '–'}{car.limit != null ? ` → ${Math.round(car.limit)} %` : ''}</span>
+                                <span>{car.battery != null ? `${car.batteryEstimated ? '≈ ' : ''}${Math.round(car.battery)} %` : '–'}{car.limit != null ? ` → ${Math.round(car.limit)} %` : ''}</span>
                                 <ChevronRight size={16} className="vp-dim" />
                             </div>
                             <BatteryBar battery={car.battery} limit={car.limit} charging={car.isCharging} />
                             <div className="vp-car-mini-sub">
                                 {car.isCharging && car.timeToFull
-                                    ? `Ferdig ${formatClock(car.timeToFull)}${formatUntil(car.timeToFull) ? ` (${formatUntil(car.timeToFull)})` : ''}`
+                                    ? `${FINISH_LABEL[car.finishSource] || 'Ferdig'} ${formatClock(car.timeToFull)}${formatUntil(car.timeToFull) ? ` (${formatUntil(car.timeToFull)})` : ''}${car.finishRemainingKwh != null ? ` · ${car.finishRemainingKwh.toFixed(1)} kWh igjen` : ''}`
                                     : car.stateInfo?.text || 'Tilkoblet'}
                                 {car.range != null && ` · ${Math.round(car.range)} ${car.rangeUnit}`}
                             </div>

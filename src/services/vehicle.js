@@ -59,10 +59,12 @@ export function vehicleSummary(v) {
     const battery = capVal(v, 'measure_battery');
     const timeToFullRaw = capVal(v, 'vehicle_time_to_full');
     let timeToFull = timeToFullRaw ? new Date(timeToFullRaw) : null;
-    // Kona: minutter igjen (fra siste rapport) – bare meningsfullt mens det lades
+    // Kona: minutter igjen (fra siste rapport) – bare meningsfullt mens det lades. Regnes fra
+    // bilens siste rapport (Pleos: reported_at på sensoren, kia_uvo: *_last_updated →
+    // vehicle_last_reported) – IKKE fra «nå», ellers står nedtellingen stille (sett 16/10).
     const ttfMin = capVal(v, 'vehicle_time_to_full_minutes');
     if (!timeToFull && isCharging && ttfMin != null) {
-        const base = v.capabilitiesObj.vehicle_time_to_full_minutes.reported_at;
+        const base = v.capabilitiesObj.vehicle_time_to_full_minutes.reported_at || capVal(v, 'vehicle_last_reported');
         const baseDate = base ? new Date(base) : new Date();
         timeToFull = new Date((isNaN(baseDate.getTime()) ? Date.now() : baseDate.getTime()) + ttfMin * 60000);
     }
@@ -345,3 +347,83 @@ export function chargerSummary(charger, devices) {
         powerEntityId: caps.measure_power?.entity_id || null,
     };
 }
+
+// ── Ferdig-tid for lading (okt 2026) ──────────────────────────────────────────
+// Kona melder batteri-% til skyen bare for hver hele 10 %, så bilens eget «tid til fulladet»
+// stemmer kun i rapportøyeblikket. Rangering av kilder:
+//   1. Strømstyring smartlading (om natten): laderen styres mot klar-tiden → «planlagt ferdig».
+//   2. Bilens eget anslag når rapporten er fersk (Tesla streamer; Kona < 5 min).
+//   3. Eget anslag: batteri-% framskrevet med laderens økt-energi siden bilens siste rapport
+//      (kWh per % inkl. ladetap), delt på laderens effekt nå.
+//   4. Bilens (gamle) anslag som siste utvei.
+export const DEFAULT_KWH_PER_PCT = [
+    { match: /tesla/i, value: 0.79 },           // fra Strømstyring-konfigen (Model Y)
+    { match: /hyundai|kona/i, value: 0.72 },    // Kona Electric 64 kWh ≈ 0,65 netto + ladetap
+];
+
+export function kwhPerPctOf(v, settings = {}) {
+    const own = Number(settings.kwhPerPct?.[vehicleKey(v)]);
+    if (own > 0) return own;
+    const hay = `${v.settings?.vehicleMake || ''} ${v.settings?.vehicleModel || ''} ${v.name || ''}`;
+    return DEFAULT_KWH_PER_PCT.find(d => d.match.test(hay))?.value ?? null;
+}
+
+const FRESH_REPORT_MS = 5 * 60 * 1000;
+
+// HH:MM (lokal) → neste forekomst fra nå
+function nextClock(hhmm, now = new Date()) {
+    const m = /^(\d{1,2}):(\d{2})/.exec(hhmm || '');
+    if (!m) return null;
+    const t = new Date(now);
+    t.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    if (t <= now) t.setDate(t.getDate() + 1);
+    return t;
+}
+
+// Strømstyring sin estimat-sensor gjelder «bilen på laderen» – sjekk at navnet passer denne bilen
+export const haSocMatches = (haSoc, car) => {
+    if (!haSoc || haSoc.pct == null) return false;
+    if (!haSoc.car || !car?.name) return true;
+    const a = haSoc.car.toLowerCase(), b = car.name.toLowerCase();
+    return a.includes(b) || b.includes(a);
+};
+
+export function chargeFinish({ car, charger, smart, kwhPerPct, energyAtReport, haSoc, now = new Date() }) {
+    if (!car?.isCharging) return null;
+    const reportAge = car.lastReported ? now.getTime() - car.lastReported.getTime() : null;
+    const fresh = reportAge == null || reportAge < FRESH_REPORT_MS;
+
+    // Batteri-% framskrevet mellom bilens rapporter – uavhengig av hvilken kilde ferdig-tiden
+    // kommer fra (også under smartlading, brukerønske 18/10). Primært fra Strømstyring sin
+    // `_estimated_battery`-sensor (19/10, følger økt-energien live i HA); ellers egen utregning
+    // fra bilens siste rapport + laderens økt-energi siden (historikk-oppslag). Vises bare når
+    // anslaget ligger over bilens rapporterte verdi – ny rapport fra bilen nullstiller det.
+    let socEstimate = null;
+    if (haSocMatches(haSoc, car) && car.battery != null) {
+        const soc = Math.min(car.limit ?? 100, haSoc.pct);
+        if (soc > car.battery + 0.05) socEstimate = soc;
+    } else if (!fresh && kwhPerPct > 0 && car.battery != null && car.limit != null
+        && energyAtReport != null && charger?.sessionEnergy != null && charger.sessionEnergy >= energyAtReport) {
+        const soc = Math.min(car.limit, car.battery + (charger.sessionEnergy - energyAtReport) / kwhPerPct);
+        if (soc > car.battery + 0.05) socEstimate = soc;
+    }
+
+    if (smart?.active) {
+        const time = nextClock(smart.readyTime, now);
+        if (time) return { time, source: 'smart', remainingKwh: smart.remainingKwh, amps: smart.targetAmps, status: smart.status, socEstimate };
+    }
+    if (car.timeToFull && fresh) {
+        return { time: car.timeToFull, source: 'car', remainingKwh: null, socEstimate };
+    }
+    const power = charger?.power ?? 0;
+    if (kwhPerPct > 0 && car.battery != null && car.limit != null && power > 100) {
+        const soc = socEstimate ?? car.battery;
+        const remainingKwh = Math.max(0, (car.limit - soc) * kwhPerPct);
+        const hours = remainingKwh / (power / 1000);
+        return { time: new Date(now.getTime() + hours * 3600000), source: 'estimate', remainingKwh, socEstimate };
+    }
+    if (car.timeToFull) return { time: car.timeToFull, source: 'car-stale', remainingKwh: null, socEstimate };
+    return null;
+}
+
+export const FINISH_LABEL = { smart: 'Planlagt ferdig', car: 'Ferdig', estimate: '≈ Ferdig', 'car-stale': 'Ferdig (bilens anslag)' };

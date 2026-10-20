@@ -2,7 +2,7 @@ import React from 'react';
 import { Car, Clock, Moon, Lock, Unlock, MapPin, Thermometer, Power, Fan, ChevronRight, Zap, Route } from 'lucide-react';
 import TempStepper from '../TempStepper';
 import { BatteryBar, fmt1, stop } from './shared';
-import { climateKindOf, formatClock, formatUntil, locationText, reportedText, vehicleKey } from '../../services/vehicle';
+import { climateKindOf, formatClock, formatUntil, locationText, reportedText, vehicleKey, FINISH_LABEL } from '../../services/vehicle';
 import DeviceImage from '../DeviceImage';
 
 // Klimagrenser (HA oppgir min/max/step på climate-entiteten; Tesla 15–28, trinn 0,5)
@@ -36,9 +36,11 @@ export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settin
     // Linjen under batteriet: ferdig-tid når det lades, ellers bilens egen ladestatus
     let line;
     if (car.isCharging && car.timeToFull) {
-        line = <><Clock size={13} /> Ferdig {formatClock(car.timeToFull)}{formatUntil(car.timeToFull) ? ` (${formatUntil(car.timeToFull)})` : ''}
-            {car.chargerPower > 0 && ` · ${(car.chargerPower / 1000).toFixed(1)} kW`}
-            {car.chargeRate > 0 && ` · ${Math.round(car.chargeRate)} ${car.chargeRateUnit}`}</>;
+        line = <><Clock size={13} /> {FINISH_LABEL[car.finishSource] || 'Ferdig'} {formatClock(car.timeToFull)}{formatUntil(car.timeToFull) ? ` (${formatUntil(car.timeToFull)})` : ''}
+            {car.finishRemainingKwh != null && ` · ${car.finishRemainingKwh.toFixed(1)} kWh igjen`}
+            {car.finishSource !== 'smart' && car.chargerPower > 0 && ` · ${(car.chargerPower / 1000).toFixed(1)} kW`}
+            {car.finishSource === 'smart' && car.finishAmps != null && ` · ${Math.round(car.finishAmps)} A`}
+            {car.finishSource === 'car' && car.chargeRate > 0 && ` · ${Math.round(car.chargeRate)} ${car.chargeRateUnit}`}</>;
     } else if (car.isCharging) {
         line = <><Zap size={13} /> Lader{car.chargerPower > 0 ? ` · ${(car.chargerPower / 1000).toFixed(1)} kW` : ''}</>;
     } else if (car.state === 'complete') {
@@ -77,9 +79,9 @@ export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settin
             </div>
 
             <div className="vp-batt">
-                <span className="vp-batt-big">{car.battery != null ? `${Math.round(car.battery)} %` : '–'}</span>
+                <span className="vp-batt-big" title={car.batteryEstimated ? `Anslag – bilen meldte ${Math.round(car.batteryReported)} %` : undefined}>{car.battery != null ? `${car.batteryEstimated ? '≈ ' : ''}${Math.round(car.battery)} %` : '–'}</span>
                 {car.limit != null && <span className="vp-batt-lim">→ {Math.round(ctl.capOf(vehicle, 'vehicle_charge_limit'))} %</span>}
-                {car.range != null && <span className="vp-batt-range">{Math.round(car.range)} {car.rangeUnit}</span>}
+                {car.range != null && <span className="vp-batt-range" title={car.rangeEstimated ? `Anslag – bilen meldte ${Math.round(car.rangeReported)} ${car.rangeUnit}` : undefined}>{car.rangeEstimated ? '≈ ' : ''}{Math.round(car.range)} {car.rangeUnit}</span>}
             </div>
             <BatteryBar battery={car.battery} limit={ctl.capOf(vehicle, 'vehicle_charge_limit')} charging={car.isCharging} />
             <div className={`vp-line${car.isCharging ? ' is-ok' : ''}`}>{line}</div>

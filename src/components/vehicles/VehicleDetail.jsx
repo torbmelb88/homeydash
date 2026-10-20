@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Car, Fan, Power, Zap, Minus, Plus, Snowflake, Armchair, Lock, Unlock, DoorOpen, CircleDot, Shield, MapPin, Moon, RefreshCw, Check } from 'lucide-react';
 import TempStepper from '../TempStepper';
 import { BatteryBar, Group, Stats, LevelPicker, Toggle, PRESET_LABEL, SEAT_LABEL, SEAT_ORDER, fmt1, stop } from './shared';
-import { climateKindOf, formatClock, formatUntil, locationText, vehicleKey } from '../../services/vehicle';
+import { climateKindOf, formatClock, formatUntil, locationText, vehicleKey, FINISH_LABEL } from '../../services/vehicle';
 import { climateLimits } from './VehicleCard';
 import DeviceImage from '../DeviceImage';
 
@@ -64,9 +64,9 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                 {/* ── Lading ─────────────────────────────────────────── */}
                 <Group label={car.isCharging && car.timeToFull ? `Lading · ferdig ${formatClock(car.timeToFull)}` : 'Lading'}>
                     <div className="vp-batt">
-                        <span className="vp-batt-big">{car.battery != null ? `${Math.round(car.battery)} %` : '–'}</span>
+                        <span className="vp-batt-big">{car.battery != null ? `${car.batteryEstimated ? '≈ ' : ''}${Math.round(car.battery)} %` : '–'}</span>
                         {limit != null && <span className="vp-batt-lim">→ {Math.round(limit)} %</span>}
-                        {car.range != null && <span className="vp-batt-range">{Math.round(car.range)} {car.rangeUnit}</span>}
+                        {car.range != null && <span className="vp-batt-range">{car.rangeEstimated ? '≈ ' : ''}{Math.round(car.range)} {car.rangeUnit}</span>}
                     </div>
                     <BatteryBar battery={car.battery} limit={limit} charging={car.isCharging} large />
 
@@ -126,7 +126,10 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                         { label: 'Effekt', value: car.isCharging && car.chargerPower > 0 ? `${(car.chargerPower / 1000).toFixed(1)} kW${car.chargerCurrent ? ` · ${Math.round(car.chargerCurrent)} A` : ''}` : null },
                         { label: 'Lagt til denne økta', value: car.energyAdded != null && (car.isCharging || car.state === 'complete') ? `${Number(car.energyAdded).toFixed(1)} kWh` : null },
                         { label: 'Ladehastighet', value: car.isCharging && car.chargeRate > 0 ? `${Math.round(car.chargeRate)} ${car.chargeRateUnit}` : null },
-                        { label: 'Ferdig', value: car.isCharging && car.timeToFull ? `${formatClock(car.timeToFull)}${formatUntil(car.timeToFull) ? ` (${formatUntil(car.timeToFull)})` : ''}` : null },
+                        { label: FINISH_LABEL[car.finishSource] || 'Ferdig', value: car.isCharging && car.timeToFull ? `${formatClock(car.timeToFull)}${formatUntil(car.timeToFull) ? ` (${formatUntil(car.timeToFull)})` : ''}` : null },
+                        { label: 'Gjenstår', value: car.isCharging && car.finishRemainingKwh != null ? `${car.finishRemainingKwh.toFixed(1)} kWh${car.finishSource === 'smart' ? ' · Strømstyring' : car.finishSource === 'estimate' ? ' · anslag' : ''}` : null },
+                        { label: 'Bilen meldte', value: car.batteryEstimated && car.batteryReported != null ? `${Math.round(car.batteryReported)} %${car.rangeEstimated ? ` · ${Math.round(car.rangeReported)} ${car.rangeUnit}` : ''}` : null },
+                        { label: 'Rapportert', value: car.batteryEstimated && car.lastReported ? `kl. ${formatClock(car.lastReported)}` : null },
                         { label: 'Laderen', value: onCharger && ch ? `${ch.hasLimit ? `${Math.round(ch.limit)} A` : ch.statusText}${lm ? ` · ${lm.override === 'auto' ? 'automatikk' : 'overstyrt'}` : ''}` : null },
                     ]} />
                     {!onCharger && !car.isCharging && <div className="climate-tiny">Bilen står ikke på laderen hjemme.</div>}
@@ -255,7 +258,7 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                 <Stats label="Detaljer" items={[
                     { label: 'Kilometerstand', value: caps.vehicle_odometer?.value != null ? `${Math.round(caps.vehicle_odometer.value).toLocaleString('nb-NO')} km` : null },
                     { label: 'Brukbart batteri', value: car.batteryUsable != null ? `${Math.round(car.batteryUsable)} %` : null },
-                    { label: 'Rekkevidde', value: car.range != null ? `${Math.round(car.range)} ${car.rangeUnit}` : null },
+                    { label: 'Rekkevidde', value: car.range != null ? `${car.rangeEstimated ? '≈ ' : ''}${Math.round(car.range)} ${car.rangeUnit}` : null },
                     { label: 'Kabel', value: car.cableConnected == null ? null : car.cableConnected ? 'Tilkoblet' : 'Ikke tilkoblet' },
                     { label: 'Ladegrense DC', value: car.limitDc != null ? `${Math.round(car.limitDc)} %` : null },
                     { label: '12 V-batteri', value: car.battery12v != null ? `${Math.round(car.battery12v)} %` : null },

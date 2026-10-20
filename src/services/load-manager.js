@@ -26,6 +26,53 @@ export function loadManagerStateText(state) {
     return state;
 }
 
+// Smartlading (sensor.global_load_manager_<navn>_smart_charging): kun aktiv om natten. State =
+// mål-ampere, attributter = regnestykket: bil, batteri_start_pct, ladegrense_pct, behov_kwh,
+// levert_kwh (fra laderens økt-energi – presis), gjenstaar_kwh, ferdig_tid (HH:MM = konfigurert
+// klar-tid, IKKE et anslag), timer_til_ferdig (til fristen), status («beregnet» | «etter ferdig-tid
+// — tar igjen i bufferen» | «behov dekket — minimumsstrøm» | «ikke natt» | «…— fast nattstrøm»).
+// NB: krever kWh per % satt per bil i Strømstyring – ellers «fast nattstrøm» uten attributter.
+export function smartChargingOf(dev) {
+    if (!dev) return null;
+    const a = dev.attributes || {};
+    const num = (v) => (v == null || v === '' || isNaN(Number(v)) ? null : Number(v));
+    const active = a.bil != null && a.ferdig_tid != null;
+    return {
+        status: a.status || '',
+        active,
+        car: a.bil || null,
+        socStart: num(a.batteri_start_pct),
+        limit: num(a.ladegrense_pct),
+        needKwh: num(a.behov_kwh),
+        deliveredKwh: num(a.levert_kwh),
+        remainingKwh: num(a.gjenstaar_kwh),
+        readyTime: a.ferdig_tid || null,
+        targetAmps: num(dev.state),
+    };
+}
+
+// Estimert batteri-% for bilen på laderen (sensor.global_load_manager_<navn>_estimated_battery,
+// okt 2026): integrasjonen følger bilens %-rapporter mot laderens økt-energi og framskriver
+// imellom (bilens siste % + levert kWh siden / kWh per %), uavhengig av tariff. Attributter:
+// bil, siste_rapport_pct, ladet_siden_rapport_kwh, kwh_per_pct, ladegrense_pct. Ukjent/unavailable
+// når ingen kjent bil står på laderen. Foretrekkes over dashbordets egen historikk-baserte
+// utregning (samme tall på alle skjermer, ingen historikk-oppslag).
+export function socEstimateOf(dev) {
+    if (!dev) return null;
+    const pct = Number(dev.state);
+    if (dev.state == null || dev.state === 'unknown' || dev.state === 'unavailable' || isNaN(pct)) return null;
+    const a = dev.attributes || {};
+    const num = (v) => (v == null || v === '' || isNaN(Number(v)) ? null : Number(v));
+    return {
+        pct,
+        car: a.bil || null,
+        lastReportPct: num(a.siste_rapport_pct),
+        chargedKwh: num(a.ladet_siden_rapport_kwh),
+        kwhPerPct: num(a.kwh_per_pct),
+        limit: num(a.ladegrense_pct),
+    };
+}
+
 const isLmState = (id) => /^sensor\.global_load_manager_.+_state$/.test(id);
 const isLmOverride = (id) => /^select\.global_load_manager_.+_override$/.test(id);
 
@@ -85,5 +132,7 @@ export function findLoadManager(devices, charger, settings = {}) {
         tariff: tariffDev?.state || '',
         mode: modeDev?.state || '',
         critical: modeDev?.state === 'kritisk',
+        smart: smartChargingOf(stateDev ? devices.find(d => d.id === stateDev.id.replace(/_state$/, '_smart_charging')) : null),
+        socEstimate: socEstimateOf(stateDev ? devices.find(d => d.id === stateDev.id.replace(/_state$/, '_estimated_battery')) : null),
     };
 }

@@ -11,8 +11,10 @@ import VehicleCard from './vehicles/VehicleCard';
 import VehicleDetail from './vehicles/VehicleDetail';
 import { useLoadManagerAction } from './vehicles/shared';
 import useVehicleControl from '../hooks/useVehicleControl';
+import useSessionEnergyAt from '../hooks/useSessionEnergyAt';
 import {
     allChargers, buildVehicleList, chargerKey, chargerSummary, findChargingVehicle, findPageCharger, formatClock, vehicleKey, vehicleName, vehicleSummary,
+    chargeFinish, kwhPerPctOf, haSocMatches, FINISH_LABEL,
 } from '../services/vehicle';
 import { findLoadManager, allOverrideSelects } from '../services/load-manager';
 import { formatPower } from '../services/climate';
@@ -35,14 +37,47 @@ export default function VehiclePage({ page }) {
 
     const charger = useMemo(() => findPageCharger(devices, settings), [devices, settings]);
     const ch = useMemo(() => chargerSummary(charger, devices), [charger, devices]);
-    const lm = useMemo(() => (charger && settings.showLoadManager !== false ? findLoadManager(devices, charger, settings) : null), [devices, charger, settings]);
+    // Strømstyring slås alltid opp (smartladingens ferdig-tid brukes selv om raden er skjult);
+    // kortene gater selv visningen på settings.showLoadManager.
+    const lm = useMemo(() => (charger ? findLoadManager(devices, charger, settings) : null), [devices, charger, settings]);
     const lmAction = useLoadManagerAction(api, charger, lm);
 
     const vehicles = useMemo(() => buildVehicleList(devices, settings), [devices, settings]);
     const chargingVehicle = useMemo(() => (charger ? findChargingVehicle(devices, charger, settings) : null), [devices, charger, settings]);
     const chargingKey = chargingVehicle ? vehicleKey(chargingVehicle) : null;
-    const cars = useMemo(() => Object.fromEntries(vehicles.map(v => [vehicleKey(v), vehicleSummary(v)])), [vehicles]);
+    const rawCars = useMemo(() => Object.fromEntries(vehicles.map(v => [vehicleKey(v), vehicleSummary(v)])), [vehicles]);
     const nameOf = (v) => vehicleName(v, settings);
+
+    // Ferdig-tid for bilen som lader: smartlading → fersk bilrapport → eget anslag (bilens
+    // siste %, framskrevet med laderens økt-energi siden rapporten) → bilens gamle anslag.
+    const rawChargingCar = chargingKey ? rawCars[chargingKey] : null;
+    const energyAtReport = useSessionEnergyAt(
+        rawChargingCar?.isCharging && rawChargingCar.lastReported ? charger?.capabilitiesObj?.['meter_power.current_session']?.entity_id : null,
+        rawChargingCar?.lastReported || null
+    );
+    const finish = rawChargingCar ? chargeFinish({
+        car: rawChargingCar, charger: ch, smart: lm?.smart, haSoc: lm?.socEstimate,
+        // kWh per %: Strømstyring sin verdi for bilen på laderen (attributt på estimat-sensoren)
+        // foran sidens innstilling/standard – ett sted å vedlikeholde tallet (brukerønske 20/10)
+        kwhPerPct: chargingVehicle
+            ? ((haSocMatches(lm?.socEstimate, rawChargingCar) && lm.socEstimate.kwhPerPct > 0) ? lm.socEstimate.kwhPerPct : kwhPerPctOf(chargingVehicle, settings))
+            : null,
+        energyAtReport,
+    }) : null;
+    // Ved eget anslag vises også framskrevet batteri-% («≈ 78 %»); bilens rapporterte verdi
+    // beholdes som batteryReported og vises i utvidet visning.
+    const estimatedSoc = finish?.socEstimate ?? null;
+    const cars = finish
+        ? { ...rawCars, [chargingKey]: {
+            ...rawChargingCar,
+            timeToFull: finish.time, finishSource: finish.source, finishRemainingKwh: finish.remainingKwh, finishAmps: finish.amps ?? null,
+            ...(estimatedSoc != null ? { battery: estimatedSoc, batteryReported: rawChargingCar.battery, batteryEstimated: true } : {}),
+            // Rekkevidde skaleres med samme faktor (km per % fra bilens egen rapport)
+            ...(estimatedSoc != null && rawChargingCar.range != null && rawChargingCar.battery > 0
+                ? { range: rawChargingCar.range * estimatedSoc / rawChargingCar.battery, rangeReported: rawChargingCar.range, rangeEstimated: true }
+                : {}),
+        } }
+        : rawCars;
 
     // Nedtelling («om 1 t 20 min») og ferdig-tid må tikke selv om ingen sensor endres
     const [, setTick] = useState(0);
@@ -69,8 +104,8 @@ export default function VehiclePage({ page }) {
     const chargingCar = chargingVehicle ? cars[chargingKey] : null;
     if (chargingCar && (chargingCar.isCharging || ch?.charging)) {
         summary = `${nameOf(chargingVehicle)} lader`;
-        if (chargingCar.battery != null) summary += ` · ${Math.round(chargingCar.battery)} %${chargingCar.limit != null ? ` → ${Math.round(chargingCar.limit)} %` : ''}`;
-        if (chargingCar.timeToFull) summary += ` · ferdig ${formatClock(chargingCar.timeToFull)}`;
+        if (chargingCar.battery != null) summary += ` · ${chargingCar.batteryEstimated ? '≈ ' : ''}${Math.round(chargingCar.battery)} %${chargingCar.limit != null ? ` → ${Math.round(chargingCar.limit)} %` : ''}`;
+        if (chargingCar.timeToFull) summary += ` · ${(FINISH_LABEL[chargingCar.finishSource] || 'Ferdig').toLowerCase().replace(' (bilens anslag)', '')} ${formatClock(chargingCar.timeToFull)}`;
     } else if (chargingCar) {
         summary = `${nameOf(chargingVehicle)} står på laderen · ${chargingCar.stateInfo?.text || ch?.statusText || ''}`;
     } else if (ch?.connected) {
@@ -258,6 +293,21 @@ function VehicleListSettings({ settings, devices, onChange }) {
                                         placeholder={`Eget navn (${v.name || 'Bil'})`}
                                         style={{ width: '100%', marginTop: 8, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)' }}
                                     />
+                                    <label htmlFor={`kwhPerPct-${key}`} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: '0.85rem' }}>
+                                        <span style={{ flex: 1 }}>kWh per % (inkl. ladetap)</span>
+                                        <input
+                                            id={`kwhPerPct-${key}`}
+                                            type="number"
+                                            step="0.01"
+                                            min="0.1"
+                                            max="2"
+                                            value={settings.kwhPerPct?.[key] ?? ''}
+                                            onChange={(e) => setMapValue('kwhPerPct', key, e.target.value ? Number(e.target.value) : null)}
+                                            placeholder={kwhPerPctOf(v, {}) != null ? String(kwhPerPctOf(v, {})) : '–'}
+                                            style={{ width: 90, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)' }}
+                                        />
+                                    </label>
+                                    <p className="hint" style={{ margin: '4px 0 0' }}>Reserve for anslått ferdig-tid og batteri-%. Når bilen står på laderen, brukes tallet fra Strømstyring automatisk.</p>
                                 </>
                             )}
                         </div>

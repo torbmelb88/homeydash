@@ -113,6 +113,7 @@ export const buildDemoWorld = () => {
         E('number.global_load_manager_capacity_target', '7.5', { friendly_name: 'Strømstyring Kapasitetsmål', min: 1, max: 20, step: 0.5, unit_of_measurement: 'kW' }),
         E('sensor.tech_han_meter_power', '4820', { friendly_name: 'Effekt', unit_of_measurement: 'W', device_class: 'power' }),
         E('sensor.global_load_manager_billader_state', 'normal', { friendly_name: 'Strømstyring Billader', prioritet: 2, steg_redusert: 0, entity_id: 'number.car_charger_circuit_available_current' }),
+        E('sensor.global_load_manager_billader_smart_charging', 'unknown', { friendly_name: 'Strømstyring Billader smartlading', status: 'ikke natt', unit_of_measurement: 'A' }),
         E('select.global_load_manager_billader_override', 'auto', { friendly_name: 'Strømstyring Billader overstyring', options: ['auto', 'override', 'override_unless_critical', 'override_til_tariffendring'] }),
 
         // ── Elbil (composite: demo-car, Tesla-lignende) – kobles til laderen ─
