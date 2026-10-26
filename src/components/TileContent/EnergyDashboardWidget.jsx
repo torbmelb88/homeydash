@@ -333,7 +333,8 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
     const showCapacityCard = tog(cfg, 'showCapacityCard');
     const showPeakCard     = tog(cfg, 'showPeakCard');
     const showTrackedCard  = tog(cfg, 'showTrackedCard');
-    const showPeaksRow     = tog(cfg, 'showPeaksRow');
+    const showEstimateCard = tog(cfg, 'showEstimateCard');
+    const showPeaksRow    = tog(cfg, 'showPeaksRow');
     const showBarChart     = tog(cfg, 'showBarChart');
     const showTable        = tog(cfg, 'showTable');
     const showColEnergy    = tog(cfg, 'showColEnergy');
@@ -359,6 +360,12 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
     const peak3Attrs      = hassAPI.entities?.['sensor.global_energy_cost_peak_3']?.attributes || {};
     const capacityAttrs   = capacityEntity?.attributes || {};
     const capacityCostVal = parseFloat(capacityEntity?.state) || null;
+    const monthEstimate      = getVal('sensor.global_energy_cost_total_cost_month_estimate');
+    const monthEstimateAttrs = hassAPI.entities?.['sensor.global_energy_cost_total_cost_month_estimate']?.attributes || {};
+    const monthEstimateSub   = [
+        monthEstimateAttrs.rest_kr != null ? `+${fmt(monthEstimateAttrs.rest_kr)} kr igjen` : null,
+        monthEstimateAttrs.grunnlag ? `basert på ${monthEstimateAttrs.grunnlag}` : null,
+    ].filter(Boolean).join(' · ');
     const tariffLabel     = tariffState === 'dag' ? '☀ Dag' : tariffState === 'natt' ? '🌙 Natt' : tariffState || '–';
 
     const deviceData = devices.map((dev, i) => {
@@ -644,6 +651,12 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
                             {showColNightShare && houseNightShare !== null && (
                                 <div style={{ marginTop: 6 }}><NightSplitBar share={houseNightShare} /></div>
                             )}
+                            {showEstimateCard && period === 'monthly' && monthEstimate !== null && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8, paddingTop: 6, borderTop: '1px solid rgba(245,158,11,0.2)', fontSize: '0.75rem' }}>
+                                    <span style={{ opacity: 0.7 }}>Estimert hele {monthName.toLowerCase()}</span>
+                                    <span style={{ fontWeight: 700, color: '#f59e0b' }}>≈ {fmt(monthEstimate)} kr</span>
+                                </div>
+                            )}
                             {(sumTotal > 0 || (showColNightShare && houseNightKwh !== null) || (showColCapacity && isEstimate(houseEids.capacity, period))) && (
                                 <div style={{ fontSize: '0.65rem', opacity: 0.45, marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: '2px 10px' }}>
                                     {showColNightShare && houseNightKwh !== null && <span>{fmtKwh(houseNightKwh)} natt · {fmtKwh(houseDayKwh)} dag</span>}
@@ -671,7 +684,7 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
     }
 
     // ── Hovedvisning ──────────────────────────────────────────────────────────
-    const visibleCardCount = [showPriceCard, showTodayCard, showCapacityCard, showPeakCard, showTrackedCard].filter(Boolean).length;
+    const visibleCardCount = [showPriceCard, showTodayCard, showCapacityCard, showPeakCard, showTrackedCard, showEstimateCard].filter(Boolean).length;
     const todaySub = [
         todayEnergy !== null ? fmtKwh(todayEnergy) : null,
         yesterdayTotal !== null ? `i går ${fmt(yesterdayTotal)} kr` : null,
@@ -696,6 +709,7 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
                     {showCapacityCard && <StatCard label={`Trinn ${capacityAttrs.trinn ?? '?'}`} value={capacityCostVal !== null ? `${capacityCostVal} kr/mnd` : '–'} sub={capacityAttrs.intervall || ''} accent={capacityAlert ? '#ef4444' : '#22c55e'} alert={capacityAlert} />}
                     {showPeakCard     && <StatCard label="Snitt topp"      value={peakAvg !== null ? `${peakAvg.toFixed(2)} kW` : '–'} sub={marginNextTier !== null ? `Margin: ${marginNextTier.toFixed(2)} kW` : ''} accent={capacityAlert ? '#f97316' : '#3b82f6'} />}
                     {showTrackedCard  && <StatCard label="Totalkostnad"    value={houseTotal !== null ? `${fmt(houseTotal)} kr` : `${fmt(sumTotal)} kr`} sub={devices.length > 0 && sumTotal > 0 ? `Sporet: ${fmt(sumTotal)} kr` : ''} accent="#8b5cf6" />}
+                    {showEstimateCard && <StatCard label="Estimert mnd" value={monthEstimate !== null ? `${fmt(monthEstimate)} kr` : '–'} sub={monthEstimateSub} accent="#ec4899" />}
                 </div>
             )}
 

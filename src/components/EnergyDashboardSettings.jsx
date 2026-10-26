@@ -105,6 +105,7 @@ export function EnergyDashboardGeneralSettings({ settings, onChange }) {
                     <CheckboxRow label="Kapasitetstrinn"                  checked={tog('showCapacityCard')} onChange={v => onChange({ showCapacityCard: v })} />
                     <CheckboxRow label="Snitt toppforbruk"                checked={tog('showPeakCard')}     onChange={v => onChange({ showPeakCard: v })} />
                     <CheckboxRow label="Totalkostnad (sporet kostnad)"    checked={tog('showTrackedCard')}  onChange={v => onChange({ showTrackedCard: v })} />
+                    <CheckboxRow label="Estimert månedstotal"             checked={tog('showEstimateCard')} onChange={v => onChange({ showEstimateCard: v })} />
                 </div>
             </div>
             <div className="form-group">
