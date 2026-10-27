@@ -362,10 +362,7 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
     const capacityCostVal = parseFloat(capacityEntity?.state) || null;
     const monthEstimate      = getVal('sensor.global_energy_cost_total_cost_month_estimate');
     const monthEstimateAttrs = hassAPI.entities?.['sensor.global_energy_cost_total_cost_month_estimate']?.attributes || {};
-    const monthEstimateSub   = [
-        monthEstimateAttrs.rest_kr != null ? `+${fmt(monthEstimateAttrs.rest_kr)} kr igjen` : null,
-        monthEstimateAttrs.grunnlag ? `basert på ${monthEstimateAttrs.grunnlag}` : null,
-    ].filter(Boolean).join(' · ');
+    const monthEstimateSub   = monthEstimateAttrs.rest_kr != null ? `+${fmt(monthEstimateAttrs.rest_kr)} kr igjen` : '';
     const tariffLabel     = tariffState === 'dag' ? '☀ Dag' : tariffState === 'natt' ? '🌙 Natt' : tariffState || '–';
 
     const deviceData = devices.map((dev, i) => {
@@ -653,7 +650,7 @@ export default function EnergyDashboardWidget({ tile, onContentUpdate }) {
                             )}
                             {showEstimateCard && period === 'monthly' && monthEstimate !== null && (
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8, paddingTop: 6, borderTop: '1px solid rgba(245,158,11,0.2)', fontSize: '0.75rem' }}>
-                                    <span style={{ opacity: 0.7 }}>Estimert hele {monthName.toLowerCase()}</span>
+                                    <span style={{ opacity: 0.7 }}>Estimert hele {monthName.toLowerCase()}{monthEstimateAttrs.grunnlag ? ` (${monthEstimateAttrs.grunnlag})` : ''}</span>
                                     <span style={{ fontWeight: 700, color: '#f59e0b' }}>≈ {fmt(monthEstimate)} kr</span>
                                 </div>
                             )}
