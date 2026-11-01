@@ -107,13 +107,21 @@ export const buildDemoWorld = () => {
         E('switch.car_charger_cable_lock', 'off', { friendly_name: 'Kabellås' }),
 
         // ── Strømstyring (standalone) – tariffplan og overstyring for laderen ─
-        E('sensor.global_load_manager_tariff', 'dag', { friendly_name: 'Strømstyring Tariff' }),
-        E('sensor.global_load_manager_mode', 'normal', { friendly_name: 'Strømstyring Modus' }),
+        E('sensor.global_load_manager_tariff', 'natt', { friendly_name: 'Strømstyring Tariff' }),
+        E('sensor.global_load_manager_mode', 'boost', { friendly_name: 'Strømstyring Modus' }),
         E('sensor.global_load_manager_headroom', '2680', { friendly_name: 'Strømstyring Tilgjengelig kapasitet', unit_of_measurement: 'W', device_class: 'power' }),
         E('number.global_load_manager_capacity_target', '7.5', { friendly_name: 'Strømstyring Kapasitetsmål', min: 1, max: 20, step: 0.5, unit_of_measurement: 'kW' }),
         E('sensor.tech_han_meter_power', '4820', { friendly_name: 'Effekt', unit_of_measurement: 'W', device_class: 'power' }),
-        E('sensor.global_load_manager_billader_state', 'normal', { friendly_name: 'Strømstyring Billader', prioritet: 2, steg_redusert: 0, entity_id: 'number.car_charger_circuit_available_current' }),
-        E('sensor.global_load_manager_billader_smart_charging', 'unknown', { friendly_name: 'Strømstyring Billader smartlading', status: 'ikke natt', unit_of_measurement: 'A' }),
+        E('sensor.global_load_manager_billader_state', 'boost', { friendly_name: 'Strømstyring Billader', prioritet: 2, steg_redusert: 0, entity_id: 'number.car_charger_circuit_available_current' }),
+        // Fridag-scenario: helg/helligdag på dagtid → full nattstrøm; timer_til_ferdig/estimert_ferdig er
+        // integrasjonens anslag ved valgt strøm (demo-klokka står ikke, så estimert_ferdig er bare pynt)
+        E('sensor.global_load_manager_billader_smart_charging', '25.0', {
+            friendly_name: 'Strømstyring Billader smartlading', unit_of_measurement: 'A',
+            status: 'helg/helligdag på dagtid — full nattstrøm', bil: 'Tesla', identifisert: 'bilen meldte selv',
+            batteri_start_pct: 58, batteri_sist_pct: 61, ladegrense_pct: 80, kwh_per_pct: 0.79, ampere_avvik: 0.5,
+            behov_kwh: 17.4, levert_kwh: 2.4, gjenstaar_kwh: 15.0, timer_til_ferdig: 2.66, estimert_ferdig: '01:40',
+            timer_til_frist: 6.0, ferdig_tid: '05:00', fridag: true, natt_tariff_til: 'Mon 06:00', maal_ampere: 25,
+        }),
         E('select.global_load_manager_billader_override', 'auto', { friendly_name: 'Strømstyring Billader overstyring', options: ['auto', 'override', 'override_unless_critical', 'override_til_tariffendring'] }),
 
         // ── Elbil (composite: demo-car, Tesla-lignende) – kobles til laderen ─

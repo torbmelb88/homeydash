@@ -213,6 +213,21 @@ export function bootstrapDemo() {
     hassAPI.disconnect = () => { stopSimulation(); };
 
     hassAPI.callService = async (domain, service, entityId, data = {}) => {
+        if (domain === 'kia_uvo') {
+            // Bluelink-forvarming (demo-Kona): start/stop_climate har device_id, ikke entitet
+            const climateId = Object.keys(hassAPI.entities).find(id => id.startsWith('climate.kona'));
+            if (!climateId) return;
+            const prefix = climateId.slice('climate.'.length).replace(/_climate$/, '');
+            const on = service === 'start_climate';
+            setState(climateId, on ? 'auto' : 'off', on && data.temperature != null ? { temperature: data.temperature } : {});
+            const heat = on && String(data.heating) === '1';
+            for (const id of [`binary_sensor.${prefix}_steering_wheel_heater`, `binary_sensor.${prefix}_rear_window_heater`]) {
+                if (hassAPI.entities[id]) setState(id, heat ? 'on' : 'off');
+            }
+            if (hassAPI.entities[`binary_sensor.${prefix}_defrost`]) setState(`binary_sensor.${prefix}_defrost`, on && data.defrost ? 'on' : 'off');
+            if (on && data.temperature != null && hassAPI.entities[`sensor.${prefix}_set_temperature`]) setState(`sensor.${prefix}_set_temperature`, String(data.temperature));
+            return;
+        }
         const e = hassAPI.entities[entityId];
         if (!e) return;
 

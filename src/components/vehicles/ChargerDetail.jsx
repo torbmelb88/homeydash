@@ -3,6 +3,7 @@ import { X, Zap, Plug, BatteryCharging, Lock, Unlock, Car, ChevronRight, WifiOff
 import MiniPowerGraph from '../TileContent/MiniPowerGraph';
 import { AmpsPicker, BatteryBar, Group, LoadManagerRow, Stats, fmt0, fmt1 } from './shared';
 import { formatClock, formatUntil, chargerKey, FINISH_LABEL } from '../../services/vehicle';
+import { smartStatusText, houseModeText } from '../../services/load-manager';
 import { meterReadings, formatPower } from '../../services/climate';
 import DeviceImage from '../DeviceImage';
 
@@ -52,8 +53,9 @@ export default function ChargerDetail({ charger, summary: s, car, carName, lm, l
                     <Group label={`Ladestrøm · grense ${fmt0(limit)} A`}>
                         <AmpsPicker value={limit} pending={limitPending} disabled={!s.online} onPick={(a) => ctl.setCap(charger, 'available_current_limit', a)} />
                         <div className="climate-tiny">
-                            Grensen for kretsen. «Stopp» setter 0 A. Når Strømstyring er i automatikk, setter den grensen selv etter tariffen
-                            (natt 25 A, dag 0 A), så et manuelt valg varer bare til neste tariffskifte.
+                            Grensen for kretsen. «Stopp» setter 0 A. I automatikk setter Strømstyring grensen selv: dagnivå 6 A på dag-tariff,
+                            og om natten regner smartladingen ut strømmen fra bilens behov (6–25 A, på nytt hvert 5. min; helg og helligdag på
+                            dagtid full strøm). Et manuelt valg varer derfor bare til neste tariffskifte eller til smartladingen endrer strømmen.
                         </div>
                     </Group>
                 )}
@@ -70,9 +72,10 @@ export default function ChargerDetail({ charger, summary: s, car, carName, lm, l
                         <LoadManagerRow lm={lm} action={lmAction} />
                         <div className="climate-tiny">
                             {lmAction.active
-                                ? 'Laderen er fredet fra tariffplanen og vanlige reduksjoner, men reduseres hvis huset når kritisk kapasitet. «Automatikk» gir laderen tilbake til tariffplanen.'
-                                : '«Lad nå» freder laderen fra tariffplanen og setter 25 A med en gang.'}
-                            {lm.mode && ` Huset: ${lm.mode}${lm.tariff ? ` · tariff ${lm.tariff}` : ''}.`}
+                                ? 'Laderen er fredet fra tariffplanen og vanlige kapasitetsreduksjoner, men reduseres hvis huset når kritisk kapasitet, og smartladingen kan fortsatt justere strømmen om natten. «Automatikk» gir laderen tilbake til tariffplanen.'
+                                : '«Lad nå» setter 25 A med en gang og freder laderen fra tariffplanen og vanlige kapasitetsreduksjoner. Smartladingen kan likevel justere strømmen om natten.'}
+                            {houseModeText(lm.mode) && ` Huset: ${houseModeText(lm.mode)}${lm.tariff ? ` · tariff ${lm.tariff}` : ''}.`}
+                            {smartStatusText(lm.smart) && ` Smartlading: ${smartStatusText(lm.smart)}.`}
                         </div>
                     </Group>
                 )}

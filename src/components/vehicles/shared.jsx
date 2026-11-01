@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Zap, SlidersHorizontal } from 'lucide-react';
 import { CHARGER_PRESETS } from '../../services/vehicle';
-import { OVERRIDE_LABEL, OVERRIDE_UNLESS_CRITICAL } from '../../services/load-manager';
+import { OVERRIDE_LABEL, OVERRIDE_UNLESS_CRITICAL, loadManagerRowText } from '../../services/load-manager';
 
 // Felles småkomponenter for bilsiden (kort + utvidet visning)
 
@@ -37,6 +37,8 @@ export function AmpsPicker({ value, pending, disabled, onPick }) {
 
 // «Lad nå» / «Tilbake til automatikk» mot Strømstyring-integrasjonen. Overstyringen alene endrer
 // ikke strømmen – laderen settes til 25 A i samme slengen. Optimistisk i maks 15 s.
+// NB: smartladingen (natt) kjører også under override_unless_critical og kan sette strømmen ned
+// igjen når målet endres – se load-manager.js.
 export function useLoadManagerAction(api, charger, lm) {
     const [busy, setBusy] = useState(false);
     const [optimistic, setOptimistic] = useState(null);
@@ -66,7 +68,7 @@ export function LoadManagerRow({ lm, action, compact = false }) {
     if (!lm) return null;
     const sub = action.active
         ? (lm.critical ? 'Kritisk kapasitet – reduseres likevel' : 'Fredet fra tariffplanen')
-        : [lm.stateText, lm.tariff ? `tariff ${lm.tariff}` : ''].filter(Boolean).join(' · ') || 'Lader etter tariffplanen';
+        : loadManagerRowText(lm);
     return (
         <div className={`vp-lm${action.active ? ' is-override' : ''}${lm.critical ? ' is-critical' : ''}`} onClick={stop} onPointerDown={stop}>
             <SlidersHorizontal size={15} className="vp-lm-icon" />

@@ -675,7 +675,8 @@ class HassAPI {
             type: 'call_service',
             domain,
             service,
-            target: { entity_id: entityId },
+            // Tjenester uten entitet (kia_uvo.start_climate med device_id) sendes uten target
+            ...(entityId ? { target: { entity_id: entityId } } : {}),
             service_data: serviceData
         }, timeoutMs);
     }

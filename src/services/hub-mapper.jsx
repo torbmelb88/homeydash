@@ -181,7 +181,10 @@ export const mapHassToHomey = (entity, areaMapping = {}) => {
             hubType: 'hass',
             isHA: true,
             attributes: attributes,
-            state: value
+            state: value,
+            // HA sitt last_updated (ISO) – brukes til å forankre tidsanslag som regnes i HA
+            // (f.eks. Strømstyring sin «timer til ferdig») til øyeblikket de ble regnet ut
+            lastUpdated: entity.last_updated || null,
         };
 
         // Washer/Laundry detection
@@ -692,10 +695,15 @@ export const applyEntityUpdateToDevice = (device, entityState) => {
                 }
             } else if (domain === 'switch') {
                 const on = value === 'on';
-                if (obj.endsWith('_charge')) {
+                if (obj.includes('_departure_')) {
+                    // kia_uvo: avgangsplanenes brytere (switch.*_departure_N, _N_climate, _N_defrost) er
+                    // bevisst ikke brukt – `_departure_2_defrost` traff ellers Tesla-regelen under og ga
+                    // en «Avising»-knapp på Kona-kortet som skrudde avisingen i avgangsplanen (1/11-2026)
+                } else if (obj.endsWith('_charge')) {
                     // switch.*_charge: PÅ = bilen lader (start/stopp fra bilens side)
                     addCap('vehicle_charge_switch', on, null, 'boolean');
                 } else if (obj.endsWith('_defrost')) {
+                    // Tesla: switch.*_defrost = avising nå (kia_uvo har ingen slik bryter)
                     addCap('vehicle_defrost', on, null, 'boolean');
                 } else if (obj.endsWith('_auto_seat_climate_left')) {
                     addCap('vehicle_auto_seat.left', on, null, 'boolean');

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Zap, Plug, BatteryCharging, Lock, WifiOff, ChevronRight, Car } from 'lucide-react';
 import { AmpsPicker, LoadManagerRow, fmt0, stop } from './shared';
-import { formatClock, chargerKey } from '../../services/vehicle';
+import { formatClock, chargerKey, FINISH_LABEL } from '../../services/vehicle';
 import { formatPower } from '../../services/climate';
 import DeviceImage from '../DeviceImage';
 
@@ -17,7 +17,7 @@ export default function ChargerCard({ charger, summary: s, car, carName, lm, lmA
     const sub = [];
     if (car) {
         sub.push(`${carName} er tilkoblet`);
-        if (car.timeToFull && car.isCharging) sub.push(`${car.finishSource === 'smart' ? 'planlagt ferdig' : car.finishSource === 'estimate' ? '≈ ferdig' : 'ferdig'} ${formatClock(car.timeToFull)}`);
+        if (car.timeToFull && car.isCharging) sub.push(`${(FINISH_LABEL[car.finishSource] || 'Ferdig').toLowerCase().replace(' (bilens anslag)', '')} ${formatClock(car.timeToFull)}`);
     } else if (s.connected) {
         sub.push('Bil tilkoblet');
     } else if (s.lastSession != null && Number(s.lastSession) > 0) {

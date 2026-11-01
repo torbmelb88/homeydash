@@ -4,6 +4,7 @@ import { hassAPI } from '../services/hass-api';
 import { mapHassToHomey, groupEntitiesByDevice, applyEntityUpdateToDevice } from '../services/hub-mapper.jsx';
 import { storage } from '../services/storage';
 import { INTERACTION_TIMEOUT_MS, MAX_TOAST_COUNT } from '../constants';
+import { isBluelinkVehicle } from '../services/vehicle';
 
 const HomeyContext = createContext(null);
 
@@ -326,7 +327,7 @@ export const HomeyProvider = ({ children }) => {
         getDevice: async (id) => {
             return devices.find(d => d.id === id);
         },
-        setCapability: async (deviceId, capabilityId, value) => {
+        setCapability: async (deviceId, capabilityId, value, extra = {}) => {
             let targetEntityId = deviceId;
 
             // Handle composite devices
@@ -372,7 +373,34 @@ export const HomeyProvider = ({ children }) => {
             // venter på bilen før tjenesten returnerer) – standardfristen på 20 s ga falsk feil-toast.
             const cmdTimeout = capabilityId.startsWith('vehicle_') ? VEHICLE_CMD_TIMEOUT_MS : undefined;
 
+            // Hyundai Bluelink (kia_uvo): forvarming går via kia_uvo.start_climate når bilsiden
+            // sender sine valg (temperatur + ratt/sidespeil/bakrute + avising) – climate.turn_on
+            // sender samme kommando, men alltid uten varme/avising. Bilen kjører 15 min uansett.
+            const compDev = deviceId.startsWith('composite:') ? devices.find(d => d.id === deviceId) : null;
+            const bluelinkStart = isBluelinkVehicle(compDev) && extra.temperature != null && compDev.settings?.haDeviceId;
+            const startBluelinkClimate = (temperature) => hassAPI.callService('kia_uvo', 'start_climate', null, {
+                device_id: compDev.settings.haDeviceId,
+                duration: 15,
+                climate: true,
+                // EU-API-et slår temperaturen opp i en tabell 14–30 °C i 0,5-trinn – utenfor = feil
+                temperature: Math.min(30, Math.max(14, Math.round(Number(temperature) * 2) / 2)),
+                defrost: !!extra.defrost,
+                heating: extra.heating ? '1' : '0',
+            }, cmdTimeout);
+
             try {
+                if (capabilityId === 'vehicle_climate_on' && value && bluelinkStart) {
+                    await startBluelinkClimate(extra.temperature);
+                    return;
+                }
+                if (capabilityId === 'vehicle_climate_target' && bluelinkStart && compDev.capabilitiesObj?.vehicle_climate_on?.value) {
+                    // Bilen godtar ikke ny temperatur mens klimaet kjører: stopp, vent 5 s, start på nytt
+                    // med samme valg (integrasjonen gjør det samme, men mister ratt/avising).
+                    await hassAPI.callService('climate', 'turn_off', targetEntityId, {}, cmdTimeout);
+                    await new Promise(r => setTimeout(r, 5000));
+                    await startBluelinkClimate(value);
+                    return;
+                }
                 if (capabilityId === 'onoff' || domain === 'switch') {
                     await hassAPI.callService(domain, value ? 'turn_on' : 'turn_off', targetEntityId, {}, cmdTimeout);
                 } else if (domain === 'light' && typeof value === 'boolean') {

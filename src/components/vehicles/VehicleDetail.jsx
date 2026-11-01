@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { X, Car, Fan, Power, Zap, Minus, Plus, Snowflake, Armchair, Lock, Unlock, DoorOpen, CircleDot, Shield, MapPin, Moon, RefreshCw, Check } from 'lucide-react';
+import { X, Car, Fan, Power, Zap, Minus, Plus, Snowflake, Armchair, Lock, Unlock, DoorOpen, CircleDot, Shield, MapPin, Moon, RefreshCw, Check, Flame } from 'lucide-react';
 import TempStepper from '../TempStepper';
 import { BatteryBar, Group, Stats, LevelPicker, Toggle, PRESET_LABEL, SEAT_LABEL, SEAT_ORDER, fmt1, stop } from './shared';
-import { climateKindOf, formatClock, formatUntil, locationText, vehicleKey, FINISH_LABEL } from '../../services/vehicle';
+import { climateKindOf, formatClock, formatUntil, locationText, vehicleKey, FINISH_LABEL, isSmartFinish, isBluelinkVehicle, climateOptionsOf } from '../../services/vehicle';
+import { smartStatusText } from '../../services/load-manager';
 import { climateLimits } from './VehicleCard';
 import DeviceImage from '../DeviceImage';
 
@@ -10,16 +11,32 @@ const LIMIT_PRESETS = [50, 60, 70, 80, 90, 100];
 
 // Utvidet visning for én bil: lading (ladegrense, start/stopp i bilen), kupéklima, seter/ratt,
 // status og detaljer. Bygges av det bilen faktisk har – bil nr. 2 får bare sine egne grupper.
-export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSummary: ch, lm, ctl, settings, onClose }) {
+export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSummary: ch, lm, ctl, settings, onSettingsChange, onClose }) {
     const caps = vehicle.capabilitiesObj || {};
     const climateKind = climateKindOf(vehicle);
     const climateOn = climateKind != null && !!ctl.capOf(vehicle, 'vehicle_climate_on');
     const climateNA = !!caps.vehicle_climate_on?.unavailable;
-    const target = ctl.capOf(vehicle, 'vehicle_climate_target');
     const inside = caps['measure_temperature.inside']?.value ?? caps.vehicle_climate_current?.value ?? null;
     const outside = caps['measure_temperature.outside']?.value ?? null;
     const asleep = car.awake === false;
     const lim = climateLimits(vehicle);
+    // Bluelink (Kona): start sendes som kia_uvo.start_climate med våre valg (ratt/sidespeil/bakrute,
+    // avising) og temperaturen. HA viser bilens sist brukte temperatur til den har startet, så vårt
+    // valg huskes i sideinnstillingene og vises mens klimaet er av.
+    const bluelink = isBluelinkVehicle(vehicle);
+    const clOpts = climateOptionsOf(settings, vehicle);
+    const setClimateOpt = (patch) => onSettingsChange?.({
+        climateOptions: { ...(settings.climateOptions || {}), [vehicleKey(vehicle)]: { ...clOpts, ...patch } },
+    });
+    const useStoredTemp = bluelink && clOpts.temperature != null && (!climateOn || ctl.isPending(vehicle, 'vehicle_climate_on'));
+    const targetActual = useStoredTemp ? clOpts.temperature : caps.vehicle_climate_target?.value;
+    const target = ctl.capOf(vehicle, 'vehicle_climate_target', targetActual);
+    const targetPending = ctl.isPending(vehicle, 'vehicle_climate_target', targetActual);
+    const climateExtra = bluelink ? { temperature: target, heating: clOpts.heating, defrost: clOpts.defrost } : undefined;
+    const onStepTarget = (dir) => {
+        const next = ctl.stepValue(vehicle, 'vehicle_climate_target', dir, { ...lim, current: targetActual }, climateExtra);
+        if (bluelink && next != null) setClimateOpt({ temperature: next });
+    };
     const tone = climateOn ? 'climate' : car.isCharging ? 'charging' : 'idle';
     const model = [car.make && car.model ? `${car.make} ${car.model}` : (car.model || car.make)].filter(Boolean)[0];
 
@@ -127,11 +144,14 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                         { label: 'Lagt til denne økta', value: car.energyAdded != null && (car.isCharging || car.state === 'complete') ? `${Number(car.energyAdded).toFixed(1)} kWh` : null },
                         { label: 'Ladehastighet', value: car.isCharging && car.chargeRate > 0 ? `${Math.round(car.chargeRate)} ${car.chargeRateUnit}` : null },
                         { label: FINISH_LABEL[car.finishSource] || 'Ferdig', value: car.isCharging && car.timeToFull ? `${formatClock(car.timeToFull)}${formatUntil(car.timeToFull) ? ` (${formatUntil(car.timeToFull)})` : ''}` : null },
-                        { label: 'Gjenstår', value: car.isCharging && car.finishRemainingKwh != null ? `${car.finishRemainingKwh.toFixed(1)} kWh${car.finishSource === 'smart' ? ' · Strømstyring' : car.finishSource === 'estimate' ? ' · anslag' : ''}` : null },
+                        { label: 'Gjenstår', value: car.isCharging && car.finishRemainingKwh != null ? `${car.finishRemainingKwh.toFixed(1)} kWh${isSmartFinish(car.finishSource) ? ' · Strømstyring' : car.finishSource === 'estimate' ? ' · anslag' : ''}` : null },
+                        // Planens frist (klar-tiden) ved siden av anslaget – bare når anslaget er en annen tid
+                        { label: 'Frist i planen', value: car.isCharging && car.finishSource === 'smart' && car.finishDeadline && Math.abs(car.finishDeadline - car.timeToFull) > 5 * 60000 ? `${formatClock(car.finishDeadline)} · Strømstyring` : null },
                         { label: 'Bilen meldte', value: car.batteryEstimated && car.batteryReported != null ? `${Math.round(car.batteryReported)} %${car.rangeEstimated ? ` · ${Math.round(car.rangeReported)} ${car.rangeUnit}` : ''}` : null },
                         { label: 'Rapportert', value: car.batteryEstimated && car.lastReported ? `kl. ${formatClock(car.lastReported)}` : null },
                         { label: 'Laderen', value: onCharger && ch ? `${ch.hasLimit ? `${Math.round(ch.limit)} A` : ch.statusText}${lm ? ` · ${lm.override === 'auto' ? 'automatikk' : 'overstyrt'}` : ''}` : null },
                     ]} />
+                    {onCharger && car.isCharging && smartStatusText(lm?.smart) && <div className="climate-tiny">Smartlading: {smartStatusText(lm.smart)}</div>}
                     {!onCharger && !car.isCharging && <div className="climate-tiny">Bilen står ikke på laderen hjemme.</div>}
                 </Group>
 
@@ -161,9 +181,9 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                                 step={lim.step}
                                 min={lim.min}
                                 max={lim.max}
-                                pending={ctl.isPending(vehicle, 'vehicle_climate_target')}
+                                pending={targetPending}
                                 disabled={climateNA}
-                                onStep={(dir) => ctl.stepValue(vehicle, 'vehicle_climate_target', dir, lim)}
+                                onStep={onStepTarget}
                             />
                             <div className="climate-hero-now">
                                 {inside != null && <span>Inne <b>{fmt1(inside)}°</b></span>}
@@ -175,11 +195,18 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                             type="button"
                             className={`climate-wide-btn${climateOn ? ' is-warm' : ''}${ctl.isPending(vehicle, 'vehicle_climate_on') ? ' is-pending' : ''}`}
                             disabled={climateNA}
-                            onClick={() => ctl.setCap(vehicle, 'vehicle_climate_on', !climateOn)}
+                            onClick={() => ctl.setCap(vehicle, 'vehicle_climate_on', !climateOn, climateExtra)}
                         >
                             <Power size={18} /> {ctl.isPending(vehicle, 'vehicle_climate_on') ? (climateOn ? 'Starter – venter på bilen …' : 'Slår av – venter på bilen …') : climateOn ? 'Slå av klima' : 'Slå på klima'}
                         </button>
-                        {/* kia_uvo: rattvarme/avising/bakrute er kun status (styres ikke separat) */}
+                        {bluelink && (
+                            <div className="veh-auto">
+                                <Toggle on={clOpts.heating} label="Ratt, sidespeil og bakrute" Icon={Flame} onToggle={() => setClimateOpt({ heating: !clOpts.heating })} />
+                                <Toggle on={clOpts.defrost} label="Avising av frontrute" Icon={Snowflake} onToggle={() => setClimateOpt({ defrost: !clOpts.defrost })} />
+                                <span className="veh-hint">Sendes sammen med «Slå på klima». Bilen varmer i 15 min og slår seg av selv.</span>
+                            </div>
+                        )}
+                        {/* kia_uvo: statusen bilen melder (ratt/avising/bakrute) */}
                         {(car.wheelHeaterOn != null || car.defrostOn != null || car.rearHeaterOn != null) && (
                             <div className="vp-chips vp-chips--wrap">
                                 {car.wheelHeaterOn != null && <span className={`vp-chip${car.wheelHeaterOn ? ' is-on' : ''}`}>Rattvarme {car.wheelHeaterOn ? 'på' : 'av'}</span>}

@@ -277,6 +277,18 @@ export const climateKindOf = (v) => {
     return cap.readonly ? 'status' : 'entity';
 };
 
+// Hyundai/Kia Bluelink (kia_uvo): forvarming er én kommando (`kia_uvo.start_climate`) med
+// temperatur, avising og «heating1» (1 = ratt + sidespeil + bakrute). Bilen kjører alltid
+// 15 min uansett `duration` (testet 1/11-2026 med 30 → av etter 15). climate.turn_on sender
+// samme kommando, men uten ratt/avising – derfor egne valg per bil i sideinnstillingene
+// (`page.vehicleSettings.climateOptions[vehicleKey]`, også sist valgte temperatur).
+export const isBluelinkVehicle = (v) => v?.product?.integration === 'kia_uvo';
+
+export const climateOptionsOf = (settings, v) => ({
+    heating: false, defrost: false, temperature: null,
+    ...(settings?.climateOptions?.[vehicleKey(v)] || {}),
+});
+
 // «12:25» / «i går 18:40» for siste rapport fra bilen, pluss alder i minutter
 export function reportedText(car) {
     if (!car?.lastReported) return '';
@@ -408,9 +420,28 @@ export function chargeFinish({ car, charger, smart, kwhPerPct, energyAtReport, h
         if (soc > car.battery + 0.05) socEstimate = soc;
     }
 
-    if (smart?.active) {
-        const time = nextClock(smart.readyTime, now);
-        if (time) return { time, source: 'smart', remainingKwh: smart.remainingKwh, amps: smart.targetAmps, status: smart.status, socEstimate };
+    // Strømstyring smartlading. «Behov dekket» = bilen har fått det den trenger og står på
+    // minimumsstrøm til den selv melder ferdig → bilens egne tall under tar over.
+    if (smart?.active && !smart.needCovered) {
+        const base = { remainingKwh: smart.remainingKwh, amps: smart.targetAmps, status: smart.status, socEstimate };
+        // Planens frist (klar-tiden). Fridag: fristen gjelder ikke (full nattstrøm til behovet er
+        // dekket). Etter fristen, men ikke ferdig: integrasjonen sikter på bufferen (frist + 1 t)
+        // i dag – ikke fristen i morgen, som nextClock ellers ville gitt.
+        let deadline = smart.freeDay ? null : nextClock(smart.readyTime, now);
+        if (deadline && smart.catchingUp) {
+            deadline = new Date(deadline); deadline.setDate(deadline.getDate() - 1); deadline.setHours(deadline.getHours() + 1);
+            if (deadline <= now) deadline = null;
+        }
+        // Integrasjonens eget anslag ved den strømmen som faktisk er valgt (timer_til_ferdig,
+        // 1/11-2026 i begge regimer) – forankret i når den regnet det ut (maks hvert 5. min).
+        // Lite behov klemmes opp til 6 A og blir ferdig lenge før fristen; vis det.
+        if (smart.hoursLeft != null) {
+            const time = new Date((smart.updatedAt || now).getTime() + smart.hoursLeft * 3600000);
+            if (time > now) return { time, source: 'smart', deadline, ...base };
+        }
+        // Anslag passert (bilen trakk mindre enn antatt) eller mangler (eldre integrasjon) →
+        // planens frist, ellers vanlig kjede under
+        if (deadline) return { time: deadline, source: 'smart-plan', deadline, ...base };
     }
     if (car.timeToFull && fresh) {
         return { time: car.timeToFull, source: 'car', remainingKwh: null, socEstimate };
@@ -426,4 +457,7 @@ export function chargeFinish({ car, charger, smart, kwhPerPct, energyAtReport, h
     return null;
 }
 
-export const FINISH_LABEL = { smart: 'Planlagt ferdig', car: 'Ferdig', estimate: '≈ Ferdig', 'car-stale': 'Ferdig (bilens anslag)' };
+// smart = Strømstyring sitt anslag (begge regimer), smart-plan = planens frist når anslaget mangler/er passert
+export const FINISH_LABEL = { smart: '≈ Ferdig', 'smart-plan': 'Planlagt ferdig', car: 'Ferdig', estimate: '≈ Ferdig', 'car-stale': 'Ferdig (bilens anslag)' };
+// Kilder der tallene kommer fra Strømstyring (vises som «· Strømstyring» i utvidet visning)
+export const isSmartFinish = (source) => source === 'smart' || source === 'smart-plan';

@@ -4,7 +4,7 @@ import { useHomey } from '../../context/HomeyContext';
 import useIsMobile from '../../hooks/useIsMobile';
 import { findChargingVehicle, vehicleSummary, allVehicles, formatClock, formatUntil, locationText } from '../../services/vehicle';
 import { meterReadings } from '../../services/climate';
-import { findLoadManager, OVERRIDE_UNLESS_CRITICAL, OVERRIDE_LABEL } from '../../services/load-manager';
+import { findLoadManager, OVERRIDE_UNLESS_CRITICAL, OVERRIDE_LABEL, loadManagerRowText } from '../../services/load-manager';
 import DeviceImage from '../DeviceImage';
 
 // Zaptec mode values → norsk statustekst + stil
@@ -212,7 +212,8 @@ const EVChargerTile = ({ tile, device, expanded }) => {
     const lmOverrideActive = !!lmOverride && lmOverride !== 'auto';
 
     // «Lad nå»: overstyr Strømstyring OG sett full strøm (overstyringen alene endrer ikke strømmen).
-    // «Tilbake til automatikk»: integrasjonen re-appliserer tariff-grunnivået selv (0 A på dagtid).
+    // «Tilbake til automatikk»: integrasjonen re-appliserer tariff-grunnivået selv (dagnivå 6 A på
+    // dagtid, smartladingens mål om natten). NB: smartladingen kjører også under overstyringen.
     const setLoadManagerOverride = async (mode, e) => {
         e?.stopPropagation();
         if (!lm || lmBusy) return;
@@ -347,7 +348,7 @@ const EVChargerTile = ({ tile, device, expanded }) => {
                                         ? (lm.critical
                                             ? 'Kritisk kapasitet – Strømstyring reduserer laderen likevel.'
                                             : 'Laderen er fredet fra tariffplanen og vanlige reduksjoner.')
-                                        : [lm.stateText, lm.tariff ? `tariff ${lm.tariff}` : ''].filter(Boolean).join(' · ') || 'Lader etter tariffplanen'}
+                                        : loadManagerRowText(lm)}
                                 </div>
                             </div>
                             <button

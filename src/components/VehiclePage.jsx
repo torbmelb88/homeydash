@@ -33,6 +33,8 @@ export default function VehiclePage({ page }) {
     const [openKey, setOpenKey] = useState(undefined);
 
     const settings = page.vehicleSettings || {};
+    // Små endringer fra kortene (Bluelink-klimavalg, sist valgte temperatur) uten innstillingsmodalen
+    const patchSettings = (patch) => updatePage({ ...page, vehicleSettings: { ...settings, ...patch } });
     const ctl = useVehicleControl(api, devices);
 
     const charger = useMemo(() => findPageCharger(devices, settings), [devices, settings]);
@@ -71,6 +73,7 @@ export default function VehiclePage({ page }) {
         ? { ...rawCars, [chargingKey]: {
             ...rawChargingCar,
             timeToFull: finish.time, finishSource: finish.source, finishRemainingKwh: finish.remainingKwh, finishAmps: finish.amps ?? null,
+            finishDeadline: finish.deadline ?? null,
             ...(estimatedSoc != null ? { battery: estimatedSoc, batteryReported: rawChargingCar.battery, batteryEstimated: true } : {}),
             // Rekkevidde skaleres med samme faktor (km per % fra bilens egen rapport)
             ...(estimatedSoc != null && rawChargingCar.range != null && rawChargingCar.battery > 0
@@ -128,7 +131,7 @@ export default function VehiclePage({ page }) {
         <VehicleDetail
             vehicle={openVehicle} car={cars[vehicleKey(openVehicle)]} name={nameOf(openVehicle)}
             onCharger={vehicleKey(openVehicle) === chargingKey} chargerSummary={ch} lm={lm}
-            ctl={ctl} settings={settings} onClose={close}
+            ctl={ctl} settings={settings} onSettingsChange={patchSettings} onClose={close}
         />
     ) : null;
 
@@ -198,6 +201,7 @@ export default function VehiclePage({ page }) {
                                                         onCharger={key === chargingKey}
                                                         ctl={ctl}
                                                         settings={settings}
+                                                        onSettingsChange={patchSettings}
                                                         selected={layout === 'wide' && effectiveKey === key}
                                                         onOpen={() => setOpenKey(key)}
                                                     />

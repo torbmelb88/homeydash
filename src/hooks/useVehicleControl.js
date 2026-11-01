@@ -71,16 +71,17 @@ export default function useVehicleControl(api, devices) {
         return o !== undefined && !same(actual, o.value);
     };
 
-    const setCap = (d, capId, value) => {
+    // `extra` sendes videre til setCapability (Bluelink: temperatur + ratt/avising ved start)
+    const setCap = (d, capId, value, extra) => {
         const k = key(d, capId);
         const actual = d?.capabilitiesObj?.[capId]?.value;
         setOptimistic(prev => ({ ...prev, [k]: { value, base: prev[k]?.base ?? actual, sent: true } }));
         expire(k, holdFor(capId, false));
-        return api.setCapability(d.id, capId, value).catch(err => console.error(`Kunne ikke sette ${capId}`, err));
+        return api.setCapability(d.id, capId, value, extra).catch(err => console.error(`Kunne ikke sette ${capId}`, err));
     };
 
     // Stepper/hurtigvalg: vis ny verdi straks, send samlet etter siste trykk
-    const queueValue = (d, capId, value) => {
+    const queueValue = (d, capId, value, extra) => {
         const k = key(d, capId);
         const actual = d?.capabilitiesObj?.[capId]?.value;
         setOptimistic(prev => ({ ...prev, [k]: { value, base: prev[k]?.base ?? actual, sent: false } }));
@@ -89,17 +90,20 @@ export default function useVehicleControl(api, devices) {
         sendTimers.current[k] = setTimeout(async () => {
             setOptimistic(prev => (prev[k] ? { ...prev, [k]: { ...prev[k], sent: true } } : prev));
             expire(k, holdFor(capId, true));
-            try { await api.setCapability(d.id, capId, value); }
+            try { await api.setCapability(d.id, capId, value, extra); }
             catch (err) { console.error(`Kunne ikke sette ${capId}`, err); }
         }, SEND_DELAY_MS);
     };
 
-    const stepValue = (d, capId, dir, { min, max, step = 1, fallback = 0 }) => {
-        const cur = Number(capOf(d, capId) ?? fallback);
+    // `current` overstyrer utgangspunktet når visningen leser verdien fra et annet sted enn HA
+    // (Bluelink: sist valgte temperatur mens klimaet er av). Returnerer ny verdi, eller undefined.
+    const stepValue = (d, capId, dir, { min, max, step = 1, fallback = 0, current }, extra) => {
+        const cur = Number(capOf(d, capId, current) ?? fallback);
         const raw = Math.round((cur + dir * step) / step) * step;
         const next = Number(Math.min(max, Math.max(min, raw)).toFixed(2));
-        if (next === cur) return;
-        queueValue(d, capId, next);
+        if (next === cur) return undefined;
+        queueValue(d, capId, next, extra);
+        return next;
     };
 
     return { capOf, isPending, setCap, queueValue, stepValue };

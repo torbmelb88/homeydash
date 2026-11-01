@@ -2,7 +2,7 @@ import React from 'react';
 import { Car, Clock, Moon, Lock, Unlock, MapPin, Thermometer, Power, Fan, ChevronRight, Zap, Route } from 'lucide-react';
 import TempStepper from '../TempStepper';
 import { BatteryBar, fmt1, stop } from './shared';
-import { climateKindOf, formatClock, formatUntil, locationText, reportedText, vehicleKey, FINISH_LABEL } from '../../services/vehicle';
+import { climateKindOf, formatClock, formatUntil, locationText, reportedText, vehicleKey, FINISH_LABEL, isSmartFinish, isBluelinkVehicle, climateOptionsOf } from '../../services/vehicle';
 import DeviceImage from '../DeviceImage';
 
 // Klimagrenser (HA oppgir min/max/step på climate-entiteten; Tesla 15–28, trinn 0,5)
@@ -13,17 +13,31 @@ export const climateLimits = (v) => {
 
 // Ett bilkort på bilsiden: batteri → ladegrense, rekkevidde, lading/ferdig-tid, posisjon og lås,
 // pluss én klimarad (inne nå, −/+ ønsket temperatur, på/av). Alt annet ligger i utvidet visning.
-export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settings = {}, selected, onOpen }) {
+export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settings = {}, onSettingsChange, selected, onOpen }) {
     const caps = vehicle.capabilitiesObj || {};
     const climateKind = climateKindOf(vehicle);
     const climateOn = climateKind != null && !!ctl.capOf(vehicle, 'vehicle_climate_on');
     const climateNA = !!caps.vehicle_climate_on?.unavailable;
-    const target = ctl.capOf(vehicle, 'vehicle_climate_target');
     const inside = caps['measure_temperature.inside']?.value ?? caps.vehicle_climate_current?.value ?? null;
     const outside = caps['measure_temperature.outside']?.value ?? null;
     const asleep = car.awake === false;
     const driving = car.ignition === true || (car.speed != null && car.speed > 0);
     const lim = climateLimits(vehicle);
+    // Bluelink (Kona): samme valg som i utvidet visning (se VehicleDetail) – start sender
+    // temperatur + ratt/avising via kia_uvo.start_climate, og valgt temperatur huskes.
+    const bluelink = isBluelinkVehicle(vehicle);
+    const clOpts = climateOptionsOf(settings, vehicle);
+    const useStoredTemp = bluelink && clOpts.temperature != null && (!climateOn || ctl.isPending(vehicle, 'vehicle_climate_on'));
+    const targetActual = useStoredTemp ? clOpts.temperature : caps.vehicle_climate_target?.value;
+    const target = ctl.capOf(vehicle, 'vehicle_climate_target', targetActual);
+    const targetPending = ctl.isPending(vehicle, 'vehicle_climate_target', targetActual);
+    const climateExtra = bluelink ? { temperature: target, heating: clOpts.heating, defrost: clOpts.defrost } : undefined;
+    const onStepTarget = (dir) => {
+        const next = ctl.stepValue(vehicle, 'vehicle_climate_target', dir, { ...lim, current: targetActual }, climateExtra);
+        if (bluelink && next != null) onSettingsChange?.({
+            climateOptions: { ...(settings.climateOptions || {}), [vehicleKey(vehicle)]: { ...clOpts, temperature: next } },
+        });
+    };
     // Kona (Pleos) rapporterer med minutters forsinkelse – vis når dataene er fra
     const reported = car.lastReported && !car.isCharging ? reportedText(car) : '';
 
@@ -38,8 +52,8 @@ export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settin
     if (car.isCharging && car.timeToFull) {
         line = <><Clock size={13} /> {FINISH_LABEL[car.finishSource] || 'Ferdig'} {formatClock(car.timeToFull)}{formatUntil(car.timeToFull) ? ` (${formatUntil(car.timeToFull)})` : ''}
             {car.finishRemainingKwh != null && ` · ${car.finishRemainingKwh.toFixed(1)} kWh igjen`}
-            {car.finishSource !== 'smart' && car.chargerPower > 0 && ` · ${(car.chargerPower / 1000).toFixed(1)} kW`}
-            {car.finishSource === 'smart' && car.finishAmps != null && ` · ${Math.round(car.finishAmps)} A`}
+            {!isSmartFinish(car.finishSource) && car.chargerPower > 0 && ` · ${(car.chargerPower / 1000).toFixed(1)} kW`}
+            {isSmartFinish(car.finishSource) && car.finishAmps != null && ` · ${Math.round(car.finishAmps)} A`}
             {car.finishSource === 'car' && car.chargeRate > 0 && ` · ${Math.round(car.chargeRate)} ${car.chargeRateUnit}`}</>;
     } else if (car.isCharging) {
         line = <><Zap size={13} /> Lader{car.chargerPower > 0 ? ` · ${(car.chargerPower / 1000).toFixed(1)} kW` : ''}</>;
@@ -106,9 +120,9 @@ export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settin
                             step={lim.step}
                             min={lim.min}
                             max={lim.max}
-                            pending={ctl.isPending(vehicle, 'vehicle_climate_target')}
+                            pending={targetPending}
                             disabled={climateNA}
-                            onStep={(dir) => ctl.stepValue(vehicle, 'vehicle_climate_target', dir, lim)}
+                            onStep={onStepTarget}
                         />
                         <button
                             type="button"
@@ -116,7 +130,7 @@ export default function VehicleCard({ vehicle, car, name, onCharger, ctl, settin
                             disabled={climateNA}
                             aria-label={climateOn ? 'Slå av klima' : 'Slå på klima'}
                             title={climateOn ? 'Slå av klima' : 'Slå på klima'}
-                            onClick={() => ctl.setCap(vehicle, 'vehicle_climate_on', !climateOn)}
+                            onClick={() => ctl.setCap(vehicle, 'vehicle_climate_on', !climateOn, climateExtra)}
                         ><Power size={18} /></button>
                     </div>}
                 </div>
