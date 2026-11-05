@@ -147,10 +147,13 @@ export function climateStatus(d, { mode, target, meter } = {}) {
     const cur = caps.measure_temperature?.value;
     const tgt = target ?? caps.target_temperature?.value;
 
+    // Målt effekt vinner over hvac_action: Stue-pumpa melder «idle» så snart innedelens egen
+    // føler (sitter i varmluften, viser 24–26°) passerer måltemperaturen, mens den i praksis
+    // varmer kontinuerlig på ~400 W (sett nov 2026).
     let active;
     if (m === 'fan_only') active = true;
-    else if (action) active = !['idle', 'off'].includes(action);
     else if (power != null) active = power > ACTIVE_POWER_W;
+    else if (action) active = !['idle', 'off'].includes(action);
     else if (cur != null && tgt != null) active = m === 'cool' ? tgt < cur : m === 'dry' ? true : tgt > cur;
     else active = false;
 
