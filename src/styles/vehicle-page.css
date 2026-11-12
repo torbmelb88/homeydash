@@ -521,6 +521,46 @@
 
 .vp-limit-stepper.is-pending .vp-limit-value { color: var(--color-accent-primary); }
 
+/* Bekreftelse før ny ladegrense sendes til bilen */
+.vp-limit-confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--color-accent-primary);
+    background: rgba(var(--primary-rgb), 0.12);
+    font-size: 0.9rem;
+}
+
+.vp-limit-confirm-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.vp-limit-confirm-btns button {
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    font: inherit;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.vp-limit-confirm-btns button.is-primary {
+    background: var(--color-accent-primary);
+    border-color: var(--color-accent-primary);
+    color: #111;
+}
+
 /* Bilen på laderen (i laderens utvidede visning) */
 .vp-car-mini {
     display: flex;

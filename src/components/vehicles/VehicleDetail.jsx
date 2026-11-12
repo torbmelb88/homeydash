@@ -45,6 +45,33 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
     const limitStep = Math.max(5, Number(limitOpts.step) || 1);
     const limit = ctl.capOf(vehicle, 'vehicle_charge_limit');
     const limitPending = ctl.isPending(vehicle, 'vehicle_charge_limit');
+    // Ladegrensen endres først etter bekreftelse (brukerønske nov 2026: lett å komme borti knappene
+    // når man ruller i arket). −/+ og hurtigvalg endrer bare et utkast; «Bekreft» sender, «Avbryt»
+    // eller 20 s uten trykk forkaster.
+    // Utkastet er knyttet til bilen, så det forsvinner når panelet bytter bil
+    const [draft, setDraft] = useState(null);
+    const limitDraft = draft?.id === vehicle.id ? draft.value : null;
+    const setLimitDraft = (value) => setDraft(value == null ? null : { id: vehicle.id, value });
+    useEffect(() => {
+        if (limitDraft == null) return;
+        const t = setTimeout(() => setDraft(null), 20000);
+        return () => clearTimeout(t);
+    }, [limitDraft]);
+    const limitMin = limitOpts.min ?? 50;
+    const limitMax = limitOpts.max ?? 100;
+    const limitShown = limitDraft ?? limit;
+    const draftLimit = (value) => {
+        const v = Math.min(limitMax, Math.max(limitMin, value));
+        setLimitDraft(limit != null && Math.round(limit) === v ? null : v);
+    };
+    const stepLimit = (dir) => {
+        const cur = Number(limitShown ?? 80);
+        draftLimit(Math.round((cur + dir * limitStep) / limitStep) * limitStep);
+    };
+    const confirmLimit = () => {
+        if (limitDraft != null) ctl.setCap(vehicle, 'vehicle_charge_limit', limitDraft);
+        setLimitDraft(null);
+    };
     const chargeSwitch = !!ctl.capOf(vehicle, 'vehicle_charge_switch');
     // «Hent nå» er en puls-knapp uten status: kort «Sendt»-tilbakemelding
     const [refreshSent, setRefreshSent] = useState(false);
@@ -91,17 +118,26 @@ export default function VehicleDetail({ vehicle, car, name, onCharger, chargerSu
                         <div className="vp-limit" onClick={stop} onPointerDown={stop}>
                             <div className="vp-limit-row">
                                 <span className="vp-dim">Ladegrense</span>
-                                <div className={`vp-limit-stepper${limitPending ? ' is-pending' : ''}`}>
-                                    <button type="button" aria-label="Lavere ladegrense" onClick={() => ctl.stepValue(vehicle, 'vehicle_charge_limit', -1, { ...limitOpts, step: limitStep, fallback: 80 })}><Minus size={18} /></button>
-                                    <span className="vp-limit-value">{limit != null ? `${Math.round(limit)} %` : '–'}</span>
-                                    <button type="button" aria-label="Høyere ladegrense" onClick={() => ctl.stepValue(vehicle, 'vehicle_charge_limit', 1, { ...limitOpts, step: limitStep, fallback: 80 })}><Plus size={18} /></button>
+                                <div className={`vp-limit-stepper${limitPending || limitDraft != null ? ' is-pending' : ''}`}>
+                                    <button type="button" aria-label="Lavere ladegrense" onClick={() => stepLimit(-1)}><Minus size={18} /></button>
+                                    <span className="vp-limit-value">{limitShown != null ? `${Math.round(limitShown)} %` : '–'}</span>
+                                    <button type="button" aria-label="Høyere ladegrense" onClick={() => stepLimit(1)}><Plus size={18} /></button>
                                 </div>
                             </div>
                             <div className="climate-chips">
-                                {LIMIT_PRESETS.filter(p => p >= (limitOpts.min ?? 50) && p <= (limitOpts.max ?? 100)).map(p => (
-                                    <button key={p} type="button" className={Math.round(limit) === p ? 'is-on' : ''} onClick={() => ctl.queueValue(vehicle, 'vehicle_charge_limit', p)}>{p}</button>
+                                {LIMIT_PRESETS.filter(p => p >= limitMin && p <= limitMax).map(p => (
+                                    <button key={p} type="button" className={Math.round(limitShown) === p ? 'is-on' : ''} onClick={() => draftLimit(p)}>{p}</button>
                                 ))}
                             </div>
+                            {limitDraft != null && (
+                                <div className="vp-limit-confirm" role="alertdialog" aria-label="Bekreft ny ladegrense">
+                                    <span>Endre ladegrensen{limit != null ? ` fra ${Math.round(limit)} %` : ''} til <strong>{Math.round(limitDraft)} %</strong>?</span>
+                                    <div className="vp-limit-confirm-btns">
+                                        <button type="button" onClick={() => setLimitDraft(null)}>Avbryt</button>
+                                        <button type="button" className="is-primary" onClick={confirmLimit}><Check size={16} /> Bekreft</button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
